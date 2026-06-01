@@ -17,8 +17,9 @@ export default function HomePage() {
           >
             Login
           </Link>
-          
-            href={`${process.env.NEXT_PUBLIC_API_URL}/health`}
+
+          <a
+            href={process.env.NEXT_PUBLIC_API_URL + '/health'}
             target="_blank"
             rel="noopener noreferrer"
             className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-100 font-medium"
