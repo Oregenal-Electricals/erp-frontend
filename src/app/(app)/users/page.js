@@ -5,36 +5,32 @@ import AppLayout from '@/components/layout/AppLayout';
 import PageHeader from '@/components/common/PageHeader';
 import DataTable from '@/components/common/DataTable';
 import StatusBadge from '@/components/common/StatusBadge';
+import { usePermissions } from '@/hooks/usePermissions';
+import { Permission } from '@/lib/permissions';
 import api from '@/lib/api';
 import { Plus, Pencil, ToggleLeft, KeyRound, LockOpen } from 'lucide-react';
 
 const ROLE_COLORS = {
-  SUPER_ADMIN:      'bg-red-100 text-red-700',
-  CORPORATE_ADMIN:  'bg-orange-100 text-orange-700',
-  PLANT_HEAD:       'bg-purple-100 text-purple-700',
-  FINANCE_MANAGER:  'bg-blue-100 text-blue-700',
-  VIEWER:           'bg-gray-100 text-gray-600',
+  SUPER_ADMIN:     'bg-red-100 text-red-700',
+  CORPORATE_ADMIN: 'bg-orange-100 text-orange-700',
+  PLANT_HEAD:      'bg-purple-100 text-purple-700',
+  FINANCE_MANAGER: 'bg-blue-100 text-blue-700',
+  VIEWER:          'bg-gray-100 text-gray-600',
 };
 
 function RoleBadge({ role }) {
   const style = ROLE_COLORS[role] || 'bg-gray-100 text-gray-600';
-  return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${style}`}>
-      {role?.replace(/_/g, ' ')}
-    </span>
-  );
+  return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${style}`}>{role?.replace(/_/g, ' ')}</span>;
 }
 
-const ROLES = [
-  'SUPER_ADMIN','CORPORATE_ADMIN','PLANT_HEAD','UNIT_HEAD',
-  'PRODUCTION_HEAD','PLANNING_MANAGER','PURCHASE_MANAGER',
-  'STORE_MANAGER','QC_MANAGER','FINANCE_MANAGER','HR_MANAGER',
-  'SUPERVISOR','OPERATOR','VIEWER',
-];
+const ROLES = ['SUPER_ADMIN','CORPORATE_ADMIN','PLANT_HEAD','UNIT_HEAD','PRODUCTION_HEAD',
+  'PLANNING_MANAGER','PURCHASE_MANAGER','STORE_MANAGER','QC_MANAGER','FINANCE_MANAGER',
+  'HR_MANAGER','SUPERVISOR','OPERATOR','VIEWER'];
 
 export default function UsersPage() {
   const router = useRouter();
-  const [users, setUsers]     = useState([]);
+  const { can, loaded } = usePermissions();
+  const [users, setUsers]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
   const [roleFilter, setRoleFilter]     = useState('');
@@ -49,36 +45,29 @@ export default function UsersPage() {
       if (statusFilter) params.append('isActive', statusFilter);
       const { data } = await api.get(`/users?${params.toString()}`);
       setUsers(data);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [search, roleFilter, statusFilter]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   const toggleStatus = async (id, name, isActive) => {
-    if (!confirm(`${isActive ? 'Deactivate' : 'Activate'} user "${name}"?`)) return;
-    try {
-      await api.patch(`/users/${id}/toggle-status`);
-      fetchUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed');
-    }
+    if (!confirm(`${isActive ? 'Deactivate' : 'Activate'} "${name}"?`)) return;
+    try { await api.patch(`/users/${id}/toggle-status`); fetchUsers(); }
+    catch (err) { alert(err.response?.data?.message || 'Failed'); }
   };
 
   const unlockUser = async (id, name) => {
     if (!confirm(`Unlock account for "${name}"?`)) return;
-    try {
-      await api.patch(`/users/${id}/unlock`);
-      fetchUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed');
-    }
+    try { await api.patch(`/users/${id}/unlock`); fetchUsers(); }
+    catch (err) { alert(err.response?.data?.message || 'Failed'); }
   };
 
-  const formatDate = (d) => d
-    ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-    : 'Never';
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Never';
+
+  const canEdit   = loaded && can(Permission.USER_EDIT);
+  const canToggle = loaded && can(Permission.USER_TOGGLE_STATUS);
+  const canReset  = loaded && can(Permission.USER_RESET_PASSWORD);
+  const canUnlock = loaded && can(Permission.USER_UNLOCK);
 
   const columns = [
     { key: 'employeeCode', label: 'Emp Code', render: (r) => r.employeeCode || '—' },
@@ -91,7 +80,7 @@ export default function UsersPage() {
         </div>
       ),
     },
-    { key: 'role', label: 'Role', render: (r) => <RoleBadge role={r.role} /> },
+    { key: 'role',    label: 'Role',    render: (r) => <RoleBadge role={r.role} /> },
     { key: 'company', label: 'Company', render: (r) => r.company?.name || '—' },
     {
       key: 'isLocked', label: 'Lock',
@@ -101,107 +90,78 @@ export default function UsersPage() {
     },
     { key: 'lastLoginAt', label: 'Last Login', render: (r) => formatDate(r.lastLoginAt) },
     { key: 'isActive', label: 'Status', render: (r) => <StatusBadge active={r.isActive} /> },
-    {
+    ...((canEdit || canToggle || canReset || canUnlock) ? [{
       key: 'actions', label: 'Actions',
       render: (r) => (
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => router.push(`/users/${r.id}/edit`)}
-            title="Edit"
-            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-          >
-            <Pencil size={14} />
-          </button>
-          <button
-            onClick={() => router.push(`/users/${r.id}/reset-password`)}
-            title="Reset Password"
-            className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-          >
-            <KeyRound size={14} />
-          </button>
-          {r.isLocked && (
-            <button
-              onClick={() => unlockUser(r.id, `${r.firstName} ${r.lastName}`)}
-              title="Unlock Account"
-              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-            >
+          {canEdit && (
+            <button onClick={() => router.push(`/users/${r.id}/edit`)} title="Edit"
+              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+              <Pencil size={14} />
+            </button>
+          )}
+          {canReset && (
+            <button onClick={() => router.push(`/users/${r.id}/reset-password`)} title="Reset Password"
+              className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
+              <KeyRound size={14} />
+            </button>
+          )}
+          {canUnlock && r.isLocked && (
+            <button onClick={() => unlockUser(r.id, `${r.firstName} ${r.lastName}`)} title="Unlock"
+              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
               <LockOpen size={14} />
             </button>
           )}
-          <button
-            onClick={() => toggleStatus(r.id, `${r.firstName} ${r.lastName}`, r.isActive)}
-            title={r.isActive ? 'Deactivate' : 'Activate'}
-            className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-          >
-            <ToggleLeft size={14} />
-          </button>
+          {canToggle && (
+            <button onClick={() => toggleStatus(r.id, `${r.firstName} ${r.lastName}`, r.isActive)}
+              title={r.isActive ? 'Deactivate' : 'Activate'}
+              className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">
+              <ToggleLeft size={14} />
+            </button>
+          )}
         </div>
       ),
-    },
+    }] : []),
   ];
 
   return (
     <AppLayout>
-      <PageHeader
-        title="User Management"
-        subtitle="Manage system users and their roles"
-        action={
-          <button
-            onClick={() => router.push('/users/create')}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
+      <PageHeader title="User Management" subtitle="Manage system users and their roles"
+        action={loaded && can(Permission.USER_CREATE) ? (
+          <button onClick={() => router.push('/users/create')}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
             <Plus size={16} /> Add User
           </button>
-        }
+        ) : null}
       />
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-4">
-        <input
-          type="text"
-          placeholder="Search name, email, code..."
-          value={search}
+        <input type="text" placeholder="Search name, email, code..." value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ color: '#111827', backgroundColor: '#ffffff' }}
-          className="border-2 border-gray-300 rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:border-blue-500"
-        />
-        <select
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
+          className="border-2 border-gray-300 rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:border-blue-500" />
+        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
           style={{ color: '#111827', backgroundColor: '#ffffff' }}
-          className="border-2 border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-        >
+          className="border-2 border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
           <option value="">All Roles</option>
-          {ROLES.map((r) => (
-            <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>
-          ))}
+          {ROLES.map((r) => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
         </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
           style={{ color: '#111827', backgroundColor: '#ffffff' }}
-          className="border-2 border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-        >
+          className="border-2 border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
           <option value="">All Status</option>
           <option value="true">Active</option>
           <option value="false">Inactive</option>
         </select>
         {(search || roleFilter || statusFilter) && (
-          <button
-            onClick={() => { setSearch(''); setRoleFilter(''); setStatusFilter(''); }}
-            className="text-sm text-gray-500 hover:text-red-600 px-3 py-2 rounded-lg border-2 border-gray-200 hover:border-red-200 transition-colors"
-          >
-            Clear Filters
+          <button onClick={() => { setSearch(''); setRoleFilter(''); setStatusFilter(''); }}
+            className="text-sm text-gray-500 hover:text-red-600 px-3 py-2 rounded-lg border-2 border-gray-200 transition-colors">
+            Clear
           </button>
         )}
       </div>
 
-      <DataTable
-        columns={columns}
-        data={users}
-        loading={loading}
-        emptyMessage="No users found."
-      />
+      <DataTable columns={columns} data={users} loading={loading} emptyMessage="No users found." />
     </AppLayout>
   );
 }
