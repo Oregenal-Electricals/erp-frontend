@@ -1,3 +1,5 @@
+import { clearPermissionsCache } from './permissions';
+
 export const getToken = () => {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem('erp_token');
@@ -21,6 +23,7 @@ export const setAuth = (token, user) => {
 export const clearAuth = () => {
   localStorage.removeItem('erp_token');
   localStorage.removeItem('erp_user');
+  clearPermissionsCache();
 };
 
 export const isAuthenticated = () => !!getToken();
