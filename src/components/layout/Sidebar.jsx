@@ -7,7 +7,8 @@ import {
   LayoutDashboard, Settings, Building2, Factory,
   Layers, Users2, GitBranch, Calendar, ChevronDown,
   ChevronRight, Users, Hash, SlidersHorizontal,
-  FileText, ClipboardList, Database, Trash2,
+  FileText, ClipboardList, Database, Shield,
+  UserCheck, Activity, BarChart3,
 } from 'lucide-react';
 
 const NAV = [
@@ -37,11 +38,20 @@ const NAV = [
     ],
   },
   {
+    label: 'Gate Management', icon: Shield,
+    children: [
+      { label: 'Dashboard',     href: '/gate/dashboard',  icon: BarChart3  },
+      { label: 'Visitors',      href: '/gate/visitors',   icon: Users2     },
+      { label: 'Check In',      href: '/gate/check-in',   icon: UserCheck  },
+      { label: 'Active Now',    href: '/gate/active',     icon: Activity   },
+    ],
+  },
+  {
     label: 'Settings', icon: SlidersHorizontal,
     children: [
-      { label: 'System Settings',  href: '/settings/system',     icon: Settings    },
-      { label: 'Numbering Series', href: '/settings/numbering',  icon: Hash        },
-      { label: 'Dummy Data',       href: '/settings/dummy-data', icon: Database    },
+      { label: 'System Settings',  href: '/settings/system',     icon: Settings  },
+      { label: 'Numbering Series', href: '/settings/numbering',  icon: Hash      },
+      { label: 'Dummy Data',       href: '/settings/dummy-data', icon: Database  },
     ],
   },
 ];
@@ -105,7 +115,7 @@ export default function Sidebar() {
         {NAV.map((item) => <NavItem key={item.href ?? item.label} item={item} />)}
       </nav>
       <div className="px-4 py-3 border-t border-gray-200">
-        <p className="text-xs text-gray-400">Phase 1 — Module 6</p>
+        <p className="text-xs text-gray-400">Phase 2 — Module 7</p>
       </div>
     </aside>
   );
