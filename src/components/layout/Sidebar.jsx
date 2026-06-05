@@ -7,14 +7,13 @@ import {
   LayoutDashboard, Settings, Building2, Factory,
   Layers, Users2, GitBranch, Calendar, ChevronDown,
   ChevronRight, Users, Hash, SlidersHorizontal,
-  FileText, ClipboardList,
+  FileText, ClipboardList, Database, Trash2,
 } from 'lucide-react';
 
 const NAV = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   {
-    label: 'Master Setup',
-    icon: Settings,
+    label: 'Master Setup', icon: Settings,
     children: [
       { label: 'Company',         href: '/masters/company',        icon: Building2 },
       { label: 'Plants',          href: '/masters/plant',          icon: Factory   },
@@ -25,26 +24,24 @@ const NAV = [
     ],
   },
   {
-    label: 'User Management',
-    icon: Users,
+    label: 'User Management', icon: Users,
     children: [
       { label: 'Users', href: '/users', icon: Users2 },
     ],
   },
   {
-    label: 'Change Requests',
-    icon: ClipboardList,
+    label: 'Change Requests', icon: ClipboardList,
     children: [
-      { label: 'All Requests',  href: '/change-requests',        icon: FileText      },
-      { label: 'New Request',   href: '/change-requests/create', icon: ClipboardList },
+      { label: 'All Requests', href: '/change-requests',        icon: FileText      },
+      { label: 'New Request',  href: '/change-requests/create', icon: ClipboardList },
     ],
   },
   {
-    label: 'Settings',
-    icon: SlidersHorizontal,
+    label: 'Settings', icon: SlidersHorizontal,
     children: [
-      { label: 'System Settings',  href: '/settings/system',    icon: Settings },
-      { label: 'Numbering Series', href: '/settings/numbering', icon: Hash     },
+      { label: 'System Settings',  href: '/settings/system',     icon: Settings    },
+      { label: 'Numbering Series', href: '/settings/numbering',  icon: Hash        },
+      { label: 'Dummy Data',       href: '/settings/dummy-data', icon: Database    },
     ],
   },
 ];
@@ -62,10 +59,7 @@ function NavItem({ item }) {
             'w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors',
             isChildActive ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
           )}>
-          <span className="flex items-center gap-2.5">
-            <item.icon size={16} />
-            {item.label}
-          </span>
+          <span className="flex items-center gap-2.5"><item.icon size={16} />{item.label}</span>
           {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
         {open && (
@@ -78,8 +72,7 @@ function NavItem({ item }) {
                     'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
                     active ? 'bg-blue-600 text-white font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   )}>
-                  <child.icon size={15} />
-                  {child.label}
+                  <child.icon size={15} />{child.label}
                 </Link>
               );
             })}
@@ -96,8 +89,7 @@ function NavItem({ item }) {
         'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
         active ? 'bg-blue-600 text-white font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
       )}>
-      <item.icon size={16} />
-      {item.label}
+      <item.icon size={16} />{item.label}
     </Link>
   );
 }
@@ -110,12 +102,10 @@ export default function Sidebar() {
         <p className="text-sm font-bold text-gray-800 mt-0.5">Manufacturing</p>
       </div>
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {NAV.map((item) => (
-          <NavItem key={item.href ?? item.label} item={item} />
-        ))}
+        {NAV.map((item) => <NavItem key={item.href ?? item.label} item={item} />)}
       </nav>
       <div className="px-4 py-3 border-t border-gray-200">
-        <p className="text-xs text-gray-400">Phase 1 — Module 5</p>
+        <p className="text-xs text-gray-400">Phase 1 — Module 6</p>
       </div>
     </aside>
   );
