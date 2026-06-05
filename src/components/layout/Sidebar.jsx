@@ -9,6 +9,7 @@ import {
   ChevronRight, Users, Hash, SlidersHorizontal,
   FileText, ClipboardList, Database, Shield,
   UserCheck, Activity, BarChart3, Truck, LogIn,
+  PackageCheck,
 } from 'lucide-react';
 
 const NAV = [
@@ -38,13 +39,14 @@ const NAV = [
   {
     label: 'Gate Management', icon: Shield,
     children: [
-      { label: 'Dashboard',        href: '/gate/dashboard',       icon: BarChart3  },
-      { label: 'Visitors',         href: '/gate/visitors',        icon: Users2     },
-      { label: 'Check In',         href: '/gate/check-in',        icon: UserCheck  },
-      { label: 'Active Visitors',  href: '/gate/active',          icon: Activity   },
-      { label: 'Vehicles',         href: '/gate/vehicles',        icon: Truck      },
-      { label: 'Vehicle Entry',    href: '/gate/vehicle-entry',   icon: LogIn      },
-      { label: 'Active Vehicles',  href: '/gate/vehicles-active', icon: Truck      },
+      { label: 'Dashboard',        href: '/gate/dashboard',       icon: BarChart3    },
+      { label: 'Visitors',         href: '/gate/visitors',        icon: Users2       },
+      { label: 'Check In',         href: '/gate/check-in',        icon: UserCheck    },
+      { label: 'Active Visitors',  href: '/gate/active',          icon: Activity     },
+      { label: 'Vehicles',         href: '/gate/vehicles',        icon: Truck        },
+      { label: 'Vehicle Entry',    href: '/gate/vehicle-entry',   icon: LogIn        },
+      { label: 'Active Vehicles',  href: '/gate/vehicles-active', icon: Truck        },
+      { label: 'Gate Inward',      href: '/gate/inward',          icon: PackageCheck },
     ],
   },
   {
@@ -116,7 +118,7 @@ export default function Sidebar() {
         {NAV.map((item) => <NavItem key={item.href ?? item.label} item={item} />)}
       </nav>
       <div className="px-4 py-3 border-t border-gray-200">
-        <p className="text-xs text-gray-400">Phase 2 — Module 8</p>
+        <p className="text-xs text-gray-400">Phase 2 — Module 9</p>
       </div>
     </aside>
   );
