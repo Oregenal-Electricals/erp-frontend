@@ -7,6 +7,7 @@ import {
   LayoutDashboard, Settings, Building2, Factory,
   Layers, Users2, GitBranch, Calendar, ChevronDown,
   ChevronRight, Users, Hash, SlidersHorizontal,
+  FileText, ClipboardList,
 } from 'lucide-react';
 
 const NAV = [
@@ -31,6 +32,14 @@ const NAV = [
     ],
   },
   {
+    label: 'Change Requests',
+    icon: ClipboardList,
+    children: [
+      { label: 'All Requests',  href: '/change-requests',        icon: FileText      },
+      { label: 'New Request',   href: '/change-requests/create', icon: ClipboardList },
+    ],
+  },
+  {
     label: 'Settings',
     icon: SlidersHorizontal,
     children: [
@@ -48,15 +57,11 @@ function NavItem({ item }) {
   if (item.children) {
     return (
       <div>
-        <button
-          onClick={() => setOpen(!open)}
+        <button onClick={() => setOpen(!open)}
           className={clsx(
             'w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors',
-            isChildActive
-              ? 'bg-blue-50 text-blue-700 font-medium'
-              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-          )}
-        >
+            isChildActive ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+          )}>
           <span className="flex items-center gap-2.5">
             <item.icon size={16} />
             {item.label}
@@ -110,7 +115,7 @@ export default function Sidebar() {
         ))}
       </nav>
       <div className="px-4 py-3 border-t border-gray-200">
-        <p className="text-xs text-gray-400">Phase 1 — Module 4</p>
+        <p className="text-xs text-gray-400">Phase 1 — Module 5</p>
       </div>
     </aside>
   );
