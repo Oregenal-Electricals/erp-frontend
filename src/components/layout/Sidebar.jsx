@@ -9,7 +9,7 @@ import {
   ChevronRight, Users, Hash, SlidersHorizontal,
   FileText, ClipboardList, Database, Shield,
   UserCheck, Activity, BarChart3, Truck, LogIn,
-  PackageCheck, PackageOpen,
+  PackageCheck, PackageOpen, BadgeCheck,
 } from 'lucide-react';
 
 const NAV = [
@@ -48,6 +48,7 @@ const NAV = [
       { label: 'Active Vehicles',  href: '/gate/vehicles-active', icon: Truck        },
       { label: 'Gate Inward',      href: '/gate/inward',          icon: PackageCheck },
       { label: 'Gate Outward',     href: '/gate/outward',         icon: PackageOpen  },
+      { label: 'Gate Passes',      href: '/gate/passes',          icon: BadgeCheck   },
     ],
   },
   {
@@ -119,7 +120,7 @@ export default function Sidebar() {
         {NAV.map((item) => <NavItem key={item.href ?? item.label} item={item} />)}
       </nav>
       <div className="px-4 py-3 border-t border-gray-200">
-        <p className="text-xs text-gray-400">Phase 2 — Module 10</p>
+        <p className="text-xs text-gray-400">Phase 2 — Module 11</p>
       </div>
     </aside>
   );
