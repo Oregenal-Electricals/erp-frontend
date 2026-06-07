@@ -6,12 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report e2e-report",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
     "@heroicons/react": "^2.2.0",
-    "axios": "^1.16.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "js-cookie": "^3.0.8",
@@ -24,9 +26,11 @@
     "swr": "^2.4.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@types/js-cookie": "^3.0.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "axios": "^1.17.0",
     "eslint": "^9",
     "eslint-config-next": "^16.2.6",
     "tailwindcss": "^4"

@@ -33,3 +33,9 @@ Thumbs.db
 
 # Testing
 coverage/
+# Playwright E2E
+e2e-results/
+e2e-report/
+e2e/auth-state.json
+e2e/test-ids.json
+e2e/test-state.json
