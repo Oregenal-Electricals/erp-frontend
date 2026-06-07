@@ -26,6 +26,7 @@ const NAV = [
       { label: 'Financial Years', href: '/masters/financial-year', icon: Calendar  },
       { label: 'Vendors', href: '/masters/vendors', icon: Truck },
       { label: 'Products', href: '/masters/products', icon: Box },
+      { label: 'Raw Materials', href: '/masters/raw-materials', icon: PackageOpen },
     ],
   },
   {
