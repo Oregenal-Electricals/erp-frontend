@@ -24,6 +24,7 @@ const NAV = [
       { label: 'Departments',     href: '/masters/department',     icon: Users2    },
       { label: 'Branches',        href: '/masters/branch',         icon: GitBranch },
       { label: 'Financial Years', href: '/masters/financial-year', icon: Calendar  },
+      { label: 'Vendors', href: '/masters/vendors', icon: Truck },
     ],
   },
   {
