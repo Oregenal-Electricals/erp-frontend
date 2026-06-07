@@ -57,7 +57,8 @@ const NAV = [
     children: [
       { label: 'Items',       href: '/inventory/items',      icon: List  },
       { label: 'UOM',         href: '/inventory/uom',        icon: Ruler },
-      { label: 'Categories',  href: '/inventory/categories', icon: Tag   },
+      { label: 'Categories',  href: '/inventory/categories', icon: Tag       },
+      { label: 'Warehouses',  href: '/inventory/warehouses', icon: Box       },
     ],
   },
   {
@@ -129,7 +130,7 @@ export default function Sidebar() {
         {NAV.map((item) => <NavItem key={item.href ?? item.label} item={item} />)}
       </nav>
       <div className="px-4 py-3 border-t border-gray-200">
-        <p className="text-xs text-gray-400">Phase 3 — Module 13</p>
+        <p className="text-xs text-gray-400">Phase 3 — Module 14</p>
       </div>
     </aside>
   );
