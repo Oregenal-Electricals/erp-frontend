@@ -27,6 +27,7 @@ const NAV = [
       { label: 'Vendors', href: '/masters/vendors', icon: Truck },
       { label: 'Products', href: '/masters/products', icon: Box },
       { label: 'Raw Materials', href: '/masters/raw-materials', icon: PackageOpen },
+      { label: 'HSN / SAC', href: '/masters/hsn-sac', icon: Hash },
     ],
   },
   {
