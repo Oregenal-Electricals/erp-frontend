@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import AppLayout from '@/components/layout/AppLayout';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -124,7 +125,8 @@ export default function VendorsPage() {
   const typeColor = { SUPPLIER: 'bg-blue-100 text-blue-700', CONTRACTOR: 'bg-purple-100 text-purple-700', SERVICE_PROVIDER: 'bg-green-100 text-green-700', TRANSPORTER: 'bg-orange-100 text-orange-700' };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Vendor Master</h1>
@@ -388,5 +390,6 @@ export default function VendorsPage() {
         </div>
       )}
     </div>
+    </AppLayout>
   );
 }
