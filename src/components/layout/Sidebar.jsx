@@ -29,6 +29,7 @@ const NAV = [
       { label: 'Raw Materials', href: '/masters/raw-materials', icon: PackageOpen },
       { label: 'HSN / SAC', href: '/masters/hsn-sac', icon: Hash },
       { label: 'Price Lists', href: '/masters/price-lists', icon: Tag },
+      { label: 'Price History', href: '/masters/price-history', icon: Activity },
     ],
   },
   {
