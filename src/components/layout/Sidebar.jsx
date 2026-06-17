@@ -63,6 +63,7 @@ const NAV = [
     label: 'Inventory', icon: Box,
     children: [
       { label: 'Items',       href: '/inventory/items',      icon: List  },
+      { label: 'BOM',         href: '/inventory/bom',        icon: ClipboardList },
       { label: 'UOM',         href: '/inventory/uom',        icon: Ruler },
       { label: 'Categories',  href: '/inventory/categories', icon: Tag       },
       { label: 'Warehouses',  href: '/inventory/warehouses', icon: Box       },
