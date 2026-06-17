@@ -64,6 +64,7 @@ const NAV = [
     children: [
       { label: 'Items',       href: '/inventory/items',      icon: List  },
       { label: 'BOM',         href: '/inventory/bom',        icon: ClipboardList },
+      { label: 'BOM Revisions', href: '/inventory/bom-revisions', icon: GitBranch },
       { label: 'UOM',         href: '/inventory/uom',        icon: Ruler },
       { label: 'Categories',  href: '/inventory/categories', icon: Tag       },
       { label: 'Warehouses',  href: '/inventory/warehouses', icon: Box       },
