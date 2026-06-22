@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { clsx } from 'clsx';
 import { useState } from 'react';
-import {
+import { ShoppingCart,
   LayoutDashboard, Settings, Building2, Factory,
   Layers, Users2, GitBranch, Calendar, ChevronDown,
   ChevronRight, Users, Hash, SlidersHorizontal,
@@ -57,6 +57,12 @@ const NAV = [
       { label: 'Gate Inward',     href: '/gate/inward',          icon: PackageCheck },
       { label: 'Gate Outward',    href: '/gate/outward',         icon: PackageOpen  },
       { label: 'Gate Passes',     href: '/gate/passes',          icon: BadgeCheck   },
+    ],
+  },
+  {
+    label: 'Purchase', icon: ShoppingCart,
+    children: [
+      { label: 'Requisitions', href: '/purchase/requisitions', icon: ClipboardList },
     ],
   },
   {
