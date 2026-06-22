@@ -74,6 +74,7 @@ const NAV = [
     label: 'Settings', icon: SlidersHorizontal,
     children: [
       { label: 'System Settings',  href: '/settings/system',     icon: Settings  },
+      { label: 'Custom Fields',    href: '/settings/custom-fields', icon: Database  },
       { label: 'Numbering Series', href: '/settings/numbering',  icon: Hash      },
       { label: 'Dummy Data',       href: '/settings/dummy-data', icon: Database  },
     ],
