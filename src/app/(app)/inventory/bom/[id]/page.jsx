@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
+import CustomFields from '@/components/custom-fields/CustomFields';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() {
@@ -188,6 +189,12 @@ export default function BomDetailPage() {
             </table>
           </div>
         </div>
+
+        {bom && (
+          <div className="mt-4 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <CustomFields module="BOM" recordId={bom.id} />
+          </div>
+        )}
 
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">

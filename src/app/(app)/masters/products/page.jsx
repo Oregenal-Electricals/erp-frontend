@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
+import CustomFields from '@/components/custom-fields/CustomFields';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() {
@@ -313,6 +314,11 @@ export default function ProductsPage() {
                   </div>
                 </div>
               </div>
+              {editProduct && (
+                <div className="px-6 pb-2">
+                  <CustomFields module="PRODUCT" recordId={editProduct.id} />
+                </div>
+              )}
               <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
                 <button onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
                 <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">

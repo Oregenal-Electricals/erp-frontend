@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import CustomFields from '@/components/custom-fields/CustomFields';
 import PageHeader from '@/components/common/PageHeader';
 import api from '@/lib/api';
 
@@ -97,6 +98,13 @@ export default function ItemDetailPage() {
           </div>
         </div>
       </div>
+      {item && (
+        <div className="mt-6 max-w-5xl mx-auto px-6 pb-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <CustomFields module="ITEM" recordId={item.id} />
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

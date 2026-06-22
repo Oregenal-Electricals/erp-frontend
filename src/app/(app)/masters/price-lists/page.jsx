@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
+import CustomFields from '@/components/custom-fields/CustomFields';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() {
