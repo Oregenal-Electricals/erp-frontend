@@ -64,6 +64,7 @@ const NAV = [
     children: [
       { label: 'Requisitions', href: '/purchase/requisitions', icon: ClipboardList },
       { label: 'RFQ', href: '/purchase/rfqs', icon: FileText },
+      { label: 'Quotations', href: '/purchase/quotations', icon: BadgeCheck },
     ],
   },
   {
