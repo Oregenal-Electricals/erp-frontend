@@ -68,6 +68,7 @@ const NAV = [
       { label: 'Comparison', href: '/purchase/comparison', icon: BarChart3 },
       { label: 'Purchase Orders', href: '/purchase/orders', icon: PackageCheck },
       { label: 'PO Approvals', href: '/purchase/approvals', icon: BadgeCheck },
+      { label: 'PO Amendments', href: '/purchase/amendments', icon: GitBranch },
     ],
   },
   {
