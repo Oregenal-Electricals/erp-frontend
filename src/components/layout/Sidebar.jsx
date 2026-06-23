@@ -65,6 +65,7 @@ const NAV = [
       { label: 'Requisitions', href: '/purchase/requisitions', icon: ClipboardList },
       { label: 'RFQ', href: '/purchase/rfqs', icon: FileText },
       { label: 'Quotations', href: '/purchase/quotations', icon: BadgeCheck },
+      { label: 'Comparison', href: '/purchase/comparison', icon: BarChart3 },
     ],
   },
   {
