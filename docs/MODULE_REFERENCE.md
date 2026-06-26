@@ -193,10 +193,15 @@ Currencies: USD, EUR, CNY, GBP, JPY, SGD with live exchange rate
 Incoterms: FOB, CIF, EXW, CFR, DDP, FCA | Payment: LC, TT, DP, DA
 Cost: unitPriceForeign × rate = INR base → +BCD% → +IGST% on (base+BCD) = totalInr
 
-## Module 32 — Proforma Invoice ⬜ PLANNED
-Vendor's invoice before shipment — used for LC opening and advance payment.
-Tables: proforma_invoices, proforma_invoice_items
-Workflow: DRAFT → RECEIVED → ACCEPTED / REJECTED
+## Module 32 — Proforma Invoice ✅
+Vendor's pre-shipment invoice — used for LC opening and advance payment confirmation.
+- **Tables:** `proforma_invoices`, `proforma_invoice_items`
+- **API:** `GET/POST/PUT /proforma-invoices`, `POST /:id/accept`, `/:id/reject`, `GET /ipo/:ipoId`
+- **Frontend:** `/import/proforma`
+- **Workflow:** RECEIVED → ACCEPTED / REJECTED
+- **Auto-action:** Creating PI automatically updates Import PO status to PROFORMA_RECEIVED
+- **Key fields:** vendorPiNumber, bankName, swiftCode (for LC opening), validUntil, subtotalForeign, totalAmount (INR)
+- **Number format:** PI-2026-0001
 
 ## Module 33 — LC / TT Management ⬜ PLANNED
 Letter of Credit and Telegraphic Transfer payment tracking.
@@ -316,5 +321,5 @@ JWT auth | RBAC PermissionsGuard | validation | error handling | audit log
 /import/orders | /import/orders/:id
 
 ---
-Last updated: Module 31 complete — Import Purchase Order
-Next update: After Module 32 (Proforma Invoice)
+Last updated: Module 32 complete — Proforma Invoice
+Next update: After Module 33 (LC/TT Management)
