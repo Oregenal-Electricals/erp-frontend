@@ -73,6 +73,7 @@ const NAV = [
     ] },
     { label: 'Import', icon: Globe, children: [
       { label: 'Import Orders', href: '/import/orders', icon: PackageCheck },
+      { label: 'Proforma Invoices', href: '/import/proforma', icon: FileText },
     ],
   },
   {
