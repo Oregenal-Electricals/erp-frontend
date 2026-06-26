@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Globe, usePathname } from 'next/navigation';
 import { clsx } from 'clsx';
 import { useState } from 'react';
 import { ShoppingCart,
@@ -70,6 +70,9 @@ const NAV = [
       { label: 'PO Approvals', href: '/purchase/approvals', icon: BadgeCheck },
       { label: 'PO Amendments', href: '/purchase/amendments', icon: GitBranch },
       { label: 'Analytics', href: '/purchase/analytics', icon: BarChart3 },
+    ] },
+    { label: 'Import', icon: Globe, children: [
+      { label: 'Import Orders', href: '/import/orders', icon: PackageCheck },
     ],
   },
   {
