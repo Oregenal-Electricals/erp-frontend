@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Globe, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { clsx } from 'clsx';
 import { useState } from 'react';
 import { ShoppingCart,
@@ -10,8 +10,7 @@ import { ShoppingCart,
   FileText, ClipboardList, Database, Shield,
   UserCheck, Activity, BarChart3, Truck, LogIn,
   PackageCheck, PackageOpen, BadgeCheck, Box,
-  Ruler, Tag, List,
-} from 'lucide-react';
+  Ruler, Tag, List, CreditCard, Globe } from 'lucide-react';
 
 const NAV = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -74,6 +73,7 @@ const NAV = [
     { label: 'Import', icon: Globe, children: [
       { label: 'Import Orders', href: '/import/orders', icon: PackageCheck },
       { label: 'Proforma Invoices', href: '/import/proforma', icon: FileText },
+      { label: 'LC / TT', href: '/import/lc-tt', icon: CreditCard },
     ],
   },
   {
