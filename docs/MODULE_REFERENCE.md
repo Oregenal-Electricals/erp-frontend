@@ -321,5 +321,5 @@ JWT auth | RBAC PermissionsGuard | validation | error handling | audit log
 /import/orders | /import/orders/:id
 
 ---
-Last updated: Module 32 complete — Proforma Invoice
-Next update: After Module 33 (LC/TT Management)
+Last updated: Module 33 complete — LC/TT Management
+Next update: After Module 34 (Shipment Tracking)
