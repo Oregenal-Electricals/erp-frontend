@@ -10,7 +10,7 @@ import { ShoppingCart,
   FileText, ClipboardList, Database, Shield,
   UserCheck, Activity, BarChart3, Truck, LogIn,
   PackageCheck, PackageOpen, BadgeCheck, Box,
-  Ruler, Tag, List, CreditCard, Globe } from 'lucide-react';
+  Ruler, Tag, List, CreditCard, Globe, Calculator } from 'lucide-react';
 
 const NAV = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -77,6 +77,7 @@ const NAV = [
       { label: 'Shipments', href: '/import/shipments', icon: Truck },
       { label: 'BL / AWB', href: '/import/bl-awb', icon: FileText },
       { label: 'Customs & Duty', href: '/import/customs', icon: Shield },
+      { label: 'Landed Cost', href: '/import/landed-cost', icon: Calculator },
     ],
   },
   {
