@@ -93,6 +93,7 @@ const NAV = [
       { label: 'IQC', href: '/inventory/iqc', icon: BadgeCheck },
       { label: 'Stock Ledger', href: '/inventory/stock', icon: Database },
       { label: 'Rejected Stock', href: '/inventory/rejected', icon: Activity },
+      { label: 'Rack & Bin', href: '/inventory/rack-bin', icon: Database },
     ],
   },
   {
