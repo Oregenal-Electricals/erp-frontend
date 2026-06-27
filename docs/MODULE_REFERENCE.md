@@ -221,9 +221,15 @@ Track international shipments from origin port to destination.
 - **Container types:** 20GP, 40GP, 40HC, 20RF, 40RF with seal numbers
 - **Number format:** SHP-2026-0001
 
-## Module 35 — BL / AWB Management ⬜ PLANNED
-Bill of Lading / Airway Bill document management and tracking.
-Tables: shipping_documents
+## Module 35 — BL / AWB Management ✅
+Bill of Lading and Airway Bill document management for import customs clearance.
+- **Tables:** `shipping_documents`
+- **API:** `GET/POST/PUT /shipping-documents`, `POST /:id/verify`, `/:id/surrender`, `GET /shipment/:shipmentId`
+- **Frontend:** `/import/bl-awb`
+- **Types:** BL (Bill of Lading), AWB (Airway Bill), SEAWAY_BILL
+- **Workflow:** RECEIVED → VERIFIED → SURRENDERED
+- **Key fields:** documentNumber, issueDate, placeOfIssue, shipperName, consigneeName, notifyParty, freightTerms (PREPAID/COLLECT)
+- **BL fields:** numberOfOriginals, originalsReceived (title document — must surrender to claim goods)
 
 ## Module 36 — Customs & Duty (BOE) ⬜ PLANNED
 Bill of Entry, customs duty calculation, out-of-customs tracking.
@@ -329,5 +335,5 @@ JWT auth | RBAC PermissionsGuard | validation | error handling | audit log
 /import/orders | /import/orders/:id
 
 ---
-Last updated: Module 34 complete — Shipment Tracking
-Next update: After Module 35 (BL/AWB Management)
+Last updated: Module 35 complete — BL/AWB Management
+Next update: After Module 36 (Customs & Duty)
