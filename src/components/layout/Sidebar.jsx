@@ -75,6 +75,7 @@ const NAV = [
       { label: 'Proforma Invoices', href: '/import/proforma', icon: FileText },
       { label: 'LC / TT', href: '/import/lc-tt', icon: CreditCard },
       { label: 'Shipments', href: '/import/shipments', icon: Truck },
+      { label: 'BL / AWB', href: '/import/bl-awb', icon: FileText },
     ],
   },
   {
