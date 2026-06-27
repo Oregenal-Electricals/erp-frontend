@@ -349,3 +349,12 @@ Quarantine, disposition and RTV management for IQC-rejected goods.
 - **Disposition options:** RTV (Return to Vendor), SCRAPPED, REWORK, ACCEPTED (Under Deviation)
 - **Auto-create:** One click to create quarantine record from approved IQC
 - **Number format:** REJ-2026-0001
+
+## Module 43 — Rack & Bin Management ✅
+Manage warehouse storage locations — zones, racks and bins.
+- **Tables:** `warehouse_zones`, `warehouse_racks`, `warehouse_bins`
+- **API:** `GET/POST /rack-bin/zones/:wId`, `GET/POST /rack-bin/racks/:wId`, `GET/POST /rack-bin/bins/rack/:rId`, `POST /rack-bin/bins/bulk`, `GET /rack-bin/stats/:wId`
+- **Frontend:** `/inventory/rack-bin` (zone/rack list + bin grid view)
+- **Bin statuses:** EMPTY, PARTIAL, FULL, RESERVED, BLOCKED
+- **Bulk create:** Create N bins at once with prefix (e.g. A-01-01 to A-01-10)
+- **Stats:** utilization %, empty/partial/full bin counts per warehouse
