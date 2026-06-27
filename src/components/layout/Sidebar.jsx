@@ -89,6 +89,7 @@ const NAV = [
       { label: 'UOM',         href: '/inventory/uom',        icon: Ruler },
       { label: 'Categories',  href: '/inventory/categories', icon: Tag       },
       { label: 'Warehouses',  href: '/inventory/warehouses', icon: Box       },
+      { label: 'GRN', href: '/inventory/grn', icon: PackageOpen },
     ],
   },
   {
