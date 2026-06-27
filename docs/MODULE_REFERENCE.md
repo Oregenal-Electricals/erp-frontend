@@ -208,10 +208,18 @@ Letter of Credit and Telegraphic Transfer payment tracking.
 Tables: payment_instruments
 Fields: lcNumber, bankName, openDate, expiryDate, amount, currency, status
 
-## Module 34 — Shipment Tracking ⬜ PLANNED
-Track international shipments with vessel/flight details.
-Tables: shipments
-Fields: vesselName, voyageNumber, blNumber, etd, eta, status
+## Module 34 — Shipment Tracking ✅
+Track international shipments from origin port to destination.
+- **Tables:** `shipments`, `shipment_containers`
+- **API:** `GET/POST/PUT /shipments`, `POST /:id/depart`, `/:id/arrive`, `/:id/deliver`, `/:id/cancel`, `/:id/containers`, `GET /ipo/:ipoId`
+- **Frontend:** `/import/shipments`
+- **Modes:** SEA (with container tracking), AIR (flight/AWB), ROAD, COURIER
+- **Workflow:** BOOKED → DEPARTED → ARRIVED → DELIVERED / CANCELLED
+- **Auto-action:** arrive() updates Import PO status to SHIPPED
+- **SEA fields:** vesselName, voyageNumber, blNumber, portOfLoading, portOfDischarge, totalVolume (CBM)
+- **AIR fields:** flightNumber, awbNumber
+- **Container types:** 20GP, 40GP, 40HC, 20RF, 40RF with seal numbers
+- **Number format:** SHP-2026-0001
 
 ## Module 35 — BL / AWB Management ⬜ PLANNED
 Bill of Lading / Airway Bill document management and tracking.
@@ -321,5 +329,5 @@ JWT auth | RBAC PermissionsGuard | validation | error handling | audit log
 /import/orders | /import/orders/:id
 
 ---
-Last updated: Module 33 complete — LC/TT Management
-Next update: After Module 34 (Shipment Tracking)
+Last updated: Module 34 complete — Shipment Tracking
+Next update: After Module 35 (BL/AWB Management)
