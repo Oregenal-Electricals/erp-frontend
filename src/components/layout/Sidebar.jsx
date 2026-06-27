@@ -90,6 +90,7 @@ const NAV = [
       { label: 'Categories',  href: '/inventory/categories', icon: Tag       },
       { label: 'Warehouses',  href: '/inventory/warehouses', icon: Box       },
       { label: 'GRN', href: '/inventory/grn', icon: PackageOpen },
+      { label: 'IQC', href: '/inventory/iqc', icon: BadgeCheck },
     ],
   },
   {
