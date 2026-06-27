@@ -91,6 +91,7 @@ const NAV = [
       { label: 'Warehouses',  href: '/inventory/warehouses', icon: Box       },
       { label: 'GRN', href: '/inventory/grn', icon: PackageOpen },
       { label: 'IQC', href: '/inventory/iqc', icon: BadgeCheck },
+      { label: 'Stock Ledger', href: '/inventory/stock', icon: Database },
     ],
   },
   {
