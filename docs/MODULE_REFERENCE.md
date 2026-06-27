@@ -241,10 +241,17 @@ Bill of Entry filing and Indian customs duty calculation.
 - **Duty formula:** BCD = CIF × BCD% | SWS = BCD × 10% | IGST = (CIF+BCD+SWS+AIDC) × IGST% | Total = BCD+SWS+IGST+AIDC
 - **Key fields:** boeNumber, customsBoeNumber (from customs dept), chaName, portOfEntry, cifValue, bcdRate, igstRate, aidcAmount, dutyPaidDate, outOfChargeDate
 
-## Module 37 — Landed Cost Calculation ⬜ PLANNED
-Total landed cost = CIF + duty + freight + insurance + handling + other charges.
-Tables: landed_costs, landed_cost_items
-Allocates additional costs proportionally across items by value or weight.
+## Module 37 — Landed Cost Calculation ✅
+True total cost of imported goods including all charges — used for inventory valuation in GRN (Phase 6).
+- **Tables:** `landed_costs`, `landed_cost_items`
+- **API:** `GET/POST/PUT /landed-costs`, `POST /:id/calculate`, `/:id/finalize`, `GET /ipo/:ipoId`
+- **Frontend:** `/import/landed-cost` (expandable cards with item breakdown)
+- **Workflow:** DRAFT → FINALIZED
+- **Cost components:** invoiceValue + customsDuty + freightCharges + chaCharges + portCharges + bankCharges + insuranceCharges + otherCharges = totalLandedCost
+- **Allocation methods:** BY_VALUE (proportional to item INR value) | BY_QTY (equal per unit)
+- **Per-unit calc:** (itemValueInr + allocatedCost) / qty = landedCostPerUnit
+- **Auto-populate:** Items auto-loaded from Import PO items
+- **Phase 6 link:** GRN will use landedCostPerUnit as inventory valuation cost
 
 ---
 
@@ -340,5 +347,6 @@ JWT auth | RBAC PermissionsGuard | validation | error handling | audit log
 /import/orders | /import/orders/:id
 
 ---
-Last updated: Module 36 complete — Customs & Duty (BOE)
-Next update: After Module 37 (Landed Cost)
+Last updated: Module 37 complete — Landed Cost Calculation
+Phase 5 Import Management: COMPLETE ✅
+Next update: After Phase 6 Module 38 (GRN)
