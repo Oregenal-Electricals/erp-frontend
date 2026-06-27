@@ -76,6 +76,7 @@ const NAV = [
       { label: 'LC / TT', href: '/import/lc-tt', icon: CreditCard },
       { label: 'Shipments', href: '/import/shipments', icon: Truck },
       { label: 'BL / AWB', href: '/import/bl-awb', icon: FileText },
+      { label: 'Customs & Duty', href: '/import/customs', icon: Shield },
     ],
   },
   {
