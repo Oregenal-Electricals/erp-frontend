@@ -17,6 +17,7 @@ export default function CreateUserPage() {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '',
     employeeCode: '', password: '', role: 'VIEWER',
+    additionalRoles: [],
     companyId: '', mustChangePwd: true,
   });
   const [companies, setCompanies] = useState([]);
@@ -84,12 +85,39 @@ export default function CreateUserPage() {
             </div>
 
             <div>
-              <label className={labelClass}>Role <span className="text-red-500">*</span></label>
+              <label className={labelClass}>Primary Role <span className="text-red-500">*</span></label>
               <select name="role" value={form.role} onChange={handleChange}
                 style={{ color: '#111827', backgroundColor: '#ffffff' }}
                 className={inputClass}>
                 {ROLES.map((r) => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
               </select>
+            </div>
+            <div className="col-span-2">
+              <label className={labelClass}>Additional Roles <span className="text-xs font-normal text-gray-400">(optional — for users with multiple responsibilities)</span></label>
+              <div className="grid grid-cols-2 gap-2 mt-1 p-3 border-2 border-gray-200 rounded-lg bg-gray-50">
+                {ROLES.filter(r => r !== form.role).map(r => (
+                  <label key={r} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox"
+                      checked={form.additionalRoles.includes(r)}
+                      onChange={e => {
+                        setForm(prev => ({
+                          ...prev,
+                          additionalRoles: e.target.checked
+                            ? [...prev.additionalRoles, r]
+                            : prev.additionalRoles.filter(x => x !== r)
+                        }));
+                      }}
+                      className="w-4 h-4 accent-blue-600"
+                    />
+                    {r.replace(/_/g, ' ')}
+                  </label>
+                ))}
+              </div>
+              {form.additionalRoles.length > 0 && (
+                <p className="text-xs text-blue-600 mt-1">
+                  {form.additionalRoles.length} additional role(s) assigned — permissions will be merged
+                </p>
+              )}
             </div>
 
             <div>
