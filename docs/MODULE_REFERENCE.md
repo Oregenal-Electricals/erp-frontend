@@ -339,3 +339,13 @@ Real-time inventory tracking — every movement recorded, balance maintained per
 - **Weighted avg cost:** Auto-calculated on each receipt
 - **No negative stock:** Enforced at postTransaction level
 - **IQC receive:** One-click stock credit from approved IQC inspections
+
+## Module 41 — Rejected Stock Handling ✅
+Quarantine, disposition and RTV management for IQC-rejected goods.
+- **Tables:** `rejected_stock`, `rejected_stock_items`
+- **API:** `GET/POST /rejected-stock`, `POST /from-iqc/:iqcId`, `PUT /:id/items/:itemId/dispose`, `POST /:id/close`
+- **Frontend:** `/inventory/rejected`
+- **Workflow:** QUARANTINED → PARTIALLY_DISPOSITIONED → CLOSED
+- **Disposition options:** RTV (Return to Vendor), SCRAPPED, REWORK, ACCEPTED (Under Deviation)
+- **Auto-create:** One click to create quarantine record from approved IQC
+- **Number format:** REJ-2026-0001
