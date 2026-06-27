@@ -231,10 +231,15 @@ Bill of Lading and Airway Bill document management for import customs clearance.
 - **Key fields:** documentNumber, issueDate, placeOfIssue, shipperName, consigneeName, notifyParty, freightTerms (PREPAID/COLLECT)
 - **BL fields:** numberOfOriginals, originalsReceived (title document — must surrender to claim goods)
 
-## Module 36 — Customs & Duty (BOE) ⬜ PLANNED
-Bill of Entry, customs duty calculation, out-of-customs tracking.
-Tables: customs_entries
-Fields: boeNumber, assessedValue, bcdAmount, igstAmount, totalDuty
+## Module 36 — Customs & Duty (BOE) ✅
+Bill of Entry filing and Indian customs duty calculation.
+- **Tables:** `customs_entries`
+- **API:** `GET/POST/PUT /customs-entries`, `POST /:id/file`, `/:id/assess`, `/:id/pay-duty`, `/:id/out-of-charge`, `GET /ipo/:ipoId`
+- **Frontend:** `/import/customs`
+- **Workflow:** DRAFT → FILED → ASSESSED → DUTY_PAID → OUT_OF_CHARGE / CANCELLED
+- **Auto-action:** out-of-charge updates Import PO status to CUSTOMS_CLEARED
+- **Duty formula:** BCD = CIF × BCD% | SWS = BCD × 10% | IGST = (CIF+BCD+SWS+AIDC) × IGST% | Total = BCD+SWS+IGST+AIDC
+- **Key fields:** boeNumber, customsBoeNumber (from customs dept), chaName, portOfEntry, cifValue, bcdRate, igstRate, aidcAmount, dutyPaidDate, outOfChargeDate
 
 ## Module 37 — Landed Cost Calculation ⬜ PLANNED
 Total landed cost = CIF + duty + freight + insurance + handling + other charges.
@@ -335,5 +340,5 @@ JWT auth | RBAC PermissionsGuard | validation | error handling | audit log
 /import/orders | /import/orders/:id
 
 ---
-Last updated: Module 35 complete — BL/AWB Management
-Next update: After Module 36 (Customs & Duty)
+Last updated: Module 36 complete — Customs & Duty (BOE)
+Next update: After Module 37 (Landed Cost)
