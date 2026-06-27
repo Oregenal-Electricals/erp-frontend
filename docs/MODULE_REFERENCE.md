@@ -276,3 +276,13 @@ Inspect received goods and record accepted/rejected quantities per GRN.
 - **Auto-populate:** Items loaded from GRN items with received qty
 - **On approve:** Updates GRN items accepted/rejected qty → GRN status PARTIALLY_ACCEPTED or ACCEPTED
 - **Number format:** IQC-2026-0001
+
+## Module 40 — Stock Ledger & Balance ✅
+Real-time inventory tracking — every movement recorded, balance maintained per item per warehouse.
+- **Tables:** `stock_ledger`, `stock_balance`
+- **API:** `GET /stock-ledger`, `GET /stock-ledger/balance`, `POST /stock-ledger/receive/:iqcId`, `POST /stock-ledger/adjust`, `GET /stock-ledger/item/:code`
+- **Frontend:** `/inventory/stock` (Balance tab + Movement Ledger tab)
+- **Transaction types:** IQC_ACCEPT, IQC_REJECT, ISSUE, TRANSFER_IN, TRANSFER_OUT, ADJUSTMENT
+- **Weighted avg cost:** Auto-calculated on each receipt
+- **No negative stock:** Enforced at postTransaction level
+- **IQC receive:** One-click stock credit from approved IQC inspections
