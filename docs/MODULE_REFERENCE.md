@@ -257,96 +257,12 @@ True total cost of imported goods including all charges — used for inventory v
 
 # PHASE 6 — INVENTORY & WAREHOUSE ⬜ PLANNED
 
-## Module 38 — GRN (Goods Receipt Note) ⬜
-Stock enters system here. Links to domestic PO or Import PO.
-Tables: grns, grn_items. Links: PO items → updates receivedQty, pendingQty
-Rule: Cannot receive more than ordered qty (no negative stock)
-
-## Module 42 — Warehouse Master ✅ (Built early)
-Define warehouse zones, racks, bins. Tables: warehouses, zones, racks, bins.
-Frontend: /inventory/warehouses
-
-## Modules 39-41, 43-52 ⬜
-IQC Pending | Accepted Stock | Rejected Stock | Rack/Bin/Batch/FIFO/Transfer/Adjustment/Ledger/Dashboard
-
----
-
-# PHASE 7-20 — REMAINING ⬜ PLANNED
-
-| Phase | Modules | Topic |
-|-------|---------|-------|
-| 7 | 53-62 | Quality Management (IQC, PQC, NCR, CAPA) |
-| 8 | 63-68 | Production Planning |
-| 9 | 69-83 | MES Production Execution |
-| 10 | 84-88 | Traceability |
-| 11 | 89-94 | Maintenance |
-| 12 | 95-102 | Sales & Dispatch |
-| 13 | 103-109 | Finance & GST |
-| 14 | 110-113 | Communication |
-| 15 | 114-118 | Documents & Reports |
-| 16 | 119-124 | Dashboards & BI |
-| 17 | 125-126 | Portals |
-| 18 | 127-130 | Industry 4.0 |
-| 19 | 131-133 | Enterprise Expansion |
-| 20 | 134-138 | Go Live |
-
----
-
-# UNIVERSAL ARCHITECTURE RULES
-
-## Every Table Must Have
-id (UUID) | createdAt | updatedAt | createdBy | updatedBy | isActive | isTestData | companyId
-
-## Every API Must Have
-JWT auth | RBAC PermissionsGuard | validation | error handling | audit log
-
-## Critical Business Rules
-1. Price freeze: Approved prices never change (Rule #10)
-2. BOM locked after approval
-3. No negative stock — DB + service layer
-4. Soft deletes: isActive=false, never hard DELETE
-5. Audit everything: user + timestamp + old/new values
-6. Company scoping: all data filtered by companyId
-7. GST auto-split: IGST (interstate) vs CGST+SGST (intra-state)
-8. RequiredDate/deliveryDate: always convert to new Date() in services
-9. Numbering: SELECT FOR UPDATE for concurrency
-10. Schema changes: Python scripts only, never sed
-11. Build script: "prisma generate && nest build"
-12. dist/ committed to repo for Render deploy
-
-## Common Fixes / Gotchas
-- Date fields need full ISO datetime not date-only → new Date()
-- Prisma relation errors → add reverse relation to both models
-- Never use sed for schema → Python rewrites only
-- Backend build: "prisma generate && nest build"
-- E2E api.js: uses getToken() promise pattern for auto-refresh
-
----
-
-# CURRENT STATUS
----
-
-# QUICK REFERENCE — ALL API ENDPOINTS
-
-/api/v1/users | /api/v1/vendors | /api/v1/products | /api/v1/raw-materials
-/api/v1/hsn-sac | /api/v1/price-lists | /api/v1/price-history | /api/v1/product-revisions
-/api/v1/boms | /api/v1/bom-revisions | /api/v1/custom-fields
-/api/v1/purchase-requisitions | /api/v1/rfqs | /api/v1/vendor-quotations
-/api/v1/quotation-comparison | /api/v1/purchase-orders | /api/v1/po-approvals
-/api/v1/po-amendments | /api/v1/purchase-analytics
-/api/v1/import-orders
-
-# QUICK REFERENCE — ALL FRONTEND PAGES
-
-/inventory/items | /masters/vendors | /masters/products | /masters/raw-materials
-/masters/hsn-sac | /masters/price-lists | /masters/price-history | /masters/product-revisions
-/inventory/bom | /inventory/bom/:id | /inventory/bom-revisions | /settings/custom-fields
-/purchase/requisitions | /purchase/requisitions/:id | /purchase/rfqs | /purchase/rfqs/:id
-/purchase/quotations | /purchase/quotations/:id | /purchase/comparison
-/purchase/orders | /purchase/orders/:id | /purchase/approvals | /purchase/amendments | /purchase/analytics
-/import/orders | /import/orders/:id
-
----
-Last updated: Module 37 complete — Landed Cost Calculation
-Phase 5 Import Management: COMPLETE ✅
-Next update: After Phase 6 Module 38 (GRN)
+## Module 38 — GRN (Goods Receipt Note) ✅
+Stock entry point — physical receipt of goods against domestic PO or Import PO.
+- **Tables:** `grn_headers`, `grn_items`
+- **API:** `GET/POST/PUT /grn`, `POST /:id/submit`, `GET /stats`
+- **Frontend:** `/inventory/grn` (expandable rows with item breakdown)
+- **Types:** DOMESTIC (links to PO) | IMPORT (links to IPO + Landed Cost)
+- **Workflow:** DRAFT → IQC_PENDING → PARTIALLY_ACCEPTED / ACCEPTED / CLOSED
+- **Key rules:** Max 5% over-receipt tolerance | Price locked from PO | Landed cost per unit from M37
+- **Number format:** GRN-2026-0001
