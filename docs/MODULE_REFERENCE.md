@@ -491,3 +491,13 @@ Plan and track production work orders from creation to completion.
 - **Progress:** Visual progress bar (completedQty/plannedQty)
 - **Complete modal:** Captures completedQty + rejectedQty
 - **Number format:** WO-2026-0001
+
+## Module 55 — Material Requirement Planning (MRP) ✅
+Calculate material needs for work orders and identify shortages.
+- **Tables:** Uses existing work_orders, boms, stock_balance, stock_batches (read-only)
+- **API:** GET /mrp/calculate/:woId, /shortage-report, /material-plan
+- **Frontend:** `/production/mrp` (3 tabs)
+- **MRP Calculator:** Gross/net requirements per component, FIFO batch check
+- **Shortage Report:** All active WOs with material shortages
+- **Material Plan:** Aggregate requirements across multiple WOs
+- **canProduce flag:** Green/red indicator per work order
