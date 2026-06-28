@@ -358,3 +358,13 @@ Manage warehouse storage locations — zones, racks and bins.
 - **Bin statuses:** EMPTY, PARTIAL, FULL, RESERVED, BLOCKED
 - **Bulk create:** Create N bins at once with prefix (e.g. A-01-01 to A-01-10)
 - **Stats:** utilization %, empty/partial/full bin counts per warehouse
+
+## Module 44 — Stock Putaway ✅
+Assign accepted IQC stock to specific rack/bin locations within the warehouse.
+- **Tables:** `stock_putaway`, `stock_putaway_items`
+- **API:** `GET/POST /stock-putaway`, `PUT /:id/items`, `POST /:id/complete`
+- **Frontend:** `/inventory/putaway`
+- **Workflow:** IN_PROGRESS → COMPLETED
+- **On complete:** Updates bin currentQty and status (EMPTY→PARTIAL/FULL)
+- **Links:** GRN + IQC for full traceability
+- **Number format:** PUT-2026-0001
