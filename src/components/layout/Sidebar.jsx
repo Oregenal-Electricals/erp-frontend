@@ -95,6 +95,7 @@ const NAV = [
       { label: 'Rejected Stock', href: '/inventory/rejected', icon: Activity },
       { label: 'Rack & Bin', href: '/inventory/rack-bin', icon: Database },
       { label: 'Stock Putaway', href: '/inventory/putaway', icon: PackageCheck },
+      { label: 'Batches & Lots', href: '/inventory/batches', icon: Layers },
     ],
   },
   {
