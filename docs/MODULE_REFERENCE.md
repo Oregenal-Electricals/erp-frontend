@@ -400,3 +400,15 @@ Issue materials from warehouse using FIFO or FEFO batch allocation.
 - **Preview:** GET /fifo-plan shows allocation before committing
 - **On confirm:** Deducts from stock_batches + posts ISSUE entry to stock_ledger
 - **Number format:** ISS-2026-0001
+
+## Module 47 — Stock Transfer ✅
+Move inventory between warehouses or between bins within the same warehouse.
+- **Tables:** `stock_transfers`, `stock_transfer_items`
+- **API:** `GET/POST /stock-transfers`, `POST /:id/confirm`, `/:id/cancel`
+- **Frontend:** `/inventory/transfers`
+- **Types:** INTER_WAREHOUSE (between warehouses) | INTRA_WAREHOUSE (bin-to-bin)
+- **Workflow:** DRAFT → CONFIRMED / CANCELLED
+- **On confirm:** Posts TRANSFER_OUT to source + TRANSFER_IN to destination in stock_ledger
+- **Bin update:** Updates currentQty and status on fromBin and toBin
+- **Batch tracking:** Updates batch warehouseId on transfer
+- **Number format:** TRF-2026-0001
