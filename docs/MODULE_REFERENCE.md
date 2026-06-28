@@ -378,3 +378,14 @@ Assign accepted IQC stock to specific rack/bin locations within the warehouse.
 - **On complete:** Updates bin currentQty and status (EMPTY→PARTIAL/FULL)
 - **Links:** GRN + IQC for full traceability
 - **Number format:** PUT-2026-0001
+
+## Module 45 — Batch & Lot Management ✅
+Track stock batches for FIFO issue, expiry management and quality traceability.
+- **Tables:** `stock_batches`
+- **API:** `GET/POST /stock-batches`, `POST /from-grn/:grnId`, `PUT /:id`, `POST /:id/quarantine`, `GET /item/:itemCode`
+- **Frontend:** `/inventory/batches`
+- **Statuses:** ACTIVE, EXHAUSTED, EXPIRED, QUARANTINED
+- **Auto-create:** One click to create batches from accepted GRN items
+- **FIFO order:** Sorted by receivedDate ASC for issue priority
+- **Expiry tracking:** Auto-expire past expiry date, 30-day warning alert
+- **Number format:** BAT-2026-0001
