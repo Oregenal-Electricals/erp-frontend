@@ -83,6 +83,7 @@ const NAV = [
   {
     label: 'Inventory', icon: Box,
     children: [
+      { label: 'Inv. Dashboard', href: '/inventory/dashboard', icon: BarChart3 },
       { label: 'Items',       href: '/inventory/items',      icon: List  },
       { label: 'BOM',         href: '/inventory/bom',        icon: ClipboardList },
       { label: 'BOM Revisions', href: '/inventory/bom-revisions', icon: GitBranch },
