@@ -424,3 +424,15 @@ Move inventory between warehouses or between bins within the same warehouse.
 - **Bin update:** Updates currentQty and status on fromBin and toBin
 - **Batch tracking:** Updates batch warehouseId on transfer
 - **Number format:** TRF-2026-0001
+
+## Module 48 — Stock Adjustment ✅
+Correct inventory discrepancies from physical counts, damage, theft, or opening entries.
+- **Tables:** `stock_adjustments`, `stock_adjustment_items`
+- **API:** `GET/POST /stock-adjustments`, `POST /:id/approve`, `/:id/cancel`
+- **Frontend:** `/inventory/adjustments`
+- **Types:** INCREASE, DECREASE, RECOUNT
+- **Reasons:** DAMAGE, EXPIRY, THEFT, FOUND, OPENING, AUDIT, OTHER
+- **Workflow:** DRAFT → APPROVED / CANCELLED
+- **On approve:** Posts ADJUSTMENT entry to stock_ledger, updates stock_balance
+- **No negative stock:** Enforced on DECREASE before approval
+- **Number format:** ADJ-2026-0001
