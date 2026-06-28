@@ -99,6 +99,7 @@ const NAV = [
       { label: 'Stock Issues', href: '/inventory/issues', icon: LogIn },
       { label: 'Stock Transfer', href: '/inventory/transfers', icon: Truck },
       { label: 'Stock Adjustment', href: '/inventory/adjustments', icon: SlidersHorizontal },
+      { label: 'Stock Reports', href: '/inventory/reports', icon: FileText },
     ],
   },
   {
