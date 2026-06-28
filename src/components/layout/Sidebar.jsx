@@ -106,6 +106,12 @@ const NAV = [
     ],
   },
   {
+    title: 'Production',
+    items: [
+      { label: 'Work Orders', href: '/production/work-orders', icon: ClipboardList },
+    ],
+  },
+  {
     label: 'Settings', icon: SlidersHorizontal,
     children: [
       { label: 'System Settings',  href: '/settings/system',     icon: Settings  },
