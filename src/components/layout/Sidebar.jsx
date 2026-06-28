@@ -102,6 +102,7 @@ const NAV = [
       { label: 'Stock Adjustment', href: '/inventory/adjustments', icon: SlidersHorizontal },
       { label: 'Stock Reports', href: '/inventory/reports', icon: FileText },
       { label: 'Inventory Valuation', href: '/inventory/valuation', icon: BarChart3 },
+      { label: 'Inv. Reports', href: '/inventory/inv-reports', icon: ClipboardList },
     ],
   },
   {
