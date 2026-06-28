@@ -501,3 +501,14 @@ Calculate material needs for work orders and identify shortages.
 - **Shortage Report:** All active WOs with material shortages
 - **Material Plan:** Aggregate requirements across multiple WOs
 - **canProduce flag:** Green/red indicator per work order
+
+## Module 56 — Production Material Issue ✅
+Issue raw materials to production floor based on MRP requirements.
+- **Tables:** `production_issues`, `production_issue_items`
+- **API:** GET/POST /production-issues, POST /from-mrp/:woId, POST /:id/confirm
+- **Frontend:** `/production/material-issue`
+- **MRP auto-load:** Select WO → MRP requirements auto-populated
+- **Workflow:** DRAFT → ISSUED (deducts from stock_ledger)
+- **Auto-start WO:** RELEASED → IN_PROGRESS on first material issue
+- **Partial issue:** Orange rows when insufficient stock available
+- **Number format:** PI-2026-0001
