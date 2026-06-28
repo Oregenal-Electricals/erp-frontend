@@ -368,3 +368,13 @@ Assign accepted IQC stock to specific rack/bin locations within the warehouse.
 - **On complete:** Updates bin currentQty and status (EMPTY→PARTIAL/FULL)
 - **Links:** GRN + IQC for full traceability
 - **Number format:** PUT-2026-0001
+
+## Module 44 — Stock Putaway ✅
+Assign accepted IQC stock to specific rack/bin locations within the warehouse.
+- **Tables:** `stock_putaway`, `stock_putaway_items`
+- **API:** `GET/POST /stock-putaway`, `PUT /:id/items`, `POST /:id/complete`
+- **Frontend:** `/inventory/putaway`
+- **Workflow:** IN_PROGRESS → COMPLETED
+- **On complete:** Updates bin currentQty and status (EMPTY→PARTIAL/FULL)
+- **Links:** GRN + IQC for full traceability
+- **Number format:** PUT-2026-0001
