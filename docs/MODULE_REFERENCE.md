@@ -524,3 +524,14 @@ Record daily/shift production output against work orders.
 - **Progress tracker:** Visual % completion per WO with remaining qty
 - **5% over-production:** Allowed tolerance above planned qty
 - **Number format:** PE-2026-0001
+
+## Module 58 — In-Process Quality Control (IPQC) ✅
+Record and track in-process quality inspections during production.
+- **Tables:** `production_qc`
+- **API:** GET/POST /production-qc, POST /:id/complete, GET /stats
+- **Frontend:** `/production/ipqc`
+- **Stages:** IN_PROCESS, FINAL, INLINE
+- **Results:** PASS, FAIL, CONDITIONAL
+- **Pass Rate:** Calculated per inspection and overall aggregate
+- **Corrective Action:** Recorded for FAIL/CONDITIONAL results
+- **Number format:** PQC-2026-0001
