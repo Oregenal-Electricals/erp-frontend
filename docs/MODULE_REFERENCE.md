@@ -468,3 +468,14 @@ Real-time inventory command center for warehouse managers.
 - **Top Items:** Top 10 by stock value with visual progress bars
 - **Activity Feed:** Last 15 movements with color-coded transaction types
 - **Pending Actions:** Quick links to pending GRN, IQC, Putaway
+
+## Module 52 — Inventory Reports ✅
+Formal inventory registers and ABC analysis for management and auditors.
+- **Tables:** Uses existing tables (read-only)
+- **API:** GET /inventory-reports/stock-register, /grn-register, /issue-register, /transfer-register, /abc-analysis
+- **Frontend:** `/inventory/inv-reports` (5 tabs)
+- **Stock Register:** Item-wise stock with value, % of total, totals row
+- **GRN Register:** All GRNs with received/accepted/rejected qty and value
+- **Issue Register:** All issues with method (FIFO/FEFO), reference type, value
+- **Transfer Register:** All confirmed transfers with from/to warehouse
+- **ABC Analysis:** Classify items by consumption value (A=top 70%, B=next 20%, C=bottom 10%)
