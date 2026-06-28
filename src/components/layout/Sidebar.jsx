@@ -106,8 +106,8 @@ const NAV = [
     ],
   },
   {
-    title: 'Production',
-    items: [
+    label: 'Production', icon: ClipboardList,
+    children: [
       { label: 'Work Orders', href: '/production/work-orders', icon: ClipboardList },
     ],
   },
