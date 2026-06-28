@@ -111,6 +111,7 @@ const NAV = [
       { label: 'Work Orders', href: '/production/work-orders', icon: ClipboardList },
       { label: 'MRP', href: '/production/mrp', icon: BarChart3 },
       { label: 'Material Issue', href: '/production/material-issue', icon: LogIn },
+      { label: 'Production Entry', href: '/production/recording', icon: ClipboardList },
     ],
   },
   {
