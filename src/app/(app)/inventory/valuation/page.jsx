@@ -26,7 +26,7 @@ export default function ValuationPage() {
 
   useEffect(() => {
     fetch(`${API}/warehouses?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } })
-      .then(r => r.json()).then(d => setWarehouses(d.data || d));
+      .then(r => r.ok ? r.json() : {}).then(d => { const list = d.data || d; setWarehouses(Array.isArray(list) ? list : []); });
   }, []);
 
   async function fetchData() {
