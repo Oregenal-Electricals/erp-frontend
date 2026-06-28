@@ -112,6 +112,7 @@ const NAV = [
       { label: 'MRP', href: '/production/mrp', icon: BarChart3 },
       { label: 'Material Issue', href: '/production/material-issue', icon: LogIn },
       { label: 'Production Entry', href: '/production/recording', icon: ClipboardList },
+      { label: 'IPQC', href: '/production/ipqc', icon: ClipboardList },
     ],
   },
   {
