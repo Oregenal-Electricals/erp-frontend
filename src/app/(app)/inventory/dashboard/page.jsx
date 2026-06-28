@@ -22,6 +22,7 @@ export default function InventoryDashboardPage() {
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
   async function fetchAll() {
+    if (!getToken()) { setLoading(false); return; }
     setLoading(true);
     const h = { Authorization: `Bearer ${getToken()}` };
     const [ov, al, act, top] = await Promise.all([
