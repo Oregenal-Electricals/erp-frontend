@@ -109,6 +109,7 @@ const NAV = [
     label: 'Production', icon: ClipboardList,
     children: [
       { label: 'Work Orders', href: '/production/work-orders', icon: ClipboardList },
+      { label: 'MRP', href: '/production/mrp', icon: BarChart3 },
     ],
   },
   {
