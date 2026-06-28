@@ -389,3 +389,14 @@ Track stock batches for FIFO issue, expiry management and quality traceability.
 - **FIFO order:** Sorted by receivedDate ASC for issue priority
 - **Expiry tracking:** Auto-expire past expiry date, 30-day warning alert
 - **Number format:** BAT-2026-0001
+
+## Module 46 — FIFO / FEFO Stock Issue Engine ✅
+Issue materials from warehouse using FIFO or FEFO batch allocation.
+- **Tables:** `stock_issues`, `stock_issue_items`
+- **API:** `GET/POST /stock-issues`, `POST /:id/confirm`, `GET /fifo-plan`
+- **Frontend:** `/inventory/issues`
+- **FIFO:** Allocates oldest batch (by receivedDate) first
+- **FEFO:** Allocates soonest-expiring batch first
+- **Preview:** GET /fifo-plan shows allocation before committing
+- **On confirm:** Deducts from stock_batches + posts ISSUE entry to stock_ledger
+- **Number format:** ISS-2026-0001
