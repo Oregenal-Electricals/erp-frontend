@@ -512,3 +512,15 @@ Issue raw materials to production floor based on MRP requirements.
 - **Auto-start WO:** RELEASED → IN_PROGRESS on first material issue
 - **Partial issue:** Orange rows when insufficient stock available
 - **Number format:** PI-2026-0001
+
+## Module 57 — Production Recording & Output ✅
+Record daily/shift production output against work orders.
+- **Tables:** `production_entries`
+- **API:** GET/POST /production-entries, POST /:id/confirm, GET /wo-progress/:woId
+- **Frontend:** `/production/recording`
+- **Shifts:** MORNING, EVENING, NIGHT
+- **Workflow:** DRAFT → CONFIRMED (updates WO completedQty)
+- **Auto-complete:** WO status → COMPLETED when completedQty >= plannedQty
+- **Progress tracker:** Visual % completion per WO with remaining qty
+- **5% over-production:** Allowed tolerance above planned qty
+- **Number format:** PE-2026-0001
