@@ -479,3 +479,15 @@ Formal inventory registers and ABC analysis for management and auditors.
 - **Issue Register:** All issues with method (FIFO/FEFO), reference type, value
 - **Transfer Register:** All confirmed transfers with from/to warehouse
 - **ABC Analysis:** Classify items by consumption value (A=top 70%, B=next 20%, C=bottom 10%)
+
+## Module 54 — Work Order Management ✅
+Plan and track production work orders from creation to completion.
+- **Tables:** `work_orders`
+- **API:** GET/POST /work-orders, PUT /:id, POST /:id/release, /start, /complete, /cancel
+- **Frontend:** `/production/work-orders` (new Production sidebar section)
+- **Workflow:** DRAFT → RELEASED → IN_PROGRESS → COMPLETED / CANCELLED
+- **Priority:** LOW, MEDIUM, HIGH, URGENT
+- **BOM link:** Expandable component list from linked BOM
+- **Progress:** Visual progress bar (completedQty/plannedQty)
+- **Complete modal:** Captures completedQty + rejectedQty
+- **Number format:** WO-2026-0001
