@@ -457,3 +457,14 @@ Stock value analysis with aging, slow-moving detection and FIFO valuation.
 - **Aging:** 5 buckets — 0-30, 31-60, 61-90, 91-180, 180+ (dead stock)
 - **Slow Moving:** Configurable threshold (30/60/90/180 days), value at risk
 - **FIFO Value:** Batch-level valuation with avg cost per item-warehouse
+
+## Module 51 — Inventory Dashboard ✅
+Real-time inventory command center for warehouse managers.
+- **Tables:** Uses existing tables (read-only)
+- **API:** GET /inventory-dashboard/overview, /alerts, /activity, /top-items
+- **Frontend:** `/inventory/dashboard`
+- **KPIs:** Total stock value, active batches, today receipts/issues, month totals
+- **Alerts:** Low stock (≤10), expiring in 30d, expired batches, quarantined, pending GRN/IQC
+- **Top Items:** Top 10 by stock value with visual progress bars
+- **Activity Feed:** Last 15 movements with color-coded transaction types
+- **Pending Actions:** Quick links to pending GRN, IQC, Putaway
