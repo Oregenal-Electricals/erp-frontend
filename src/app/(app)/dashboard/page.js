@@ -23,7 +23,7 @@ export default function DashboardPage() {
           Welcome back, {user?.firstName} 👋
         </h1>
         <p className="text-gray-500 text-sm mt-1">
-          Smart Manufacturing ERP — Phase 1 · Master Setup
+          Oregenal Smart Manufacturing ERP
         </p>
       </div>
 

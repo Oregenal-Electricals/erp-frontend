@@ -166,7 +166,7 @@ export default function Sidebar() {
   return (
     <aside className="w-60 min-h-screen bg-white border-r border-gray-200 flex flex-col shrink-0">
       <div className="px-4 py-4 border-b border-gray-200">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Smart ERP</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Oregenal ERP</p>
         <p className="text-sm font-bold text-gray-800 mt-0.5">Manufacturing</p>
       </div>
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
