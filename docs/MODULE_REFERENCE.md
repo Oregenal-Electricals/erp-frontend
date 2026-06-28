@@ -436,3 +436,14 @@ Correct inventory discrepancies from physical counts, damage, theft, or opening 
 - **On approve:** Posts ADJUSTMENT entry to stock_ledger, updates stock_balance
 - **No negative stock:** Enforced on DECREASE before approval
 - **Number format:** ADJ-2026-0001
+
+## Module 49 — Stock Ledger Reports ✅
+Five reporting views for complete inventory visibility and audit trail.
+- **Tables:** Uses existing stock_ledger, stock_balance, stock_batches (read-only)
+- **API:** GET /stock-reports/ledger, /balance-summary, /item-card/:code, /batch-movements, /consumption
+- **Frontend:** `/inventory/reports` (5 tabs)
+- **Ledger:** All movements with type filter, date range, warehouse filter
+- **Balance Summary:** All items with stock value and low stock alerts
+- **Item Card:** Single item full history with running balance
+- **Batch Movements:** Batch-wise FIFO tracking with expiry
+- **Consumption:** Issue analysis sorted by value consumed
