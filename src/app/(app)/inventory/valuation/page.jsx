@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -29,7 +29,7 @@ export default function ValuationPage() {
       .then(r => r.json()).then(d => setWarehouses(d.data || d));
   }, []);
 
-  const fetchData = useCallback(async () => {
+  async function fetchData() {
     setLoading(true); setData(null);
     const params = new URLSearchParams();
     if (warehouseId) params.set('warehouseId', warehouseId);
@@ -44,9 +44,9 @@ export default function ValuationPage() {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${getToken()}` } });
     if (res.ok) setData(await res.json());
     setLoading(false);
-  }, [activeTab, warehouseId, slowDays]);
+  }
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(); }, [activeTab, warehouseId, slowDays]);
 
   return (
     <AppLayout>
