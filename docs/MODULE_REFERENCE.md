@@ -447,3 +447,13 @@ Five reporting views for complete inventory visibility and audit trail.
 - **Item Card:** Single item full history with running balance
 - **Batch Movements:** Batch-wise FIFO tracking with expiry
 - **Consumption:** Issue analysis sorted by value consumed
+
+## Module 50 — Inventory Valuation ✅
+Stock value analysis with aging, slow-moving detection and FIFO valuation.
+- **Tables:** Uses existing stock_balance, stock_batches, stock_ledger (read-only)
+- **API:** GET /inventory-valuation/summary, /aging, /slow-moving, /fifo-value
+- **Frontend:** `/inventory/valuation` (4 tabs)
+- **Summary:** Grand total value, by-warehouse breakdown with % share
+- **Aging:** 5 buckets — 0-30, 31-60, 61-90, 91-180, 180+ (dead stock)
+- **Slow Moving:** Configurable threshold (30/60/90/180 days), value at risk
+- **FIFO Value:** Batch-level valuation with avg cost per item-warehouse
