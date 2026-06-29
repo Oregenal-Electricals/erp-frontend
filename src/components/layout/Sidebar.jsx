@@ -114,6 +114,7 @@ const NAV = [
       { label: 'Production Entry', href: '/production/recording', icon: ClipboardList },
       { label: 'IPQC', href: '/production/ipqc', icon: ClipboardList },
       { label: 'FG Receipt', href: '/production/fg-receipt', icon: LogIn },
+      { label: 'Cost Sheet', href: '/production/cost-sheet', icon: BarChart3 },
     ],
   },
   {
