@@ -547,3 +547,15 @@ Receive completed production output into FG warehouse stock.
 - **FG Batch:** Auto-creates batch for FG item
 - **Stock update:** FG item appears in stock balance after confirm
 - **Number format:** FGR-2026-0001
+
+## Module 60 — Production Cost Sheet ✅
+Auto-calculate actual cost of manufacturing per work order.
+- **Tables:** `production_cost_sheets`
+- **API:** POST /production-cost-sheets/generate/:woId, PUT /:id, POST /:id/finalize
+- **Frontend:** `/production/cost-sheet`
+- **Material Cost:** Auto from confirmed production issues (price locked at issue time)
+- **Labor Cost:** Auto from production entries (shifts × 8hrs × ₹50/hr, editable)
+- **Overhead/Other:** Manual entry per WO
+- **Unit Cost:** totalCost ÷ completedQty (feeds back to FG Receipt)
+- **Variance:** Actual vs planned material cost
+- **Finalize:** Locks sheet, cannot edit after
