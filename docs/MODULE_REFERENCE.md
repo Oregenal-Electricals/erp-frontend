@@ -535,3 +535,15 @@ Record and track in-process quality inspections during production.
 - **Pass Rate:** Calculated per inspection and overall aggregate
 - **Corrective Action:** Recorded for FAIL/CONDITIONAL results
 - **Number format:** PQC-2026-0001
+
+## Module 59 — Finished Goods Receipt ✅
+Receive completed production output into FG warehouse stock.
+- **Tables:** `fg_receipts`
+- **API:** GET/POST /fg-receipts, POST /from-wo/:woId, POST /:id/confirm, GET /pending-wos
+- **Frontend:** `/production/fg-receipt`
+- **Auto-create:** One-click FGR from completed WO
+- **Pending WOs:** Alert banner for completed WOs without FGR
+- **Workflow:** DRAFT → RECEIVED (posts stock ledger RECEIPT)
+- **FG Batch:** Auto-creates batch for FG item
+- **Stock update:** FG item appears in stock balance after confirm
+- **Number format:** FGR-2026-0001
