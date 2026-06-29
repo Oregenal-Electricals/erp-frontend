@@ -113,6 +113,7 @@ const NAV = [
       { label: 'Material Issue', href: '/production/material-issue', icon: LogIn },
       { label: 'Production Entry', href: '/production/recording', icon: ClipboardList },
       { label: 'IPQC', href: '/production/ipqc', icon: ClipboardList },
+      { label: 'FG Receipt', href: '/production/fg-receipt', icon: LogIn },
     ],
   },
   {
