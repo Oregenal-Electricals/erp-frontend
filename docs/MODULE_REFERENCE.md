@@ -559,3 +559,13 @@ Auto-calculate actual cost of manufacturing per work order.
 - **Unit Cost:** totalCost ÷ completedQty (feeds back to FG Receipt)
 - **Variance:** Actual vs planned material cost
 - **Finalize:** Locks sheet, cannot edit after
+
+## Module 61 — Production Dashboard ✅
+Real-time production command center for shop floor managers.
+- **Tables:** Uses existing tables (read-only aggregation)
+- **API:** GET /production-dashboard/overview, /active-wos, /today, /alerts, /quality
+- **Frontend:** `/production/dashboard`
+- **KPIs:** WO status counts, today's output, quality pass rate, production cost
+- **Active WOs:** Progress bars, overdue flags, priority, material issue status
+- **Alerts:** Overdue WOs, no material issued, QC failures, pending FGR
+- **Quality Metrics:** Overall pass rate, PASS/FAIL/CONDITIONAL breakdown
