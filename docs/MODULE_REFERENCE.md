@@ -587,3 +587,18 @@ Formal production reports for management — WO completion, shifts, material, sc
 
 All 10 modules (M53-M62) covering the full manufacturing execution lifecycle:
 BOM → Work Orders → MRP → Material Issue → Production Recording → IPQC → FG Receipt → Cost Sheet → Dashboard → Reports
+
+## Module 63 — NCR & CAPA Management ✅
+Formal non-conformance reporting and corrective/preventive action tracking.
+- **Tables:** `ncr_records`, `capa_records`
+- **API:** GET/POST /ncr, POST /ncr/:id/close | GET/POST /capa, PUT /:id, POST /:id/verify
+- **Frontend:** `/quality/ncr`, `/quality/capa` (new Quality sidebar section)
+- **NCR Sources:** IQC, IPQC, OQC, CUSTOMER_COMPLAINT, INTERNAL_AUDIT, SUPPLIER
+- **Severity:** MINOR, MAJOR, CRITICAL
+- **NCR Flow:** OPEN → CAPA_PENDING → VERIFICATION_PENDING → CLOSED
+- **CAPA Flow:** ASSIGNED → IN_PROGRESS → COMPLETED → VERIFIED
+- **Disposition:** USE_AS_IS, REWORK, SCRAP, RETURN_TO_VENDOR
+- **Guard:** NCR cannot close until all CAPAs are VERIFIED
+- **Overdue:** CAPA overdue detection and highlighting
+
+Phase 8: Quality Management System  🔄 (1/10 complete — M63 done)
