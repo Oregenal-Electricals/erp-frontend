@@ -129,6 +129,7 @@ const NAV = [
       { label: 'OQC', href: '/quality/oqc', icon: ClipboardList },
       { label: 'Supplier Quality', href: '/quality/supplier', icon: ClipboardList },
       { label: 'Complaints', href: '/quality/complaints', icon: ClipboardList },
+      { label: 'Quality Reports', href: '/quality/reports', icon: FileText },
     ],
   },
   {
