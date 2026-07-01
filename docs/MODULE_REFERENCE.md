@@ -682,3 +682,21 @@ Formal quality management reports for management review and compliance.
 - **OQC Report:** By-product pass rate analysis
 - **Supplier Report:** Vendor ratings, AVL status, CAR summary
 - **Complaint Report:** Response time, closure rate, type breakdown
+
+---
+
+# 🚀 PHASE 12 — SALES & DISPATCH
+
+## Module 95 — Lead Management ✅
+Sales pipeline tracking from first contact to conversion.
+- **Tables:** `leads`
+- **API:** GET/POST /leads, PUT /:id, POST /:id/convert
+- **Frontend:** `/sales/leads` (new Sales sidebar section)
+- **Numbering:** LEAD-YEAR-XXXX
+- **Sources:** REFERRAL, COLD_CALL, EXHIBITION, WEBSITE, EXISTING_CUSTOMER, OTHER
+- **Flow:** NEW → CONTACTED → QUALIFIED → CONVERTED / LOST
+- **Pipeline:** Estimated value tracking for qualified leads
+- **Overdue:** Follow-up date overdue detection with orange highlight
+- **Lost:** Mandatory lost reason required
+
+Phase 12: Sales & Dispatch  🔄 (1/8 complete — M95 done)
