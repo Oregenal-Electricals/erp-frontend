@@ -601,4 +601,15 @@ Formal non-conformance reporting and corrective/preventive action tracking.
 - **Guard:** NCR cannot close until all CAPAs are VERIFIED
 - **Overdue:** CAPA overdue detection and highlighting
 
-Phase 8: Quality Management System  🔄 (1/10 complete — M63 done)
+Phase 8: Quality Management System  🔄 (2/10 complete — M63-64 done)
+
+## Module 64 — Root Cause Analysis (RCA) ✅
+Structured root cause analysis using 5-Why and Fishbone (Ishikawa) methods.
+- **Tables:** `rca_records`
+- **API:** GET/POST /rca, PUT /:id, POST /:id/complete
+- **Frontend:** `/quality/rca`
+- **Methods:** FIVE_WHY, FISHBONE, BOTH
+- **5-Why:** Up to 5 levels deep with root cause conclusion
+- **Fishbone:** 6M categories (Man, Machine, Material, Method, Environment, Measurement)
+- **NCR linkage:** Auto-updates NCR status (ROOT_CAUSE_PENDING → CAPA_PENDING)
+- **Visual display:** Color-coded why levels, fishbone grid layout
