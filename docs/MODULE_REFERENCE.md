@@ -670,3 +670,15 @@ Formal quality management reports for management review and compliance.
 - **OQC Report:** By-product pass rate analysis
 - **Supplier Report:** Vendor ratings, AVL status, CAR summary
 - **Complaint Report:** Response time, closure rate, type breakdown
+
+## Module 69 — Quality Reports ✅
+Formal quality management reports for management review and compliance.
+- **Tables:** Uses existing tables (read-only)
+- **API:** GET /quality-reports/ncr-report, /capa-report, /oqc-report, /supplier-report, /complaint-report, /kpi-summary
+- **Frontend:** `/quality/reports` (6 tabs)
+- **KPI Summary:** Single-page executive quality scorecard
+- **NCR Report:** Aging, closing days, CAPA count per NCR
+- **CAPA Report:** Completion rate, overdue flag, avg days to close
+- **OQC Report:** By-product pass rate analysis
+- **Supplier Report:** Vendor ratings, AVL status, CAR summary
+- **Complaint Report:** Response time, closure rate, type breakdown
