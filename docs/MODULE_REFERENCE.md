@@ -601,7 +601,7 @@ Formal non-conformance reporting and corrective/preventive action tracking.
 - **Guard:** NCR cannot close until all CAPAs are VERIFIED
 - **Overdue:** CAPA overdue detection and highlighting
 
-Phase 8: Quality Management System  🔄 (4/10 complete — M63-66 done)
+Phase 8: Quality Management System  🔄 (5/10 complete — M63-67 done)
 
 ## Module 64 — Root Cause Analysis (RCA) ✅
 Structured root cause analysis using 5-Why and Fishbone (Ishikawa) methods.
@@ -636,3 +636,15 @@ Track vendor quality performance, ratings and corrective action requests.
 - **CAR:** Corrective Action Request → SENT→RESPONDED→VERIFIED→CLOSED
 - **Scorecard:** Per-vendor rating history + all CARs
 - **Overdue CAR:** Highlighted in red when past due date
+
+## Module 67 — Customer Complaints ✅
+Track, investigate and resolve customer quality complaints.
+- **Tables:** `customer_complaints`
+- **API:** GET/POST /customer-complaints, PUT /:id, POST /:id/respond, POST /:id/close
+- **Frontend:** `/quality/complaints`
+- **Types:** FUNCTIONAL, VISUAL, WRONG_ITEM, DAMAGED, DOCUMENTATION, PERFORMANCE
+- **Severity:** MINOR, MAJOR, CRITICAL
+- **Flow:** OPEN → INVESTIGATING → RESPONDED → CLOSED
+- **8D Report:** 8D report number recorded on response
+- **Customer Request:** REPLACEMENT, CREDIT_NOTE, REPAIR, NONE
+- **Response:** Root cause + corrective action + 8D number sent to customer
