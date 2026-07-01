@@ -133,6 +133,12 @@ const NAV = [
     ],
   },
   {
+    label: 'Sales', icon: BarChart3,
+    children: [
+      { label: 'Leads', href: '/sales/leads', icon: Users },
+    ],
+  },
+  {
     label: 'Settings', icon: SlidersHorizontal,
     children: [
       { label: 'System Settings',  href: '/settings/system',     icon: Settings  },
