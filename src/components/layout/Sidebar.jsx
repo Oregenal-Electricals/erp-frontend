@@ -120,6 +120,13 @@ const NAV = [
     ],
   },
   {
+    label: 'Quality', icon: ClipboardList,
+    children: [
+      { label: 'NCR', href: '/quality/ncr', icon: ClipboardList },
+      { label: 'CAPA', href: '/quality/capa', icon: ClipboardList },
+    ],
+  },
+  {
     label: 'Settings', icon: SlidersHorizontal,
     children: [
       { label: 'System Settings',  href: '/settings/system',     icon: Settings  },
