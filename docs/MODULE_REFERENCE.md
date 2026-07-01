@@ -601,7 +601,7 @@ Formal non-conformance reporting and corrective/preventive action tracking.
 - **Guard:** NCR cannot close until all CAPAs are VERIFIED
 - **Overdue:** CAPA overdue detection and highlighting
 
-Phase 8: Quality Management System  🔄 (6/10 complete — M63-68 done)
+Phase 8: Quality Management System  🔄 (7/10 complete — M63-69 done)
 
 ## Module 64 — Root Cause Analysis (RCA) ✅
 Structured root cause analysis using 5-Why and Fishbone (Ishikawa) methods.
@@ -658,3 +658,15 @@ Real-time quality management command center for QA Manager and MD.
 - **NCR Breakdown:** By source, by severity, recent open NCRs
 - **OQC Trend:** 6-month pass rate bar chart (color-coded green/yellow/red)
 - **Alerts:** Priority-sorted (CRITICAL→HIGH→MEDIUM) — overdue CAPAs, critical NCRs, open complaints, overdue CARs
+
+## Module 69 — Quality Reports ✅
+Formal quality management reports for management review and compliance.
+- **Tables:** Uses existing tables (read-only)
+- **API:** GET /quality-reports/ncr-report, /capa-report, /oqc-report, /supplier-report, /complaint-report, /kpi-summary
+- **Frontend:** `/quality/reports` (6 tabs)
+- **KPI Summary:** Single-page executive quality scorecard
+- **NCR Report:** Aging, closing days, CAPA count per NCR
+- **CAPA Report:** Completion rate, overdue flag, avg days to close
+- **OQC Report:** By-product pass rate analysis
+- **Supplier Report:** Vendor ratings, AVL status, CAR summary
+- **Complaint Report:** Response time, closure rate, type breakdown
