@@ -127,6 +127,7 @@ const NAV = [
       { label: 'Root Cause', href: '/quality/rca', icon: ClipboardList },
       { label: 'OQC', href: '/quality/oqc', icon: ClipboardList },
       { label: 'Supplier Quality', href: '/quality/supplier', icon: ClipboardList },
+      { label: 'Complaints', href: '/quality/complaints', icon: ClipboardList },
     ],
   },
   {
