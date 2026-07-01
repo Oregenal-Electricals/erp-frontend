@@ -601,7 +601,7 @@ Formal non-conformance reporting and corrective/preventive action tracking.
 - **Guard:** NCR cannot close until all CAPAs are VERIFIED
 - **Overdue:** CAPA overdue detection and highlighting
 
-Phase 8: Quality Management System  🔄 (2/10 complete — M63-64 done)
+Phase 8: Quality Management System  🔄 (3/10 complete — M63-65 done)
 
 ## Module 64 — Root Cause Analysis (RCA) ✅
 Structured root cause analysis using 5-Why and Fishbone (Ishikawa) methods.
@@ -613,3 +613,15 @@ Structured root cause analysis using 5-Why and Fishbone (Ishikawa) methods.
 - **Fishbone:** 6M categories (Man, Machine, Material, Method, Environment, Measurement)
 - **NCR linkage:** Auto-updates NCR status (ROOT_CAUSE_PENDING → CAPA_PENDING)
 - **Visual display:** Color-coded why levels, fishbone grid layout
+
+## Module 65 — Outgoing Quality Control (OQC) ✅
+Final quality inspection before dispatch to customer.
+- **Tables:** `oqc_inspections`
+- **API:** GET/POST /oqc, POST /:id/complete, POST /:id/release
+- **Frontend:** `/quality/oqc`
+- **Parameters:** Visual, Dimensional, Functional, Packaging, Labelling checks
+- **Auto result:** failQty=0→PASS, >10% fail→FAIL, else CONDITIONAL
+- **CoC:** Certificate of Conformance number recorded
+- **FG Receipt link:** Auto-fills item details from FG receipt
+- **Release:** Only PASS inspections released for dispatch
+- **Workflow:** PENDING → COMPLETED → RELEASED
