@@ -125,6 +125,7 @@ const NAV = [
       { label: 'NCR', href: '/quality/ncr', icon: ClipboardList },
       { label: 'CAPA', href: '/quality/capa', icon: ClipboardList },
       { label: 'Root Cause', href: '/quality/rca', icon: ClipboardList },
+      { label: 'OQC', href: '/quality/oqc', icon: ClipboardList },
     ],
   },
   {
