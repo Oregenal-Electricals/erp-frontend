@@ -601,7 +601,7 @@ Formal non-conformance reporting and corrective/preventive action tracking.
 - **Guard:** NCR cannot close until all CAPAs are VERIFIED
 - **Overdue:** CAPA overdue detection and highlighting
 
-Phase 8: Quality Management System  🔄 (3/10 complete — M63-65 done)
+Phase 8: Quality Management System  🔄 (4/10 complete — M63-66 done)
 
 ## Module 64 — Root Cause Analysis (RCA) ✅
 Structured root cause analysis using 5-Why and Fishbone (Ishikawa) methods.
@@ -625,3 +625,14 @@ Final quality inspection before dispatch to customer.
 - **FG Receipt link:** Auto-fills item details from FG receipt
 - **Release:** Only PASS inspections released for dispatch
 - **Workflow:** PENDING → COMPLETED → RELEASED
+
+## Module 66 — Supplier Quality Management ✅
+Track vendor quality performance, ratings and corrective action requests.
+- **Tables:** `supplier_quality_ratings`, `supplier_cars`
+- **API:** GET/POST /supplier-quality/ratings, /cars, /scorecard/:vendorId
+- **Frontend:** `/quality/supplier` (2 tabs)
+- **Rating:** Auto-score (0-100) from defect rate + OTD% + NCR count
+- **Grades:** A/B/C/D with AVL status (APPROVED/PROBATION/BLACKLISTED)
+- **CAR:** Corrective Action Request → SENT→RESPONDED→VERIFIED→CLOSED
+- **Scorecard:** Per-vendor rating history + all CARs
+- **Overdue CAR:** Highlighted in red when past due date
