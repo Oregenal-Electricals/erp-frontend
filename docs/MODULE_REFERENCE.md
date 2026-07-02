@@ -796,4 +796,16 @@ Hierarchical double-entry ledger account master — foundation of all finance.
 - **Account types:** ASSET, LIABILITY, EQUITY, INCOME, EXPENSE
 - **Sub types:** BANK, CASH, DEBTOR, CREDITOR, GST, STOCK, FIXED_ASSET, REVENUE, COGS, OPEX
 
-Phase 13: Finance & GST  🔄 (1/7 complete — M103 done)
+Phase 13: Finance & GST  🔄 (2/7 complete — M103-104 done)
+
+## Module 104 — Voucher Engine ✅
+Double-entry bookkeeping engine — the core of all financial transactions.
+- **Tables:** `vouchers`, `voucher_entries`
+- **API:** GET/POST /vouchers, POST /:id/post, POST /:id/cancel
+- **Frontend:** `/finance/vouchers`
+- **Types:** SALES_INVOICE, RECEIPT, PURCHASE_BILL, PAYMENT, JOURNAL, CREDIT_NOTE, DEBIT_NOTE
+- **Balance rule:** Total Debits must equal Total Credits — enforced at API level
+- **Account update:** currentBalance auto-updated on POST
+- **Numbering:** SINV/RCP/PBIL/PAY/JRN/CN/DN-YEAR-XXXX by type
+- **Flow:** DRAFT → POSTED → CANCELLED
+- **Cancel:** Reverses account balance changes, mandatory reason
