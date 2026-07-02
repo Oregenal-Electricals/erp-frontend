@@ -796,7 +796,7 @@ Hierarchical double-entry ledger account master — foundation of all finance.
 - **Account types:** ASSET, LIABILITY, EQUITY, INCOME, EXPENSE
 - **Sub types:** BANK, CASH, DEBTOR, CREDITOR, GST, STOCK, FIXED_ASSET, REVENUE, COGS, OPEX
 
-Phase 13: Finance & GST  🔄 (2/7 complete — M103-104 done)
+Phase 13: Finance & GST  🔄 (3/7 complete — M103-105 done)
 
 ## Module 104 — Voucher Engine ✅
 Double-entry bookkeeping engine — the core of all financial transactions.
@@ -809,3 +809,15 @@ Double-entry bookkeeping engine — the core of all financial transactions.
 - **Numbering:** SINV/RCP/PBIL/PAY/JRN/CN/DN-YEAR-XXXX by type
 - **Flow:** DRAFT → POSTED → CANCELLED
 - **Cancel:** Reverses account balance changes, mandatory reason
+
+## Module 105 — Accounts Receivable ✅
+Customer invoices, payment tracking and aging analysis.
+- **Tables:** `ar_invoices`, `ar_payments`
+- **API:** GET/POST /ar, POST /ar/from-dispatch/:id, POST /ar/payments, GET /ar/aging
+- **Frontend:** `/finance/ar` (2 tabs: Invoices + Aging Report)
+- **Auto-invoice:** Create from delivered dispatch with auto-voucher
+- **Payment flow:** Partial or full payments with mode tracking
+- **Auto-vouchers:** Sales Invoice (DR Debtors/CR Sales+GST) + Receipt (DR Bank/CR Debtors)
+- **Aging buckets:** Current, 1-30, 31-60, 61-90, 90+ days
+- **Terms:** IMMEDIATE, NET_30, NET_45, NET_60, NET_90
+- **Status:** DRAFT→SENT→PARTIAL→PAID / OVERDUE
