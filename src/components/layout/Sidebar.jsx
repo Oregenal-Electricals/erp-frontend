@@ -133,6 +133,12 @@ const NAV = [
     ],
   },
   {
+    label: 'Finance', icon: BarChart3,
+    children: [
+      { label: 'Chart of Accounts', href: '/finance/accounts', icon: FileText },
+    ],
+  },
+  {
     label: 'Sales', icon: BarChart3,
     children: [
       { label: 'Leads', href: '/sales/leads', icon: Users },
