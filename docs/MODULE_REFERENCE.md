@@ -699,7 +699,7 @@ Sales pipeline tracking from first contact to conversion.
 - **Overdue:** Follow-up date overdue detection with orange highlight
 - **Lost:** Mandatory lost reason required
 
-Phase 12: Sales & Dispatch  🔄 (2/8 complete — M95-96 done)
+Phase 12: Sales & Dispatch  🔄 (3/8 complete — M95-97 done)
 
 ## Module 96 — Quotation ✅
 Customer quotations with line items, GST calculation and approval workflow.
@@ -713,3 +713,16 @@ Customer quotations with line items, GST calculation and approval workflow.
 - **Revision:** Create new revision from SENT/REJECTED quotation
 - **Lead link:** Auto-fills customer details, auto-converts lead on acceptance
 - **Price lock:** Accepted quotation prices immutable (new revision required)
+
+## Module 97 — Customer PO ✅
+Register and track customer purchase orders linked to accepted quotations.
+- **Tables:** `customer_pos`, `customer_po_items`
+- **API:** GET/POST /customer-po, POST /:id/acknowledge, POST /:id/cancel
+- **Frontend:** `/sales/customer-po`
+- **Numbering:** CPO-YEAR-XXXX
+- **Flow:** RECEIVED → ACKNOWLEDGED → IN_PROGRESS → COMPLETED / CANCELLED
+- **Quotation link:** Auto-fills customer details from accepted quotation
+- **Delivery tracking:** Item-level deliveredQty + pendingQty
+- **Overdue detection:** Orange highlight when delivery date passed
+- **Price lock:** Unit prices locked at PO time (Rule 10 compliant)
+- **Cancel:** Mandatory cancellation reason
