@@ -137,6 +137,7 @@ const NAV = [
     children: [
       { label: 'Chart of Accounts', href: '/finance/accounts', icon: FileText },
       { label: 'Vouchers', href: '/finance/vouchers', icon: FileText },
+      { label: 'Accounts Receivable', href: '/finance/ar', icon: FileText },
     ],
   },
   {
