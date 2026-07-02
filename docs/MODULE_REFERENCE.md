@@ -699,7 +699,7 @@ Sales pipeline tracking from first contact to conversion.
 - **Overdue:** Follow-up date overdue detection with orange highlight
 - **Lost:** Mandatory lost reason required
 
-Phase 12: Sales & Dispatch  🔄 (3/8 complete — M95-97 done)
+Phase 12: Sales & Dispatch  🔄 (4/8 complete — M95-98 done)
 
 ## Module 96 — Quotation ✅
 Customer quotations with line items, GST calculation and approval workflow.
@@ -726,3 +726,16 @@ Register and track customer purchase orders linked to accepted quotations.
 - **Overdue detection:** Orange highlight when delivery date passed
 - **Price lock:** Unit prices locked at PO time (Rule 10 compliant)
 - **Cancel:** Mandatory cancellation reason
+
+## Module 98 — Sales Order ✅
+Internal fulfillment commitment created from Customer POs.
+- **Tables:** `sales_orders`, `sales_order_items`
+- **API:** GET/POST /sales-orders, POST /:id/confirm, POST /:id/cancel, GET /by-cpo/:cpoId
+- **Frontend:** `/sales/sales-orders`
+- **Numbering:** SO-YEAR-XXXX
+- **Flow:** DRAFT → CONFIRMED → IN_PRODUCTION → DISPATCHED → COMPLETED / CANCELLED
+- **CPO link:** Mandatory — auto-loads items from CPO, updates CPO to IN_PROGRESS
+- **Price lock:** Unit prices locked at SO creation (Rule 10 compliant)
+- **Dispatch tracking:** Item-level dispatchedQty + pendingQty
+- **Overdue detection:** Orange highlight when delivery date passed
+- **Cancel:** Mandatory reason, cannot cancel DISPATCHED or COMPLETED
