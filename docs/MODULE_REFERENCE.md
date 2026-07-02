@@ -778,3 +778,22 @@ Record customer delivery confirmations with POD — completes the full sales cyc
 - **Duplicate guard:** One DC per dispatch (unique constraint)
 - **Shortage/Damage:** Qty shortage and damage notes captured
 - **Sales cycle complete:** Lead→Quote→CPO→SO→Dispatch→Delivery ✅
+
+---
+
+# 🚀 PHASE 13 — FINANCE & GST
+
+## Module 103 — Chart of Accounts ✅
+Hierarchical double-entry ledger account master — foundation of all finance.
+- **Tables:** `accounts`, `voucher_entries` (stub)
+- **API:** GET/POST /accounts, GET /accounts/tree, POST /accounts/seed
+- **Frontend:** `/finance/accounts` (new Finance sidebar section)
+- **Default accounts:** 42 accounts seeded (ASSET/LIABILITY/EQUITY/INCOME/EXPENSE)
+- **Hierarchy:** Parent-child tree with expand/collapse UI
+- **Views:** Tree mode + Flat table mode
+- **System accounts:** isSystemAccount flag — cannot be deleted
+- **Seed:** Idempotent — safe to run multiple times
+- **Account types:** ASSET, LIABILITY, EQUITY, INCOME, EXPENSE
+- **Sub types:** BANK, CASH, DEBTOR, CREDITOR, GST, STOCK, FIXED_ASSET, REVENUE, COGS, OPEX
+
+Phase 13: Finance & GST  🔄 (1/7 complete — M103 done)
