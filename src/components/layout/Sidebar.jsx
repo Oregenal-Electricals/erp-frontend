@@ -141,6 +141,7 @@ const NAV = [
       { label: 'Sales Orders', href: '/sales/sales-orders', icon: FileText },
       { label: 'Dispatch Planning', href: '/sales/dispatch-planning', icon: ClipboardList },
       { label: 'Dispatch', href: '/sales/dispatch', icon: ClipboardList },
+      { label: 'Delivery', href: '/sales/delivery', icon: ClipboardList },
     ],
   },
   {
