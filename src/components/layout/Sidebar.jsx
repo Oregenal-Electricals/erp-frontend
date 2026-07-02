@@ -136,6 +136,7 @@ const NAV = [
     label: 'Sales', icon: BarChart3,
     children: [
       { label: 'Leads', href: '/sales/leads', icon: Users },
+      { label: 'Quotations', href: '/sales/quotations', icon: FileText },
     ],
   },
   {
