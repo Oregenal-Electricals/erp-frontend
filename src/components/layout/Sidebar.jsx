@@ -138,6 +138,7 @@ const NAV = [
       { label: 'Leads', href: '/sales/leads', icon: Users },
       { label: 'Quotations', href: '/sales/quotations', icon: FileText },
       { label: 'Customer PO', href: '/sales/customer-po', icon: ClipboardList },
+      { label: 'Sales Orders', href: '/sales/sales-orders', icon: FileText },
     ],
   },
   {
