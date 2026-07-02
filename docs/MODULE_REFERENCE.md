@@ -699,7 +699,7 @@ Sales pipeline tracking from first contact to conversion.
 - **Overdue:** Follow-up date overdue detection with orange highlight
 - **Lost:** Mandatory lost reason required
 
-Phase 12: Sales & Dispatch  🔄 (6/8 complete — M95-98,M100-101 done)
+Phase 12: Sales & Dispatch  ✅ COMPLETE (7/8 — M95-102 done, M99 deferred)
 
 ## Module 96 — Quotation ✅
 Customer quotations with line items, GST calculation and approval workflow.
@@ -765,3 +765,16 @@ Execute dispatches from approved plans — Delivery Challans with LR and E-Way B
 - **Qty validation:** Cannot dispatch more than planned qty
 - **Auto-updates:** SO → DISPATCHED when all items dispatched, Plan → DISPATCHED
 - **Price lock:** Unit prices from SO (Rule 10 compliant)
+
+## Module 102 — Delivery Confirmation ✅
+Record customer delivery confirmations with POD — completes the full sales cycle.
+- **Tables:** `delivery_confirmations`
+- **API:** GET/POST /delivery-confirmations, GET /stats
+- **Frontend:** `/sales/delivery`
+- **Numbering:** DC-YEAR-XXXX
+- **Conditions:** GOOD / DAMAGED / PARTIAL
+- **POD:** Proof of Delivery number recorded
+- **Auto-updates:** Dispatch→DELIVERED, SO→COMPLETED, CPO→COMPLETED
+- **Duplicate guard:** One DC per dispatch (unique constraint)
+- **Shortage/Damage:** Qty shortage and damage notes captured
+- **Sales cycle complete:** Lead→Quote→CPO→SO→Dispatch→Delivery ✅
