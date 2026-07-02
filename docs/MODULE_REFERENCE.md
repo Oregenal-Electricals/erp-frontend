@@ -699,4 +699,17 @@ Sales pipeline tracking from first contact to conversion.
 - **Overdue:** Follow-up date overdue detection with orange highlight
 - **Lost:** Mandatory lost reason required
 
-Phase 12: Sales & Dispatch  🔄 (1/8 complete — M95 done)
+Phase 12: Sales & Dispatch  🔄 (2/8 complete — M95-96 done)
+
+## Module 96 — Quotation ✅
+Customer quotations with line items, GST calculation and approval workflow.
+- **Tables:** `quotations`, `quotation_items`
+- **API:** GET/POST /quotations, POST /:id/send, /accept, /reject, /revise
+- **Frontend:** `/sales/quotations`
+- **Numbering:** QT-YEAR-XXXX (Rev 0,1,2...)
+- **GST:** CGST+SGST split, rates 0/5/12/18/28%, per line item
+- **Discount:** Per line item discount %
+- **Flow:** DRAFT → SENT → ACCEPTED / REJECTED
+- **Revision:** Create new revision from SENT/REJECTED quotation
+- **Lead link:** Auto-fills customer details, auto-converts lead on acceptance
+- **Price lock:** Accepted quotation prices immutable (new revision required)
