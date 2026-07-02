@@ -699,7 +699,7 @@ Sales pipeline tracking from first contact to conversion.
 - **Overdue:** Follow-up date overdue detection with orange highlight
 - **Lost:** Mandatory lost reason required
 
-Phase 12: Sales & Dispatch  🔄 (4/8 complete — M95-98 done)
+Phase 12: Sales & Dispatch  🔄 (5/8 complete — M95-98,M100 done)
 
 ## Module 96 — Quotation ✅
 Customer quotations with line items, GST calculation and approval workflow.
@@ -739,3 +739,16 @@ Internal fulfillment commitment created from Customer POs.
 - **Dispatch tracking:** Item-level dispatchedQty + pendingQty
 - **Overdue detection:** Orange highlight when delivery date passed
 - **Cancel:** Mandatory reason, cannot cancel DISPATCHED or COMPLETED
+
+## Module 100 — Dispatch Planning ✅
+Plan and approve dispatch of sales order items to customers.
+- **Tables:** `dispatch_plans`, `dispatch_plan_items`
+- **API:** GET/POST /dispatch-plans, POST /:id/approve, POST /:id/cancel, GET /pending-so-items/:soId
+- **Frontend:** `/sales/dispatch-planning`
+- **Numbering:** DP-YEAR-XXXX
+- **Flow:** DRAFT → APPROVED → DISPATCHED / CANCELLED
+- **SO link:** Mandatory — auto-loads pending items from SO
+- **Qty validation:** Cannot plan more than SO pending qty
+- **Transport:** Mode (ROAD/RAIL/AIR/COURIER), vehicle, driver, transporter
+- **Overdue:** Orange highlight when planned date passed
+- **Cancel:** Mandatory reason
