@@ -699,7 +699,7 @@ Sales pipeline tracking from first contact to conversion.
 - **Overdue:** Follow-up date overdue detection with orange highlight
 - **Lost:** Mandatory lost reason required
 
-Phase 12: Sales & Dispatch  🔄 (5/8 complete — M95-98,M100 done)
+Phase 12: Sales & Dispatch  🔄 (6/8 complete — M95-98,M100-101 done)
 
 ## Module 96 — Quotation ✅
 Customer quotations with line items, GST calculation and approval workflow.
@@ -752,3 +752,16 @@ Plan and approve dispatch of sales order items to customers.
 - **Transport:** Mode (ROAD/RAIL/AIR/COURIER), vehicle, driver, transporter
 - **Overdue:** Orange highlight when planned date passed
 - **Cancel:** Mandatory reason
+
+## Module 101 — Dispatch ✅
+Execute dispatches from approved plans — Delivery Challans with LR and E-Way Bill.
+- **Tables:** `dispatches`, `dispatch_items`
+- **API:** GET/POST /dispatches, GET /dispatches/stats
+- **Frontend:** `/sales/dispatch`
+- **Numbering:** DSP-YEAR-XXXX
+- **Flow:** Creates DISPATCHED record → updates SO pendingQty → auto-updates SO/Plan status
+- **Documents:** LR Number, E-Way Bill Number recorded
+- **Transport:** Vehicle, driver, transporter auto-filled from plan
+- **Qty validation:** Cannot dispatch more than planned qty
+- **Auto-updates:** SO → DISPATCHED when all items dispatched, Plan → DISPATCHED
+- **Price lock:** Unit prices from SO (Rule 10 compliant)
