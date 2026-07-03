@@ -1021,3 +1021,21 @@ Export any ERP list to .xlsx using exceljs.
   - Trial Balance (from accounts)
 - **Frontend:** Excel download buttons on 7 pages
 - **Format:** Styled headers, auto-width columns, frozen header row
+
+---
+
+# 🚀 PHASE 16 — REPORTS & BI
+
+## Module 117 — Executive Dashboard & Analytics ✅
+Unified analytics engine covering all business domains.
+- **Tables:** None (computed from existing data)
+- **API:** GET /analytics/executive, /sales, /purchase, /inventory, /quality, /finance
+- **Frontend:** `/analytics` (6 tabs: Executive, Sales, Purchase, Inventory, Quality, Finance)
+- **Executive:** Revenue MTD, AR/AP outstanding, pending approvals, open tasks, low stock
+- **Sales:** Revenue trend 6M, top customers, order pipeline, recent orders
+- **Purchase:** Total spend, top vendors, PO pipeline by status
+- **Inventory:** Stock items, total value, warehouse distribution
+- **Quality:** NCR summary by status, CAPA tracking
+- **Finance:** P&L summary, AR aging, cash balance
+
+Phase 16: Reports & BI  🔄 (1/8 complete — M117 done)
