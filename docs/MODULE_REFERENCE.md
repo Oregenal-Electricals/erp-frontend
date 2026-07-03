@@ -982,7 +982,7 @@ Upload, categorize, version-control and download company documents.
 - **Tags:** Comma-separated for search
 - **Download:** Streams binary file with correct MIME type
 
-Phase 15: Document Center  🔄 (2/3 complete — M114-115 done)
+Phase 15: Document Center  ✅ COMPLETE (M114-116 all done)
 
 ## Module 114 (Addendum) — Project-Wide Document Attachments ✅
 DocumentAttachments reusable component embedded in all relevant pages.
@@ -1008,3 +1008,16 @@ Generate professional PDF documents from ERP data using pdfkit.
   - NCR Report PDF (non-conformance details, actions)
 - **Frontend:** Download buttons on PO [id], AR Invoice, Dispatch, NCR pages
 - **Format:** A4, company header, colored table headers, summary box, footer
+
+## Module 116 — Excel Export Engine ✅
+Export any ERP list to .xlsx using exceljs.
+- **Tables:** None (reads from existing tables)
+- **API:** GET /excel/ar-invoices, /ap-bills, /purchase-orders, /sales-orders, /stock, /ncr, /tasks, /trial-balance
+- **Library:** exceljs (pure Node.js)
+- **Exports:**
+  - AR Invoices, AP Bills, Purchase Orders, Sales Orders
+  - Stock Report (StockBalance with warehouse)
+  - NCR Register, Tasks Register
+  - Trial Balance (from accounts)
+- **Frontend:** Excel download buttons on 7 pages
+- **Format:** Styled headers, auto-width columns, frozen header row
