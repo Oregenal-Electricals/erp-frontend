@@ -983,3 +983,15 @@ Upload, categorize, version-control and download company documents.
 - **Download:** Streams binary file with correct MIME type
 
 Phase 15: Document Center  🔄 (1/3 complete — M114 done)
+
+## Module 114 (Addendum) — Project-Wide Document Attachments ✅
+DocumentAttachments reusable component embedded in all relevant pages.
+- **Component:** `src/components/shared/DocumentAttachments.jsx`
+- **Props:** referenceType, referenceId, referenceNumber, title
+- **Pages embedded (20 total):**
+  - Purchase: PO detail [id], Requisitions, RFQs, Amendments
+  - Sales: Customer PO, Sales Orders, Quotations, Leads, Dispatch Planning, Dispatch, Delivery
+  - Finance: AR Invoices, AP Bills
+  - Quality: NCR, CAPA, RCA, OQC, Supplier Quality, Complaints
+- **UX:** Inline upload, list attachments, download, delete per record
+- **API:** GET /documents?referenceType=X&referenceId=Y
