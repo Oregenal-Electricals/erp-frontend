@@ -899,7 +899,7 @@ In-app notification system with event triggers, priority levels and read trackin
 - **Auto-clear:** Removes 30-day-old read notifications
 - **Filters:** All / Unread only
 
-Phase 14: Communication & Workflow  🔄 (3/4 complete — M110-112 done)
+Phase 14: Communication & Workflow  ✅ COMPLETE (M110-113 all done)
 
 ## Module 111 — Email/SMS Alerts ✅
 Alert template engine with event triggers, variable substitution and send logging.
@@ -949,3 +949,18 @@ Multi-level document approval engine with configurable workflows and audit trail
 - **Actions:** APPROVED / REJECTED with mandatory comments on reject
 - **Pending badge:** Count shown on tab
 - **Seed:** Idempotent
+
+## Module 113 — Task Management ✅
+Cross-department task assignment, tracking and completion with comments.
+- **Tables:** `tasks`, `task_comments`
+- **API:** GET/POST /tasks, PUT /tasks/:id, POST /tasks/:id/status, /tasks/:id/comments
+- **Frontend:** `/tasks` (3 tabs: My Tasks, All Tasks, Create Task)
+- **Numbering:** TASK-YEAR-XXXX
+- **Priorities:** LOW, MEDIUM, HIGH, URGENT (color-coded)
+- **Categories:** QUALITY, PURCHASE, SALES, FINANCE, PRODUCTION, GENERAL
+- **Status:** OPEN → IN_PROGRESS → COMPLETED / CANCELLED
+- **Reference:** Link to any document (NCR, PO, SO, INVOICE etc.)
+- **My Tasks:** Filter tasks assigned to current user
+- **Overdue:** Red border + badge when past due date
+- **Comments:** Threaded comments per task
+- **Complete modal:** Mandatory completion note
