@@ -964,3 +964,22 @@ Cross-department task assignment, tracking and completion with comments.
 - **Overdue:** Red border + badge when past due date
 - **Comments:** Threaded comments per task
 - **Complete modal:** Mandatory completion note
+
+---
+
+# 🚀 PHASE 15 — DOCUMENT CENTER
+
+## Module 114 — Document Management ✅
+Upload, categorize, version-control and download company documents.
+- **Tables:** `documents`
+- **API:** GET/POST /documents, GET /documents/:id, GET /documents/:id/download, POST /documents/version, DELETE /documents/:id
+- **Frontend:** `/documents` (new Documents sidebar section)
+- **Upload:** Base64 encoded, max 10MB, drag-drop UI
+- **File types:** PDF, IMAGE, EXCEL, WORD, OTHER (auto-detected from MIME)
+- **Categories:** PURCHASE, QUALITY, SALES, FINANCE, HR, PRODUCTION, GENERAL
+- **Versioning:** v1→v2→v3, parent-child relationship, version history in detail
+- **Reference:** Link to any ERP record (PO, SO, NCR, VENDOR etc.)
+- **Tags:** Comma-separated for search
+- **Download:** Streams binary file with correct MIME type
+
+Phase 15: Document Center  🔄 (1/3 complete — M114 done)
