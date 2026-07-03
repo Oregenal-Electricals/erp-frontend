@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
+import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
@@ -276,6 +277,8 @@ export default function ComplaintsPage() {
                     <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} placeholder="Describe the customer complaint in detail..." />
                   </div>
                 </div>
+
+              <DocumentAttachments referenceType="COMPLAINT" referenceId={viewDetail?.id} referenceNumber={viewDetail?.complaintNumber} title="Complaint Attachments" />
               </div>
               <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
                 <button onClick={()=>setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>

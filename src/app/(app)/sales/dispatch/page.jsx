@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
+import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
@@ -220,6 +221,8 @@ export default function DispatchPage() {
                   </tbody>
                 </table>
                 {viewDetail.remarks && <div className="p-3 bg-gray-50 rounded text-xs"><span className="font-semibold">Remarks: </span>{viewDetail.remarks}</div>}
+
+              <DocumentAttachments referenceType="DISPATCH" referenceId={viewDetail?.id} referenceNumber={viewDetail?.dispatchNumber} title="Dispatch Attachments" />
               </div>
               <div className="p-6 border-t flex justify-end sticky bottom-0 bg-white">
                 <button onClick={()=>setViewDetail(null)} className="px-4 py-2 border rounded-lg text-sm">Close</button>

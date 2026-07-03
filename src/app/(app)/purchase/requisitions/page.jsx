@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
+import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() {
@@ -203,6 +204,8 @@ export default function PurchaseRequisitionsPage() {
                 <div className="bg-blue-50 rounded p-3 text-xs text-blue-700">
                   💡 After creating, open the PR to add items before submitting for approval.
                 </div>
+
+              <DocumentAttachments referenceType="PURCHASE_REQUISITION" referenceId={viewDetail?.id} referenceNumber={viewDetail?.prNumber} title="PR Attachments" />
               </div>
               <div className="p-6 border-t flex justify-end gap-3">
                 <button onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>

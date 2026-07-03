@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
+import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
@@ -258,6 +259,9 @@ export default function PurchaseOrderDetailPage() {
             </div>
           </div>
         )}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 mt-6 p-6">
+        <DocumentAttachments referenceType="PURCHASE_ORDER" referenceId={po?.id} referenceNumber={po?.poNumber} title="PO Attachments" />
+      </div>
       </div>
     </AppLayout>
   );

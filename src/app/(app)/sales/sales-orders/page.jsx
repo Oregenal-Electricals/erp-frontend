@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
+import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
@@ -252,6 +253,8 @@ export default function SalesOrdersPage() {
                   </div>
                 </div>
                 {viewDetail.remarks && <div className="mt-4 p-3 bg-gray-50 rounded text-xs"><div className="font-semibold mb-1">Remarks:</div>{viewDetail.remarks}</div>}
+
+              <DocumentAttachments referenceType="SALES_ORDER" referenceId={viewDetail?.id} referenceNumber={viewDetail?.soNumber} title="SO Attachments" />
               </div>
               <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
                 {viewDetail.status==='DRAFT' && <button onClick={()=>handleConfirm(viewDetail.id)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Confirm SO</button>}

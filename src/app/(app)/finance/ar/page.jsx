@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
+import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
@@ -257,6 +258,8 @@ export default function ArPage() {
                     ))}
                   </div>
                 )}
+
+              <DocumentAttachments referenceType="AR_INVOICE" referenceId={viewDetail?.id} referenceNumber={viewDetail?.invoiceNumber} title="Invoice Attachments" />
               </div>
               <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
                 {['SENT','PARTIAL'].includes(viewDetail.status) && <button onClick={()=>{setPayModal(viewDetail);setPayForm({amount:viewDetail.outstandingAmount,paymentMode:'BANK_TRANSFER',referenceNumber:'',remarks:''});setError('');setViewDetail(null);}} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">Record Payment</button>}

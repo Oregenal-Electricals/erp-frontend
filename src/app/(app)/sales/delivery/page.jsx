@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
+import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
@@ -182,6 +183,8 @@ export default function DeliveryPage() {
                 <div className="p-3 bg-green-50 rounded-lg text-sm text-green-700 font-medium text-center">
                   ✅ Delivery confirmed — Sales cycle complete
                 </div>
+
+              <DocumentAttachments referenceType="DELIVERY" referenceId={viewDetail?.id} referenceNumber={viewDetail?.deliveryNumber} title="Delivery Attachments" />
               </div>
               <div className="p-6 border-t flex justify-end sticky bottom-0 bg-white">
                 <button onClick={()=>setViewDetail(null)} className="px-4 py-2 border rounded-lg text-sm">Close</button>

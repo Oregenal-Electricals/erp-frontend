@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
+import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
@@ -268,6 +269,8 @@ export default function SupplierQualityPage() {
                     <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={ratingForm.totalRejected} onChange={e=>setRatingForm(f=>({...f,totalRejected:e.target.value}))} />
                   </div>
                 </div>
+
+              <DocumentAttachments referenceType="SUPPLIER_QUALITY" referenceId={viewDetail?.id} referenceNumber={viewDetail?.sqNumber} title="SQ Attachments" />
               </div>
               <div className="p-6 border-t flex justify-end gap-3">
                 <button onClick={()=>setShowRatingModal(false)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>

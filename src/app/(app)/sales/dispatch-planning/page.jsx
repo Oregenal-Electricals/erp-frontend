@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
+import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
@@ -230,6 +231,8 @@ export default function DispatchPlanningPage() {
                 </table>
                 {viewDetail.remarks && <div className="p-3 bg-gray-50 rounded text-xs"><span className="font-semibold">Remarks: </span>{viewDetail.remarks}</div>}
                 {viewDetail.cancelReason && <div className="p-3 bg-red-50 rounded text-xs text-red-600 mt-2"><span className="font-semibold">Cancelled: </span>{viewDetail.cancelReason}</div>}
+
+              <DocumentAttachments referenceType="DISPATCH_PLAN" referenceId={viewDetail?.id} referenceNumber={viewDetail?.planNumber} title="Plan Attachments" />
               </div>
               <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
                 {viewDetail.status==='DRAFT' && <button onClick={()=>handleApprove(viewDetail.id)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">Approve Plan</button>}
