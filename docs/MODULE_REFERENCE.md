@@ -882,3 +882,21 @@ Customer credit limits, real-time AR exposure tracking and order hold management
 - **Utilization bar:** Visual indicator per customer
 - **Release:** Management override with mandatory reason
 - **Built on M105 AR:** Uses real outstanding balances (reason for deferral)
+
+---
+
+# 🚀 PHASE 14 — COMMUNICATION & WORKFLOW
+
+## Module 110 — Notification Engine ✅
+In-app notification system with event triggers, priority levels and read tracking.
+- **Tables:** `notifications`
+- **API:** GET /notifications, /unread-count, POST /mark-read, /clear-old
+- **Frontend:** `/notifications` (new Notifications sidebar section)
+- **Types:** SO_CREATED, PO_APPROVED, INVOICE_OVERDUE, CREDIT_HOLD, STOCK_LOW, DISPATCH_DONE, PAYMENT_RECEIVED, QUALITY_ALERT, TASK_ASSIGNED
+- **Priority:** LOW, MEDIUM, HIGH, URGENT (color-coded border + dot)
+- **Event triggers:** notifyCompany() broadcasts to all users in company
+- **Read tracking:** isRead, readAt per notification
+- **Auto-clear:** Removes 30-day-old read notifications
+- **Filters:** All / Unread only
+
+Phase 14: Communication & Workflow  🔄 (1/4 complete — M110 done)
