@@ -982,7 +982,7 @@ Upload, categorize, version-control and download company documents.
 - **Tags:** Comma-separated for search
 - **Download:** Streams binary file with correct MIME type
 
-Phase 15: Document Center  🔄 (1/3 complete — M114 done)
+Phase 15: Document Center  🔄 (2/3 complete — M114-115 done)
 
 ## Module 114 (Addendum) — Project-Wide Document Attachments ✅
 DocumentAttachments reusable component embedded in all relevant pages.
@@ -995,3 +995,16 @@ DocumentAttachments reusable component embedded in all relevant pages.
   - Quality: NCR, CAPA, RCA, OQC, Supplier Quality, Complaints
 - **UX:** Inline upload, list attachments, download, delete per record
 - **API:** GET /documents?referenceType=X&referenceId=Y
+
+## Module 115 — PDF Report Engine ✅
+Generate professional PDF documents from ERP data using pdfkit.
+- **Tables:** None (reads from existing tables)
+- **API:** GET /pdf/purchase-order/:id, /pdf/invoice/:id, /pdf/dispatch/:id, /pdf/ncr/:id
+- **Library:** pdfkit (pure Node.js, no browser needed)
+- **PDFs generated:**
+  - Purchase Order PDF (vendor, items, GST, totals)
+  - Tax Invoice PDF (customer, amounts, outstanding)
+  - Delivery Challan PDF (dispatch details, LR, vehicle)
+  - NCR Report PDF (non-conformance details, actions)
+- **Frontend:** Download buttons on PO [id], AR Invoice, Dispatch, NCR pages
+- **Format:** A4, company header, colored table headers, summary box, footer
