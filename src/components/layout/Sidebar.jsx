@@ -145,6 +145,12 @@ const NAV = [
     ],
   },
   {
+    label: 'Documents', icon: FileText,
+    children: [
+      { label: 'Document Center', href: '/documents', icon: FileText },
+    ],
+  },
+  {
     label: 'Notifications', icon: FileText,
     children: [
       { label: 'All Notifications', href: '/notifications', icon: FileText },
