@@ -150,6 +150,7 @@ const NAV = [
       { label: 'All Notifications', href: '/notifications', icon: FileText },
       { label: 'Alert Management', href: '/alerts', icon: FileText },
       { label: 'Approvals', href: '/workflows', icon: FileText },
+      { label: 'Tasks', href: '/tasks', icon: FileText },
     ],
   },
   {
