@@ -6,6 +6,17 @@ import AppLayout from '@/components/layout/AppLayout';
 import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
+
+async function downloadPdf(id) {
+  const res = await fetch(`${API}/pdf/purchase-order/${id}`, {headers:{Authorization:`Bearer ${getToken()}`}});
+  if (res.ok) {
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='PO-'+id+'.pdf'; a.click();
+    URL.revokeObjectURL(url);
+  } else alert('PDF generation failed');
+}
+
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
 
 const STATUS_COLORS = {

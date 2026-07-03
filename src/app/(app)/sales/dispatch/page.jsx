@@ -4,6 +4,17 @@ import AppLayout from '@/components/layout/AppLayout';
 import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
+
+async function downloadPdf(id) {
+  const res = await fetch(`${API}/pdf/dispatch/${id}`, {headers:{Authorization:`Bearer ${getToken()}`}});
+  if (res.ok) {
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='Challan-'+id+'.pdf'; a.click();
+    URL.revokeObjectURL(url);
+  } else alert('PDF generation failed');
+}
+
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
@@ -226,6 +237,7 @@ export default function DispatchPage() {
               </div>
               <div className="p-6 border-t flex justify-end sticky bottom-0 bg-white">
                 <button onClick={()=>setViewDetail(null)} className="px-4 py-2 border rounded-lg text-sm">Close</button>
+                <button onClick={()=>downloadPdf(viewDetail?.id)} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">⬇ PDF</button>
               </div>
             </div>
           </div>
