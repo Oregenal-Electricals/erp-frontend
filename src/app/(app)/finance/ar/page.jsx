@@ -16,6 +16,17 @@ async function downloadPdf(id) {
 }
 
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+
+  async function downloadExcel(endpoint, filename) {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {headers:{Authorization:`Bearer ${getToken()}`}});
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download=filename+'.xlsx'; a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 

@@ -4,6 +4,17 @@ import AppLayout from '@/components/layout/AppLayout';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+
+  async function downloadExcel(endpoint, filename) {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {headers:{Authorization:`Bearer ${getToken()}`}});
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download=filename+'.xlsx'; a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—';
 const TABS = ['My Tasks','All Tasks','Create Task'];
 const PRIORITIES = ['LOW','MEDIUM','HIGH','URGENT'];
@@ -118,6 +129,7 @@ export default function TasksPage() {
               {t.status==='OPEN' && <button onClick={()=>handleStatus(t.id,'IN_PROGRESS')} className="px-2 py-1 text-xs bg-blue-600 text-white rounded">Start</button>}
               {t.status==='IN_PROGRESS' && <button onClick={()=>{setShowCompleteModal(t);setCompletionNote('');}} className="px-2 py-1 text-xs bg-green-600 text-white rounded">Complete</button>}
               <button onClick={()=>handleStatus(t.id,'CANCELLED')} className="px-2 py-1 text-xs border rounded text-gray-500">Cancel</button>
+          <button onClick={()=>downloadExcel('/excel/tasks','Tasks')} className="px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">⬇ Excel</button>
             </div>
           )}
         </div>

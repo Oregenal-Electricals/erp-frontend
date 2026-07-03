@@ -4,6 +4,17 @@ import AppLayout from '@/components/layout/AppLayout';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+
+  async function downloadExcel(endpoint, filename) {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {headers:{Authorization:`Bearer ${getToken()}`}});
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download=filename+'.xlsx'; a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+
 const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 const fmtPct = n => `${Number(n||0).toFixed(2)}%`;
@@ -93,6 +104,7 @@ export default function FinancialReportsPage() {
 
         <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1">
           {TABS.map(t=><button key={t} onClick={()=>setActiveTab(t)} className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-all ${activeTab===t?'bg-white shadow text-indigo-600':'text-gray-500 hover:text-gray-700'}`}>{t}</button>)}
+          <button onClick={()=>downloadExcel('/excel/trial-balance','Trial Balance')} className="px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">⬇ Excel</button>
         </div>
 
         {loading && <div className="text-center py-16 text-gray-400">Computing report...</div>}

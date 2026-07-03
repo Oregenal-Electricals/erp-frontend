@@ -16,6 +16,17 @@ async function downloadPdf(id) {
 }
 
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+
+  async function downloadExcel(endpoint, filename) {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {headers:{Authorization:`Bearer ${getToken()}`}});
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download=filename+'.xlsx'; a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 
 const SEVERITY_COLORS = { MINOR:'bg-gray-100 text-gray-600', MAJOR:'bg-orange-100 text-orange-700', CRITICAL:'bg-red-100 text-red-700' };
@@ -119,6 +130,7 @@ export default function NcrPage() {
             <p className="text-gray-500 text-sm mt-1">Track quality failures, dispositions and corrective actions</p>
           </div>
           <button onClick={()=>{ setForm({source:'IQC',sourceReferenceNumber:'',itemCode:'',itemName:'',description:'',severity:'MAJOR',qtyAffected:'',detectedBy:'',disposition:'',remarks:''}); setError(''); setShowModal(true); }} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 font-medium">+ Raise NCR</button>
+          <button onClick={()=>downloadExcel('/excel/ncr','NCR Register')} className="px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">⬇ Excel</button>
         </div>
 
         {stats && (

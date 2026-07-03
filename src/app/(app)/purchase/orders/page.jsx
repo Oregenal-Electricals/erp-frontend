@@ -7,6 +7,17 @@ import DocumentAttachments from '@/components/shared/DocumentAttachments';
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
 
+  async function downloadExcel(endpoint, filename) {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {headers:{Authorization:`Bearer ${getToken()}`}});
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download=filename+'.xlsx'; a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+
+
 const STATUS_COLORS = {
   DRAFT: 'bg-gray-100 text-gray-600',
   APPROVED: 'bg-blue-100 text-blue-700',
@@ -85,6 +96,7 @@ export default function PurchaseOrdersPage() {
             <p className="text-gray-500 text-sm mt-1">Legally binding purchase documents — prices frozen after approval</p>
           </div>
           <button onClick={() => { setForm({ vendorId: '', deliveryDate: '', deliveryAddress: '', paymentTerms: '', notes: '' }); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New PO</button>
+          <button onClick={()=>downloadExcel('/excel/purchase-orders','Purchase Orders')} className="px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">⬇ Excel</button>
         </div>
 
         {stats && (

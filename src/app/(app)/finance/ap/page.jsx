@@ -5,6 +5,17 @@ import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+
+  async function downloadExcel(endpoint, filename) {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {headers:{Authorization:`Bearer ${getToken()}`}});
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download=filename+'.xlsx'; a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 
@@ -121,6 +132,7 @@ export default function ApPage() {
             <p className="text-gray-500 text-sm mt-1">Vendor bills, payments and payables aging</p>
           </div>
           <button onClick={()=>{setForm({vendorBillNumber:'',vendorId:'',vendorName:'',poId:'',billDate:'',paymentTerms:'NET_30',subtotal:'',totalGst:'',totalAmount:'',remarks:''});setError('');setShowModal(true);}} className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 font-medium text-sm">+ Register Bill</button>
+          <button onClick={()=>downloadExcel('/excel/ap-bills','AP Bills')} className="px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">⬇ Excel</button>
         </div>
 
         {stats && (
