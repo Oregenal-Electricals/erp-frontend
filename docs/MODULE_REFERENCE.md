@@ -924,3 +924,15 @@ Alert template engine with event triggers, variable substitution and send loggin
 - **Channels:** EMAIL, SMS, BOTH
 - **Log:** Full history with status SENT/FAILED/PENDING
 - **Seed:** Idempotent
+
+## Module 111 — Email/SMS Alerts ✅
+Alert template engine with event triggers, variable substitution and send logging.
+- **Tables:** `alert_templates`, `alert_logs`
+- **API:** GET/POST /alerts/templates, PUT /templates/:id, POST /trigger, /seed, GET /logs, /stats
+- **Frontend:** `/alerts` (3 tabs: Templates, Alert Log, Trigger Alert)
+- **Default templates:** 7 seeded (INVOICE_OVERDUE, DISPATCH, PAYMENT, CREDIT_HOLD, PO_APPROVED, SO_CONFIRMED, NCR_RAISED)
+- **Variable form:** User-friendly key-value fields (not raw JSON)
+- **Recipients:** CUSTOMER, INTERNAL, BOTH
+- **Channels:** EMAIL, SMS, BOTH
+- **Log:** Full history with status SENT/FAILED/PENDING
+- **Seed:** Idempotent — 7 default templates
