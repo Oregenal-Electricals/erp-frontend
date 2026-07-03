@@ -148,6 +148,7 @@ const NAV = [
     label: 'Notifications', icon: FileText,
     children: [
       { label: 'All Notifications', href: '/notifications', icon: FileText },
+      { label: 'Alert Management', href: '/alerts', icon: FileText },
     ],
   },
   {
