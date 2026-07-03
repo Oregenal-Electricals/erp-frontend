@@ -149,6 +149,7 @@ const NAV = [
     children: [
       { label: 'All Notifications', href: '/notifications', icon: FileText },
       { label: 'Alert Management', href: '/alerts', icon: FileText },
+      { label: 'Approvals', href: '/workflows', icon: FileText },
     ],
   },
   {
