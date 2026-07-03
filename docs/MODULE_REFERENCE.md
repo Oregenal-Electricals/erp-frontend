@@ -699,7 +699,7 @@ Sales pipeline tracking from first contact to conversion.
 - **Overdue:** Follow-up date overdue detection with orange highlight
 - **Lost:** Mandatory lost reason required
 
-Phase 12: Sales & Dispatch  ✅ COMPLETE (7/8 — M95-102 done, M99 deferred)
+Phase 12: Sales & Dispatch  ✅ COMPLETE (M95-M102 + M99 all done)
 
 ## Module 96 — Quotation ✅
 Customer quotations with line items, GST calculation and approval workflow.
@@ -870,3 +870,15 @@ Complete financial reporting suite — Trial Balance, P&L, Balance Sheet, Cash F
 - **Cash Flow:** Bank receipts/payments with voucher detail
 - **Summary:** KPI cards with AR/AP outstanding
 - **Period:** Month selector (last 12 months)
+
+## Module 99 — Credit Control ✅
+Customer credit limits, real-time AR exposure tracking and order hold management.
+- **Tables:** `customer_credit_limits`, `credit_holds`
+- **API:** GET /credit-control/dashboard, /limits, /holds, /position/:name, POST /check, /limits, /holds/:id/release
+- **Frontend:** `/sales/credit-control` (3 tabs: Dashboard, Limits, Holds)
+- **Credit check:** Real-time check against AR outstanding + new order amount
+- **Auto-hold:** Creates credit hold when order exceeds available credit
+- **Dashboard:** Over-limit alerts, at-risk (80%+), portfolio utilization
+- **Utilization bar:** Visual indicator per customer
+- **Release:** Management override with mandatory reason
+- **Built on M105 AR:** Uses real outstanding balances (reason for deferral)
