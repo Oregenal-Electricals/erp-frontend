@@ -196,7 +196,7 @@ export default function AlertsPage() {
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Variables (JSON)</label>
                 <textarea className="w-full border rounded-lg px-3 py-2 text-sm font-mono" rows={6} value={triggerForm.variables} onChange={e=>setTriggerForm(f=>({...f,variables:e.target.value}))} placeholder='{"customerName":"Tech Solutions","invoiceNumber":"INV-2026-0001","amount":"335120","customerEmail":"ar@customer.com"}' />
-                <div className="text-xs text-gray-400 mt-1">Variables replace {{placeholder}} in templates</div>
+                <div className="text-xs text-gray-400 mt-1">Variables replace {"{{"}"placeholder{"}}"} in templates</div>
               </div>
               {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
               <button onClick={handleTrigger} disabled={saving} className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm disabled:opacity-50">{saving?'Triggering...':'Send Alert'}</button>
