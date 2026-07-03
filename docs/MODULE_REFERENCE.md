@@ -796,7 +796,7 @@ Hierarchical double-entry ledger account master — foundation of all finance.
 - **Account types:** ASSET, LIABILITY, EQUITY, INCOME, EXPENSE
 - **Sub types:** BANK, CASH, DEBTOR, CREDITOR, GST, STOCK, FIXED_ASSET, REVENUE, COGS, OPEX
 
-Phase 13: Finance & GST  🔄 (5/7 complete — M103-107 done)
+Phase 13: Finance & GST  🔄 (6/7 complete — M103-108 done)
 
 ## Module 104 — Voucher Engine ✅
 Double-entry bookkeeping engine — the core of all financial transactions.
@@ -845,3 +845,16 @@ Indian GST compliance — GSTR-1, GSTR-3B, Input Tax Credit, return filing.
 - **Returns:** Generate DRAFT → File (irreversible)
 - **Period selector:** Month/Year dropdown, last 12 months
 - **Computed on-the-fly:** From AR invoices + AP bills (no duplication)
+
+## Module 108 — Bank Reconciliation ✅
+Match bank statement transactions with ledger voucher entries.
+- **Tables:** `bank_statements`, `bank_statement_lines`
+- **API:** GET/POST /bank-reconciliation, POST /reconcile, /unreconcile/:id, GET /suggestions/:lineId
+- **Frontend:** `/finance/bank-recon`
+- **Import:** Manual entry of bank statement lines (date, desc, ref, credit/debit/balance)
+- **Suggestions:** Auto-match voucher entries by amount (±1%)
+- **Reconcile:** Mark line matched + link to voucher entry
+- **Unreconcile:** Undo reconciliation (undo button)
+- **Status:** DRAFT → RECONCILED (when all lines matched)
+- **Bank accounts:** Only BANK subtype accounts shown
+- **Duplicate guard:** One statement per bank account per period
