@@ -796,7 +796,7 @@ Hierarchical double-entry ledger account master — foundation of all finance.
 - **Account types:** ASSET, LIABILITY, EQUITY, INCOME, EXPENSE
 - **Sub types:** BANK, CASH, DEBTOR, CREDITOR, GST, STOCK, FIXED_ASSET, REVENUE, COGS, OPEX
 
-Phase 13: Finance & GST  🔄 (4/7 complete — M103-106 done)
+Phase 13: Finance & GST  🔄 (5/7 complete — M103-107 done)
 
 ## Module 104 — Voucher Engine ✅
 Double-entry bookkeeping engine — the core of all financial transactions.
@@ -833,3 +833,15 @@ Vendor bills, payment tracking and payables aging analysis.
 - **PO linkage:** Optional link to Purchase Order
 - **Status:** DRAFT→APPROVED→PARTIAL→PAID / OVERDUE
 - **Mirror of AR:** Same pattern as M105 but vendor-side
+
+## Module 107 — GST Management ✅
+Indian GST compliance — GSTR-1, GSTR-3B, Input Tax Credit, return filing.
+- **Tables:** `gst_returns`
+- **API:** GET /gst/dashboard, /gst/gstr1, /gst/gstr3b, /gst/returns, POST /generate, /:id/file
+- **Frontend:** `/finance/gst` (4 tabs: Dashboard, GSTR-1, GSTR-3B, Returns)
+- **Dashboard:** Output GST, Input Credit, Net Liability, 6-month trend
+- **GSTR-1:** Sales register — invoice-wise GST breakdown
+- **GSTR-3B:** Summary return — outward supplies vs input credit
+- **Returns:** Generate DRAFT → File (irreversible)
+- **Period selector:** Month/Year dropdown, last 12 months
+- **Computed on-the-fly:** From AR invoices + AP bills (no duplication)
