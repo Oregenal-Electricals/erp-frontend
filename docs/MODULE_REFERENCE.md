@@ -796,7 +796,7 @@ Hierarchical double-entry ledger account master — foundation of all finance.
 - **Account types:** ASSET, LIABILITY, EQUITY, INCOME, EXPENSE
 - **Sub types:** BANK, CASH, DEBTOR, CREDITOR, GST, STOCK, FIXED_ASSET, REVENUE, COGS, OPEX
 
-Phase 13: Finance & GST  🔄 (6/7 complete — M103-108 done)
+Phase 13: Finance & GST  ✅ COMPLETE (M103-109 all done)
 
 ## Module 104 — Voucher Engine ✅
 Double-entry bookkeeping engine — the core of all financial transactions.
@@ -858,3 +858,15 @@ Match bank statement transactions with ledger voucher entries.
 - **Status:** DRAFT → RECONCILED (when all lines matched)
 - **Bank accounts:** Only BANK subtype accounts shown
 - **Duplicate guard:** One statement per bank account per period
+
+## Module 109 — Financial Reports ✅
+Complete financial reporting suite — Trial Balance, P&L, Balance Sheet, Cash Flow.
+- **Tables:** None (computed from accounts + voucher_entries)
+- **API:** GET /financial-reports/summary, /trial-balance, /profit-and-loss, /balance-sheet, /cash-flow
+- **Frontend:** `/finance/reports` (5 tabs: Summary, Trial Balance, P&L, Balance Sheet, Cash Flow)
+- **Trial Balance:** All accounts Dr/Cr with self-check (Dr=Cr)
+- **P&L:** Revenue - COGS = Gross Profit - Opex = Net Profit with margins
+- **Balance Sheet:** Assets = Liabilities + Equity + Retained Earnings (self-check)
+- **Cash Flow:** Bank receipts/payments with voucher detail
+- **Summary:** KPI cards with AR/AP outstanding
+- **Period:** Month selector (last 12 months)
