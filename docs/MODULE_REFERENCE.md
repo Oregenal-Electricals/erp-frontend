@@ -899,4 +899,16 @@ In-app notification system with event triggers, priority levels and read trackin
 - **Auto-clear:** Removes 30-day-old read notifications
 - **Filters:** All / Unread only
 
-Phase 14: Communication & Workflow  🔄 (1/4 complete — M110 done)
+Phase 14: Communication & Workflow  🔄 (2/4 complete — M110-111 done)
+
+## Module 111 — Email/SMS Alerts ✅
+Alert template engine with event triggers, variable substitution and send logging.
+- **Tables:** `alert_templates`, `alert_logs`
+- **API:** GET/POST /alerts/templates, PUT /templates/:id, POST /trigger, /seed, GET /logs, /stats
+- **Frontend:** `/alerts` (3 tabs: Templates, Alert Log, Trigger Alert)
+- **Default templates:** 7 seeded (INVOICE_OVERDUE, DISPATCH, PAYMENT, CREDIT_HOLD, PO_APPROVED, SO_CONFIRMED, NCR_RAISED)
+- **Variable substitution:** {{customerName}} {{amount}} {{invoiceNumber}} etc.
+- **Recipients:** CUSTOMER, INTERNAL, BOTH
+- **Channels:** EMAIL, SMS, BOTH
+- **Log:** Full history with status SENT/FAILED/PENDING
+- **Seed:** Idempotent — 7 default templates
