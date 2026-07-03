@@ -22,7 +22,7 @@ export default function AlertsPage() {
   const [logTotalPages, setLogTotalPages] = useState(1);
   const [logFilter, setLogFilter] = useState('');
   const [editModal, setEditModal] = useState(null);
-  const [triggerForm, setTriggerForm] = useState({ eventType:'INVOICE_OVERDUE', referenceNumber:'', variables:'' });
+  const [triggerForm, setTriggerForm] = useState({ eventType:'INVOICE_OVERDUE', referenceNumber:'', varFields:[{key:'customerName',value:''},{key:'customerEmail',value:''},{key:'amount',value:''}] });
   const [triggerResult, setTriggerResult] = useState(null);
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
@@ -66,9 +66,9 @@ export default function AlertsPage() {
   }
 
   async function handleTrigger() {
-    setSaving(true); setTriggerResult(null);
-    let variables = {};
-    try { if (triggerForm.variables) variables = JSON.parse(triggerForm.variables); } catch(e) { setError('Variables must be valid JSON'); setSaving(false); return; }
+    setSaving(true); setTriggerResult(null); setError('');
+    const variables = {};
+    triggerForm.varFields.forEach(f => { if (f.key.trim()) variables[f.key.trim()] = f.value; });
     const body = { eventType:triggerForm.eventType, referenceNumber:triggerForm.referenceNumber||undefined, variables };
     const res = await fetch(`${API}/alerts/trigger`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${getToken()}`},body:JSON.stringify(body)});
     const data = await res.json();
@@ -185,7 +185,7 @@ export default function AlertsPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Event Type *</label>
-                <select className="w-full border rounded-lg px-3 py-2 text-sm" value={triggerForm.eventType} onChange={e=>setTriggerForm(f=>({...f,eventType:e.target.value}))}>
+                <select className="w-full border rounded-lg px-3 py-2 text-sm" value={triggerForm.eventType} onChange={e=>setTriggerForm(f=>({...f,eventType:e.target.value,varFields:[{key:'customerName',value:''},{key:'customerEmail',value:''},{key:'amount',value:''}]}))}>
                   {EVENT_TYPES.map(t=><option key={t} value={t}>{EVENT_ICONS[t]} {t.replace(/_/g,' ')}</option>)}
                 </select>
               </div>
@@ -194,9 +194,19 @@ export default function AlertsPage() {
                 <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono" placeholder="INV-2026-0001" value={triggerForm.referenceNumber} onChange={e=>setTriggerForm(f=>({...f,referenceNumber:e.target.value}))} />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Variables (JSON)</label>
-                <textarea className="w-full border rounded-lg px-3 py-2 text-sm font-mono" rows={6} value={triggerForm.variables} onChange={e=>setTriggerForm(f=>({...f,variables:e.target.value}))} placeholder='{"customerName":"Tech Solutions","invoiceNumber":"INV-2026-0001","amount":"335120","customerEmail":"ar@customer.com"}' />
-                <div className="text-xs text-gray-400 mt-1">Variables replace {"{{"}"placeholder{"}}"} in templates</div>
+                <label className="block text-sm text-gray-600 mb-1">Template Variables</label>
+                <div className="space-y-2">
+                  {triggerForm.varFields.map((field,i)=>(
+                    <div key={i} className="flex gap-2 items-center">
+                      <input className="border rounded-lg px-3 py-2 text-sm w-36 font-mono bg-gray-50" placeholder="variable" value={field.key} onChange={e=>{const f=[...triggerForm.varFields];f[i]={...f[i],key:e.target.value};setTriggerForm(t=>({...t,varFields:f}));}} />
+                      <span className="text-gray-400 text-sm">=</span>
+                      <input className="border rounded-lg px-3 py-2 text-sm flex-1" placeholder="value" value={field.value} onChange={e=>{const f=[...triggerForm.varFields];f[i]={...f[i],value:e.target.value};setTriggerForm(t=>({...t,varFields:f}));}} />
+                      <button onClick={()=>{const f=triggerForm.varFields.filter((_,idx)=>idx!==i);setTriggerForm(t=>({...t,varFields:f}));}} className="text-red-400 hover:text-red-600 text-lg px-1">×</button>
+                    </div>
+                  ))}
+                  <button onClick={()=>setTriggerForm(t=>({...t,varFields:[...t.varFields,{key:'',value:''}]}))} className="text-xs text-blue-600 border border-blue-200 rounded px-3 py-1 hover:bg-blue-50">+ Add Variable</button>
+                </div>
+                <div className="text-xs text-gray-400 mt-2">Common: customerName, customerEmail, invoiceNumber, amount, soNumber, dispatchDate, lrNumber</div>
               </div>
               {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
               <button onClick={handleTrigger} disabled={saving} className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm disabled:opacity-50">{saving?'Triggering...':'Send Alert'}</button>
