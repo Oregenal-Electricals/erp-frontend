@@ -144,6 +144,8 @@ export default function PurchaseOrderDetailPage() {
           {['DRAFT','APPROVED'].includes(po.status) && (
             <button onClick={() => handleAction('cancel')} className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600">Cancel PO</button>
           )}
+          <button onClick={()=>downloadPdf(po?.id)} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">⬇ Download PDF</button>
+          <button onClick={()=>downloadPdf(po?.id)} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">⬇ Download PDF</button>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
