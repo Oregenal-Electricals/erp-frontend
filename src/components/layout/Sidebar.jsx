@@ -141,6 +141,7 @@ const NAV = [
       { label: 'Accounts Payable', href: '/finance/ap', icon: FileText },
       { label: 'GST Management', href: '/finance/gst', icon: FileText },
       { label: 'Bank Reconciliation', href: '/finance/bank-recon', icon: FileText },
+      { label: 'Financial Reports', href: '/finance/reports', icon: FileText },
     ],
   },
   {
