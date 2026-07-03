@@ -899,7 +899,7 @@ In-app notification system with event triggers, priority levels and read trackin
 - **Auto-clear:** Removes 30-day-old read notifications
 - **Filters:** All / Unread only
 
-Phase 14: Communication & Workflow  🔄 (2/4 complete — M110-111 done)
+Phase 14: Communication & Workflow  🔄 (3/4 complete — M110-112 done)
 
 ## Module 111 — Email/SMS Alerts ✅
 Alert template engine with event triggers, variable substitution and send logging.
@@ -936,3 +936,16 @@ Alert template engine with event triggers, variable substitution and send loggin
 - **Channels:** EMAIL, SMS, BOTH
 - **Log:** Full history with status SENT/FAILED/PENDING
 - **Seed:** Idempotent — 7 default templates
+
+## Module 112 — Approval Workflows ✅
+Multi-level document approval engine with configurable workflows and audit trail.
+- **Tables:** `workflow_definitions`, `workflow_steps`, `approval_requests`, `approval_actions`
+- **API:** GET/POST /workflows/definitions, /requests, /submit, /requests/:id/action, /cancel, /seed
+- **Frontend:** `/workflows` (3 tabs: Pending Approvals, All Requests, Definitions)
+- **Default workflows:** 5 seeded (PO, SO, AP_BILL, CREDIT_OVERRIDE, VOUCHER)
+- **Triggers:** ALWAYS or ABOVE_AMOUNT threshold
+- **Multi-level:** Up to 3 approval levels (e.g. AP_BILL has 2 levels)
+- **Auto-approve:** Below threshold → no request created
+- **Actions:** APPROVED / REJECTED with mandatory comments on reject
+- **Pending badge:** Count shown on tab
+- **Seed:** Idempotent
