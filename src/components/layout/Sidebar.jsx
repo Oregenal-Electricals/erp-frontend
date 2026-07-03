@@ -145,6 +145,12 @@ const NAV = [
     ],
   },
   {
+    label: 'Notifications', icon: FileText,
+    children: [
+      { label: 'All Notifications', href: '/notifications', icon: FileText },
+    ],
+  },
+  {
     label: 'Sales', icon: BarChart3,
     children: [
       { label: 'Leads', href: '/sales/leads', icon: Users },
