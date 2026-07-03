@@ -796,7 +796,7 @@ Hierarchical double-entry ledger account master — foundation of all finance.
 - **Account types:** ASSET, LIABILITY, EQUITY, INCOME, EXPENSE
 - **Sub types:** BANK, CASH, DEBTOR, CREDITOR, GST, STOCK, FIXED_ASSET, REVENUE, COGS, OPEX
 
-Phase 13: Finance & GST  🔄 (3/7 complete — M103-105 done)
+Phase 13: Finance & GST  🔄 (4/7 complete — M103-106 done)
 
 ## Module 104 — Voucher Engine ✅
 Double-entry bookkeeping engine — the core of all financial transactions.
@@ -821,3 +821,15 @@ Customer invoices, payment tracking and aging analysis.
 - **Aging buckets:** Current, 1-30, 31-60, 61-90, 90+ days
 - **Terms:** IMMEDIATE, NET_30, NET_45, NET_60, NET_90
 - **Status:** DRAFT→SENT→PARTIAL→PAID / OVERDUE
+
+## Module 106 — Accounts Payable ✅
+Vendor bills, payment tracking and payables aging analysis.
+- **Tables:** `ap_bills`, `ap_payments`
+- **API:** GET/POST /ap, POST /ap/payments, GET /ap/aging, GET /ap/stats
+- **Frontend:** `/finance/ap` (2 tabs: Bills + Aging Report)
+- **Auto-vouchers:** Purchase Bill (DR Purchases+GST/CR Creditors) + Payment (DR Creditors/CR Bank)
+- **Payment flow:** Partial or full vendor payments with NEFT/RTGS/Cheque/UPI
+- **Aging buckets:** Current, 1-30, 31-60, 61-90, 90+ days
+- **PO linkage:** Optional link to Purchase Order
+- **Status:** DRAFT→APPROVED→PARTIAL→PAID / OVERDUE
+- **Mirror of AR:** Same pattern as M105 but vendor-side
