@@ -139,6 +139,7 @@ const NAV = [
       { label: 'Vouchers', href: '/finance/vouchers', icon: FileText },
       { label: 'Accounts Receivable', href: '/finance/ar', icon: FileText },
       { label: 'Accounts Payable', href: '/finance/ap', icon: FileText },
+      { label: 'GST Management', href: '/finance/gst', icon: FileText },
     ],
   },
   {
