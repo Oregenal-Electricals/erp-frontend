@@ -1038,7 +1038,7 @@ Unified analytics engine covering all business domains.
 - **Quality:** NCR summary by status, CAPA tracking
 - **Finance:** P&L summary, AR aging, cash balance
 
-Phase 16: Reports & BI  🔄 (3/8 complete — M117-119 done)
+Phase 16: Reports & BI  🔄 (4/8 complete — M117-120 done)
 - **Sidebar:** Analytics section with Executive Dashboard link (above Documents)
 
 ## Module 118 — Sales Analytics ✅
@@ -1063,3 +1063,15 @@ Deep purchase analysis with vendor performance and AP aging.
 - **Top Vendors:** Ranked by spend with progress bars and PO count
 - **PO Pipeline:** Status distribution (DRAFT→APPROVED→SENT→RECEIVED→CLOSED)
 - **AP Aging:** Current, 1-30, 31-60, 61-90, 90+ days outstanding
+
+## Module 120 — Inventory Analytics ✅
+Stock health, movement trends and warehouse distribution analysis.
+- **Tables:** None (computed from StockBalance + StockLedger)
+- **API:** GET /analytics/inventory-deep
+- **Frontend:** `/analytics/inventory`
+- **KPIs:** Total SKUs, Stock Value, Total Qty, Low Stock Count, Zero Stock Count
+- **Movement Trend:** 12-month in/out bar chart (green=in, red=out)
+- **Top Items:** Ranked by stock value with cost per unit
+- **By Warehouse:** Value distribution across warehouses
+- **Low Stock Alert:** Items below threshold with reorder signal
+- **Zero Stock Alert:** Out-of-stock items
