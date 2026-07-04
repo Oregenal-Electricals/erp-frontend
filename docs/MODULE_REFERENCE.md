@@ -1038,7 +1038,7 @@ Unified analytics engine covering all business domains.
 - **Quality:** NCR summary by status, CAPA tracking
 - **Finance:** P&L summary, AR aging, cash balance
 
-Phase 16: Reports & BI  🔄 (7/8 complete — M117-123 done)
+Phase 16: Reports & BI  ✅ COMPLETE (M117-124 all done)
 - **Sidebar:** Analytics section with Executive Dashboard link (above Documents)
 
 ## Module 118 — Sales Analytics ✅
@@ -1111,3 +1111,14 @@ P&L trends, AR/AP aging, GST summary and cash flow analysis.
 - **AP Aging:** Same aging buckets for vendor payables
 - **GST Summary:** Output GST vs Input GST vs Net Payable (current month)
 - **This Month:** Current month P&L snapshot card
+
+## Module 124 — MIS Report Builder ✅
+8 pre-built MIS reports with filters, table view and CSV export.
+- **Tables:** None (reads from existing data)
+- **API:** GET /mis-reports/sales-summary, /purchase-summary, /stock-position, /outstanding-ar, /outstanding-ap, /ncr-summary, /production-summary, /gst-summary
+- **Frontend:** `/analytics/mis-reports`
+- **Reports:** Sales Summary, Purchase Summary, Stock Position, Outstanding AR/AP, NCR Summary, Production Summary, GST Summary
+- **Filters:** Period (1/3/6/12M), customer/vendor name, custom date range
+- **Output:** Summary cards + detailed table with smart formatting
+- **Export:** CSV download with one click
+- **UX:** Left panel report selector, right panel config + results
