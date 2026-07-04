@@ -152,6 +152,7 @@ const NAV = [
       { label: 'Purchase Analytics', href: '/analytics/purchase', icon: BarChart3 },
       { label: 'Inventory Analytics', href: '/analytics/inventory', icon: BarChart3 },
       { label: 'Production Analytics', href: '/analytics/production', icon: BarChart3 },
+      { label: 'Quality Analytics', href: '/analytics/quality', icon: BarChart3 },
     ],
   },
   {
