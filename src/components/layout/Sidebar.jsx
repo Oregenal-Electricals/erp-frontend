@@ -150,6 +150,7 @@ const NAV = [
       { label: 'Executive Dashboard', href: '/analytics', icon: BarChart3 },
       { label: 'Sales Analytics', href: '/analytics/sales', icon: BarChart3 },
       { label: 'Purchase Analytics', href: '/analytics/purchase', icon: BarChart3 },
+      { label: 'Inventory Analytics', href: '/analytics/inventory', icon: BarChart3 },
     ],
   },
   {
