@@ -1039,3 +1039,4 @@ Unified analytics engine covering all business domains.
 - **Finance:** P&L summary, AR aging, cash balance
 
 Phase 16: Reports & BI  🔄 (1/8 complete — M117 done)
+- **Sidebar:** Analytics section with Executive Dashboard link (above Documents)
