@@ -1038,7 +1038,7 @@ Unified analytics engine covering all business domains.
 - **Quality:** NCR summary by status, CAPA tracking
 - **Finance:** P&L summary, AR aging, cash balance
 
-Phase 16: Reports & BI  🔄 (2/8 complete — M117-118 done)
+Phase 16: Reports & BI  🔄 (3/8 complete — M117-119 done)
 - **Sidebar:** Analytics section with Executive Dashboard link (above Documents)
 
 ## Module 118 — Sales Analytics ✅
@@ -1052,3 +1052,14 @@ Deep sales analysis with funnel, customer insights and AR aging.
 - **Top Customers:** Revenue + outstanding amount per customer
 - **Order Status:** Distribution with percentage bars
 - **AR Aging:** Current, 1-30, 31-60, 61-90, 90+ days buckets
+
+## Module 119 — Purchase Analytics ✅
+Deep purchase analysis with vendor performance and AP aging.
+- **Tables:** None (computed from existing data)
+- **API:** GET /analytics/purchase-deep?period=12
+- **Frontend:** `/analytics/purchase`
+- **KPIs:** Total Spend, POs raised, Avg PO Value, Payment Rate, AP Outstanding
+- **Spend Trend:** 12-month bar chart
+- **Top Vendors:** Ranked by spend with progress bars and PO count
+- **PO Pipeline:** Status distribution (DRAFT→APPROVED→SENT→RECEIVED→CLOSED)
+- **AP Aging:** Current, 1-30, 31-60, 61-90, 90+ days outstanding
