@@ -1038,7 +1038,7 @@ Unified analytics engine covering all business domains.
 - **Quality:** NCR summary by status, CAPA tracking
 - **Finance:** P&L summary, AR aging, cash balance
 
-Phase 16: Reports & BI  🔄 (5/8 complete — M117-121 done)
+Phase 16: Reports & BI  🔄 (6/8 complete — M117-122 done)
 - **Sidebar:** Analytics section with Executive Dashboard link (above Documents)
 
 ## Module 118 — Sales Analytics ✅
@@ -1087,3 +1087,15 @@ Work order performance, completion rates and production trend analysis.
 - **Top Products:** Ranked by completed quantity
 - **Overdue Alert:** WOs past planned end date
 - **Summary:** Planned vs Completed vs Rejected with progress bar
+
+## Module 122 — Quality Analytics ✅
+NCR trends, CAPA performance, OQC pass rates and composite quality score.
+- **Tables:** None (computed from NcrRecord, CapaRecord, OqcInspection)
+- **API:** GET /analytics/quality-deep
+- **Frontend:** `/analytics/quality`
+- **Quality Score:** Composite metric (CAPA rate 40% + OQC pass 40% + Critical NCR 20%)
+- **KPIs:** Total NCRs, Open NCRs, Critical NCRs, CAPA Rate, OQC Pass Rate, Overdue CAPAs
+- **NCR Trend:** 12-month bar chart
+- **Breakdown:** By Source, By Severity, By Status, CAPA by Status
+- **Top Defect Items:** Most frequently appearing items in NCRs
+- **OQC Summary:** Pass/Fail split with visual progress bar
