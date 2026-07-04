@@ -27,6 +27,13 @@ export default function CapaPage() {
   const [saving, setSaving] = useState(false);
 
   async function fetchAll() {
+    // Fetch health score and escalations
+    const [hRes, eRes] = await Promise.all([
+      fetch(`${API}/capa-automation/health-score`, {headers:{Authorization:`Bearer ${getToken()}`}}),
+      fetch(`${API}/capa-automation/escalations`, {headers:{Authorization:`Bearer ${getToken()}`}}),
+    ]);
+    if (hRes.ok) { const d = await hRes.json(); setHealth(d); }
+    if (eRes.ok) { const d = await eRes.json(); setEscalations(d); }
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
     const params = new URLSearchParams({ page, limit: 20 });
