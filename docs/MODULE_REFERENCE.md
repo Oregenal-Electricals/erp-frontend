@@ -1038,7 +1038,7 @@ Unified analytics engine covering all business domains.
 - **Quality:** NCR summary by status, CAPA tracking
 - **Finance:** P&L summary, AR aging, cash balance
 
-Phase 16: Reports & BI  🔄 (4/8 complete — M117-120 done)
+Phase 16: Reports & BI  🔄 (5/8 complete — M117-121 done)
 - **Sidebar:** Analytics section with Executive Dashboard link (above Documents)
 
 ## Module 118 — Sales Analytics ✅
@@ -1075,3 +1075,15 @@ Stock health, movement trends and warehouse distribution analysis.
 - **By Warehouse:** Value distribution across warehouses
 - **Low Stock Alert:** Items below threshold with reorder signal
 - **Zero Stock Alert:** Out-of-stock items
+
+## Module 121 — Production Analytics ✅
+Work order performance, completion rates and production trend analysis.
+- **Tables:** None (computed from WorkOrder)
+- **API:** GET /analytics/production-deep
+- **Frontend:** `/analytics/production`
+- **KPIs:** Total WOs, Completion Rate, Rejection Rate, Avg Cycle Time
+- **Production Trend:** 12-month completed qty bar chart
+- **WO Status:** Distribution with percentage bars
+- **Top Products:** Ranked by completed quantity
+- **Overdue Alert:** WOs past planned end date
+- **Summary:** Planned vs Completed vs Rejected with progress bar
