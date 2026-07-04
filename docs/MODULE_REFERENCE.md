@@ -1038,7 +1038,7 @@ Unified analytics engine covering all business domains.
 - **Quality:** NCR summary by status, CAPA tracking
 - **Finance:** P&L summary, AR aging, cash balance
 
-Phase 16: Reports & BI  🔄 (6/8 complete — M117-122 done)
+Phase 16: Reports & BI  🔄 (7/8 complete — M117-123 done)
 - **Sidebar:** Analytics section with Executive Dashboard link (above Documents)
 
 ## Module 118 — Sales Analytics ✅
@@ -1099,3 +1099,15 @@ NCR trends, CAPA performance, OQC pass rates and composite quality score.
 - **Breakdown:** By Source, By Severity, By Status, CAPA by Status
 - **Top Defect Items:** Most frequently appearing items in NCRs
 - **OQC Summary:** Pass/Fail split with visual progress bar
+
+## Module 123 — Finance Analytics ✅
+P&L trends, AR/AP aging, GST summary and cash flow analysis.
+- **Tables:** None (computed from ArInvoice, ApBill, Account, Voucher)
+- **API:** GET /analytics/finance-deep
+- **Frontend:** `/analytics/finance`
+- **KPIs:** Revenue, Gross Profit, Bank Balance, AR Outstanding, AP Outstanding, GST, Vouchers
+- **P&L Trend:** 12-month Revenue/Expense/Profit bar chart (3 bars per month)
+- **AR Aging:** Current, 1-30, 31-60, 61-90, 90+ days outstanding
+- **AP Aging:** Same aging buckets for vendor payables
+- **GST Summary:** Output GST vs Input GST vs Net Payable (current month)
+- **This Month:** Current month P&L snapshot card
