@@ -148,6 +148,7 @@ const NAV = [
     label: 'Analytics', icon: BarChart3,
     children: [
       { label: 'Executive Dashboard', href: '/analytics', icon: BarChart3 },
+      { label: 'Sales Analytics', href: '/analytics/sales', icon: BarChart3 },
     ],
   },
   {
