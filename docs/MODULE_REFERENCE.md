@@ -1167,3 +1167,9 @@ Comprehensive quality reporting across all quality modules (built in Phase 8, co
 - **Frontend:** `/quality/reports` → 200
 - **Tabs:** KPI Summary, NCR Report, CAPA Report, OQC Report, Supplier Report, Complaint Report
 - **Status:** Built in Phase 8, confirmed live in Phase 9
+
+## Module 72 — Quality Reports ✅
+Comprehensive quality reporting suite (built in Phase 8, confirmed in Phase 9).
+- **API:** GET /quality-reports/kpi-summary, /ncr-report, /capa-report, /oqc-report, /supplier-report, /complaint-report
+- **Frontend:** `/quality/reports` (6 tabs: KPI Summary, NCR, CAPA, OQC, Supplier, Complaints)
+- **Status:** Was built in Phase 8, confirmed live in Phase 9
