@@ -1135,7 +1135,7 @@ Unified quality operations dashboard (built in Phase 8, confirmed working in Pha
 - **Alerts:** Critical NCR, overdue CAPA, low OQC pass rate
 - **Status:** Was built in Phase 8, confirmed live in Phase 9
 
-Phase 9: Advanced Quality  🔄 (2/3 complete — M70-71 done)
+Phase 9: Advanced Quality  ✅ COMPLETE (M70-72 all done)
 
 ---
 
@@ -1149,7 +1149,7 @@ Unified quality operations dashboard (built in Phase 8, confirmed working in Pha
 - **Alerts:** Critical NCR, overdue CAPA, low OQC pass rate
 - **Status:** Was built in Phase 8, confirmed live in Phase 9
 
-Phase 9: Advanced Quality  🔄 (2/3 complete — M70-71 done)
+Phase 9: Advanced Quality  ✅ COMPLETE (M70-72 all done)
 
 ## Module 71 — CAPA Automation ✅
 Auto-create CAPA from NCR, escalation engine, effectiveness tracking and health score.
@@ -1160,3 +1160,10 @@ Auto-create CAPA from NCR, escalation engine, effectiveness tracking and health 
 - **Escalation:** Detects overdue, approaching (3 days), unactioned (48h) CAPAs
 - **Effectiveness:** Checks if same NCR source recurs after CAPA verification
 - **Health Score:** Composite (completion rate - overdue penalty × 2)
+
+## Module 72 — Quality Reports ✅
+Comprehensive quality reporting across all quality modules (built in Phase 8, confirmed in Phase 9).
+- **API:** GET /quality-reports/kpi-summary, /ncr-report, /capa-report, /oqc-report, /supplier-report, /complaint-report
+- **Frontend:** `/quality/reports` → 200
+- **Tabs:** KPI Summary, NCR Report, CAPA Report, OQC Report, Supplier Report, Complaint Report
+- **Status:** Built in Phase 8, confirmed live in Phase 9
