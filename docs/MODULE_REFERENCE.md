@@ -1316,4 +1316,20 @@ Employee master, departments, designations and documents.
 - **Sensitive fields:** bankAccountNumber, aadharNumber, panNumber → REDACTED in audit logs
 - **Sidebar:** HR section added (Employees, Departments)
 
-Phase 10: HR & Payroll  🔄 (1/10 complete — M73 done)
+Phase 10: HR & Payroll  🔄 (2/10 complete — M73-74 done)
+
+## Module 74 — Attendance Management ✅
+Daily attendance with overtime calculation engine and shift management.
+- **Tables:** shifts, attendance
+- **API:** GET/POST/PUT /attendance, /attendance/shifts, /attendance/bulk, /attendance/summary/:id, /attendance/stats
+- **Frontend:** `/hr/attendance` (Daily View, Mark, Bulk Mark, Shifts tabs)
+- **OT Engine:**
+  - 30-minute rounding rule (checkout rounded DOWN to nearest 30-min block)
+  - Lunch deduction from shift config (admin-set, applies to all on that shift)
+  - Manager can enter actual lunch times per record (overrides shift default)
+  - OT = max(0, workedHours - shiftHours)
+  - Weekday OT: 1.5× hourly rate
+  - Holiday OT: 2.0× hourly rate
+  - Hourly rate = basicSalary / 26 / shiftHours
+- **Shift Config:** Admin-only (code, timing, net hours, lunch, OT multipliers)
+- **Permissions:** Admin sets shifts + lunch; Manager marks attendance; Employee view-only
