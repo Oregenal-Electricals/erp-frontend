@@ -1316,7 +1316,7 @@ Employee master, departments, designations and documents.
 - **Sensitive fields:** bankAccountNumber, aadharNumber, panNumber → REDACTED in audit logs
 - **Sidebar:** HR section added (Employees, Departments)
 
-Phase 10: HR & Payroll  🔄 (5/10 complete — M73-77 done)
+Phase 10: HR & Payroll  🔄 (6/10 complete — M73-78 done)
 
 ## Module 74 — Attendance Management ✅
 Daily attendance with overtime calculation engine and shift management.
@@ -1372,3 +1372,17 @@ Indian statutory compliance — PF challan, ESI challan and annual registers.
 - **Challans:** Monthly PF/ESI deposit summary with due dates
 - **Registers:** Annual employee-wise contribution history
 - **Export:** CSV download for government upload
+
+## Module 78 — TDS Management ✅
+Section 192 TDS on salary — declarations, tax calculation, challan and Form 16.
+- **Tables:** tds_declarations
+- **API:** POST /tds/declaration, GET /tds, /tds/challan, /tds/register, /tds/form16/:id, /tds/:id
+- **Frontend:** `/hr/tds` (Declarations, Save Declaration, TDS Challan, TDS Register, Form 16 tabs)
+- **Tax Engine:**
+  - NEW Regime: Standard deduction ₹50K, slabs 0-3L/3-6L/6-9L/9-12L/12-15L/>15L
+  - OLD Regime: + HRA, 80C (max ₹1.5L), 80D (max ₹25K), 80G, 80E
+  - Rebate 87A: New regime ≤₹7L → full rebate; Old regime ≤₹5L → full rebate
+  - 4% Health & Education Cess on tax
+  - HRA Exemption: min(HRA, 50%/40% basic, rent-10% basic)
+- **Monthly TDS = Annual Tax / 12**
+- **Form 16:** Annual TDS certificate with full computation breakdown
