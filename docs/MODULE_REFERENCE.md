@@ -341,7 +341,9 @@ Real-time inventory tracking — every movement recorded, balance maintained per
 - **IQC receive:** One-click stock credit from approved IQC inspections
 
 ## Module 41 — Rejected Stock Handling ✅
+
 Quarantine, disposition and RTV management for IQC-rejected goods.
+
 - **Tables:** `rejected_stock`, `rejected_stock_items`
 - **API:** `GET/POST /rejected-stock`, `POST /from-iqc/:iqcId`, `PUT /:id/items/:itemId/dispose`, `POST /:id/close`
 - **Frontend:** `/inventory/rejected`
@@ -351,7 +353,9 @@ Quarantine, disposition and RTV management for IQC-rejected goods.
 - **Number format:** REJ-2026-0001
 
 ## Module 43 — Rack & Bin Management ✅
+
 Manage warehouse storage locations — zones, racks and bins.
+
 - **Tables:** `warehouse_zones`, `warehouse_racks`, `warehouse_bins`
 - **API:** `GET/POST /rack-bin/zones/:wId`, `GET/POST /rack-bin/racks/:wId`, `GET/POST /rack-bin/bins/rack/:rId`, `POST /rack-bin/bins/bulk`, `GET /rack-bin/stats/:wId`
 - **Frontend:** `/inventory/rack-bin` (zone/rack list + bin grid view)
@@ -360,7 +364,9 @@ Manage warehouse storage locations — zones, racks and bins.
 - **Stats:** utilization %, empty/partial/full bin counts per warehouse
 
 ## Module 44 — Stock Putaway ✅
+
 Assign accepted IQC stock to specific rack/bin locations within the warehouse.
+
 - **Tables:** `stock_putaway`, `stock_putaway_items`
 - **API:** `GET/POST /stock-putaway`, `PUT /:id/items`, `POST /:id/complete`
 - **Frontend:** `/inventory/putaway`
@@ -370,7 +376,9 @@ Assign accepted IQC stock to specific rack/bin locations within the warehouse.
 - **Number format:** PUT-2026-0001
 
 ## Module 44 — Stock Putaway ✅
+
 Assign accepted IQC stock to specific rack/bin locations within the warehouse.
+
 - **Tables:** `stock_putaway`, `stock_putaway_items`
 - **API:** `GET/POST /stock-putaway`, `PUT /:id/items`, `POST /:id/complete`
 - **Frontend:** `/inventory/putaway`
@@ -380,7 +388,9 @@ Assign accepted IQC stock to specific rack/bin locations within the warehouse.
 - **Number format:** PUT-2026-0001
 
 ## Module 45 — Batch & Lot Management ✅
+
 Track stock batches for FIFO issue, expiry management and quality traceability.
+
 - **Tables:** `stock_batches`
 - **API:** `GET/POST /stock-batches`, `POST /from-grn/:grnId`, `PUT /:id`, `POST /:id/quarantine`, `GET /item/:itemCode`
 - **Frontend:** `/inventory/batches`
@@ -391,7 +401,9 @@ Track stock batches for FIFO issue, expiry management and quality traceability.
 - **Number format:** BAT-2026-0001
 
 ## Module 46 — FIFO / FEFO Stock Issue Engine ✅
+
 Issue materials from warehouse using FIFO or FEFO batch allocation.
+
 - **Tables:** `stock_issues`, `stock_issue_items`
 - **API:** `GET/POST /stock-issues`, `POST /:id/confirm`, `GET /fifo-plan`
 - **Frontend:** `/inventory/issues`
@@ -402,7 +414,9 @@ Issue materials from warehouse using FIFO or FEFO batch allocation.
 - **Number format:** ISS-2026-0001
 
 ## Module 47 — Stock Transfer ✅
+
 Move inventory between warehouses or between bins within the same warehouse.
+
 - **Tables:** `stock_transfers`, `stock_transfer_items`
 - **API:** `GET/POST /stock-transfers`, `POST /:id/confirm`, `/:id/cancel`
 - **Frontend:** `/inventory/transfers`
@@ -414,7 +428,9 @@ Move inventory between warehouses or between bins within the same warehouse.
 - **Number format:** TRF-2026-0001
 
 ## Module 47 — Stock Transfer ✅
+
 Move inventory between warehouses or between bins within the same warehouse.
+
 - **Tables:** `stock_transfers`, `stock_transfer_items`
 - **API:** `GET/POST /stock-transfers`, `POST /:id/confirm`, `/:id/cancel`
 - **Frontend:** `/inventory/transfers`
@@ -426,7 +442,9 @@ Move inventory between warehouses or between bins within the same warehouse.
 - **Number format:** TRF-2026-0001
 
 ## Module 48 — Stock Adjustment ✅
+
 Correct inventory discrepancies from physical counts, damage, theft, or opening entries.
+
 - **Tables:** `stock_adjustments`, `stock_adjustment_items`
 - **API:** `GET/POST /stock-adjustments`, `POST /:id/approve`, `/:id/cancel`
 - **Frontend:** `/inventory/adjustments`
@@ -438,7 +456,9 @@ Correct inventory discrepancies from physical counts, damage, theft, or opening 
 - **Number format:** ADJ-2026-0001
 
 ## Module 49 — Stock Ledger Reports ✅
+
 Five reporting views for complete inventory visibility and audit trail.
+
 - **Tables:** Uses existing stock_ledger, stock_balance, stock_batches (read-only)
 - **API:** GET /stock-reports/ledger, /balance-summary, /item-card/:code, /batch-movements, /consumption
 - **Frontend:** `/inventory/reports` (5 tabs)
@@ -449,7 +469,9 @@ Five reporting views for complete inventory visibility and audit trail.
 - **Consumption:** Issue analysis sorted by value consumed
 
 ## Module 50 — Inventory Valuation ✅
+
 Stock value analysis with aging, slow-moving detection and FIFO valuation.
+
 - **Tables:** Uses existing stock_balance, stock_batches, stock_ledger (read-only)
 - **API:** GET /inventory-valuation/summary, /aging, /slow-moving, /fifo-value
 - **Frontend:** `/inventory/valuation` (4 tabs)
@@ -459,7 +481,9 @@ Stock value analysis with aging, slow-moving detection and FIFO valuation.
 - **FIFO Value:** Batch-level valuation with avg cost per item-warehouse
 
 ## Module 51 — Inventory Dashboard ✅
+
 Real-time inventory command center for warehouse managers.
+
 - **Tables:** Uses existing tables (read-only)
 - **API:** GET /inventory-dashboard/overview, /alerts, /activity, /top-items
 - **Frontend:** `/inventory/dashboard`
@@ -470,7 +494,9 @@ Real-time inventory command center for warehouse managers.
 - **Pending Actions:** Quick links to pending GRN, IQC, Putaway
 
 ## Module 52 — Inventory Reports ✅
+
 Formal inventory registers and ABC analysis for management and auditors.
+
 - **Tables:** Uses existing tables (read-only)
 - **API:** GET /inventory-reports/stock-register, /grn-register, /issue-register, /transfer-register, /abc-analysis
 - **Frontend:** `/inventory/inv-reports` (5 tabs)
@@ -481,7 +507,9 @@ Formal inventory registers and ABC analysis for management and auditors.
 - **ABC Analysis:** Classify items by consumption value (A=top 70%, B=next 20%, C=bottom 10%)
 
 ## Module 54 — Work Order Management ✅
+
 Plan and track production work orders from creation to completion.
+
 - **Tables:** `work_orders`
 - **API:** GET/POST /work-orders, PUT /:id, POST /:id/release, /start, /complete, /cancel
 - **Frontend:** `/production/work-orders` (new Production sidebar section)
@@ -493,7 +521,9 @@ Plan and track production work orders from creation to completion.
 - **Number format:** WO-2026-0001
 
 ## Module 55 — Material Requirement Planning (MRP) ✅
+
 Calculate material needs for work orders and identify shortages.
+
 - **Tables:** Uses existing work_orders, boms, stock_balance, stock_batches (read-only)
 - **API:** GET /mrp/calculate/:woId, /shortage-report, /material-plan
 - **Frontend:** `/production/mrp` (3 tabs)
@@ -503,7 +533,9 @@ Calculate material needs for work orders and identify shortages.
 - **canProduce flag:** Green/red indicator per work order
 
 ## Module 56 — Production Material Issue ✅
+
 Issue raw materials to production floor based on MRP requirements.
+
 - **Tables:** `production_issues`, `production_issue_items`
 - **API:** GET/POST /production-issues, POST /from-mrp/:woId, POST /:id/confirm
 - **Frontend:** `/production/material-issue`
@@ -514,7 +546,9 @@ Issue raw materials to production floor based on MRP requirements.
 - **Number format:** PI-2026-0001
 
 ## Module 57 — Production Recording & Output ✅
+
 Record daily/shift production output against work orders.
+
 - **Tables:** `production_entries`
 - **API:** GET/POST /production-entries, POST /:id/confirm, GET /wo-progress/:woId
 - **Frontend:** `/production/recording`
@@ -526,7 +560,9 @@ Record daily/shift production output against work orders.
 - **Number format:** PE-2026-0001
 
 ## Module 58 — In-Process Quality Control (IPQC) ✅
+
 Record and track in-process quality inspections during production.
+
 - **Tables:** `production_qc`
 - **API:** GET/POST /production-qc, POST /:id/complete, GET /stats
 - **Frontend:** `/production/ipqc`
@@ -537,7 +573,9 @@ Record and track in-process quality inspections during production.
 - **Number format:** PQC-2026-0001
 
 ## Module 59 — Finished Goods Receipt ✅
+
 Receive completed production output into FG warehouse stock.
+
 - **Tables:** `fg_receipts`
 - **API:** GET/POST /fg-receipts, POST /from-wo/:woId, POST /:id/confirm, GET /pending-wos
 - **Frontend:** `/production/fg-receipt`
@@ -549,7 +587,9 @@ Receive completed production output into FG warehouse stock.
 - **Number format:** FGR-2026-0001
 
 ## Module 60 — Production Cost Sheet ✅
+
 Auto-calculate actual cost of manufacturing per work order.
+
 - **Tables:** `production_cost_sheets`
 - **API:** POST /production-cost-sheets/generate/:woId, PUT /:id, POST /:id/finalize
 - **Frontend:** `/production/cost-sheet`
@@ -561,7 +601,9 @@ Auto-calculate actual cost of manufacturing per work order.
 - **Finalize:** Locks sheet, cannot edit after
 
 ## Module 61 — Production Dashboard ✅
+
 Real-time production command center for shop floor managers.
+
 - **Tables:** Uses existing tables (read-only aggregation)
 - **API:** GET /production-dashboard/overview, /active-wos, /today, /alerts, /quality
 - **Frontend:** `/production/dashboard`
@@ -571,7 +613,9 @@ Real-time production command center for shop floor managers.
 - **Quality Metrics:** Overall pass rate, PASS/FAIL/CONDITIONAL breakdown
 
 ## Module 62 — Production Reports ✅
+
 Formal production reports for management — WO completion, shifts, material, scrap, quality.
+
 - **Tables:** Uses existing tables (read-only)
 - **API:** GET /production-reports/wo-completion, /shift-production, /material-consumption, /scrap-analysis, /quality-summary
 - **Frontend:** `/production/reports` (5 tabs)
@@ -589,7 +633,9 @@ All 10 modules (M53-M62) covering the full manufacturing execution lifecycle:
 BOM → Work Orders → MRP → Material Issue → Production Recording → IPQC → FG Receipt → Cost Sheet → Dashboard → Reports
 
 ## Module 63 — NCR & CAPA Management ✅
+
 Formal non-conformance reporting and corrective/preventive action tracking.
+
 - **Tables:** `ncr_records`, `capa_records`
 - **API:** GET/POST /ncr, POST /ncr/:id/close | GET/POST /capa, PUT /:id, POST /:id/verify
 - **Frontend:** `/quality/ncr`, `/quality/capa` (new Quality sidebar section)
@@ -601,10 +647,12 @@ Formal non-conformance reporting and corrective/preventive action tracking.
 - **Guard:** NCR cannot close until all CAPAs are VERIFIED
 - **Overdue:** CAPA overdue detection and highlighting
 
-Phase 8: Quality Management System  🔄 (7/10 complete — M63-69 done)
+Phase 8: Quality Management System 🔄 (7/10 complete — M63-69 done)
 
 ## Module 64 — Root Cause Analysis (RCA) ✅
+
 Structured root cause analysis using 5-Why and Fishbone (Ishikawa) methods.
+
 - **Tables:** `rca_records`
 - **API:** GET/POST /rca, PUT /:id, POST /:id/complete
 - **Frontend:** `/quality/rca`
@@ -615,7 +663,9 @@ Structured root cause analysis using 5-Why and Fishbone (Ishikawa) methods.
 - **Visual display:** Color-coded why levels, fishbone grid layout
 
 ## Module 65 — Outgoing Quality Control (OQC) ✅
+
 Final quality inspection before dispatch to customer.
+
 - **Tables:** `oqc_inspections`
 - **API:** GET/POST /oqc, POST /:id/complete, POST /:id/release
 - **Frontend:** `/quality/oqc`
@@ -627,7 +677,9 @@ Final quality inspection before dispatch to customer.
 - **Workflow:** PENDING → COMPLETED → RELEASED
 
 ## Module 66 — Supplier Quality Management ✅
+
 Track vendor quality performance, ratings and corrective action requests.
+
 - **Tables:** `supplier_quality_ratings`, `supplier_cars`
 - **API:** GET/POST /supplier-quality/ratings, /cars, /scorecard/:vendorId
 - **Frontend:** `/quality/supplier` (2 tabs)
@@ -638,7 +690,9 @@ Track vendor quality performance, ratings and corrective action requests.
 - **Overdue CAR:** Highlighted in red when past due date
 
 ## Module 67 — Customer Complaints ✅
+
 Track, investigate and resolve customer quality complaints.
+
 - **Tables:** `customer_complaints`
 - **API:** GET/POST /customer-complaints, PUT /:id, POST /:id/respond, POST /:id/close
 - **Frontend:** `/quality/complaints`
@@ -650,7 +704,9 @@ Track, investigate and resolve customer quality complaints.
 - **Response:** Root cause + corrective action + 8D number sent to customer
 
 ## Module 68 — Quality Dashboard ✅
+
 Real-time quality management command center for QA Manager and MD.
+
 - **Tables:** Uses existing tables (read-only aggregation)
 - **API:** GET /quality-dashboard/overview, /ncr-summary, /oqc-trend, /alerts
 - **Frontend:** `/quality/dashboard` (first item in Quality sidebar)
@@ -660,7 +716,9 @@ Real-time quality management command center for QA Manager and MD.
 - **Alerts:** Priority-sorted (CRITICAL→HIGH→MEDIUM) — overdue CAPAs, critical NCRs, open complaints, overdue CARs
 
 ## Module 69 — Quality Reports ✅
+
 Formal quality management reports for management review and compliance.
+
 - **Tables:** Uses existing tables (read-only)
 - **API:** GET /quality-reports/ncr-report, /capa-report, /oqc-report, /supplier-report, /complaint-report, /kpi-summary
 - **Frontend:** `/quality/reports` (6 tabs)
@@ -672,7 +730,9 @@ Formal quality management reports for management review and compliance.
 - **Complaint Report:** Response time, closure rate, type breakdown
 
 ## Module 69 — Quality Reports ✅
+
 Formal quality management reports for management review and compliance.
+
 - **Tables:** Uses existing tables (read-only)
 - **API:** GET /quality-reports/ncr-report, /capa-report, /oqc-report, /supplier-report, /complaint-report, /kpi-summary
 - **Frontend:** `/quality/reports` (6 tabs)
@@ -688,7 +748,9 @@ Formal quality management reports for management review and compliance.
 # 🚀 PHASE 12 — SALES & DISPATCH
 
 ## Module 95 — Lead Management ✅
+
 Sales pipeline tracking from first contact to conversion.
+
 - **Tables:** `leads`
 - **API:** GET/POST /leads, PUT /:id, POST /:id/convert
 - **Frontend:** `/sales/leads` (new Sales sidebar section)
@@ -699,10 +761,12 @@ Sales pipeline tracking from first contact to conversion.
 - **Overdue:** Follow-up date overdue detection with orange highlight
 - **Lost:** Mandatory lost reason required
 
-Phase 12: Sales & Dispatch  ✅ COMPLETE (M95-M102 + M99 all done)
+Phase 12: Sales & Dispatch ✅ COMPLETE (M95-M102 + M99 all done)
 
 ## Module 96 — Quotation ✅
+
 Customer quotations with line items, GST calculation and approval workflow.
+
 - **Tables:** `quotations`, `quotation_items`
 - **API:** GET/POST /quotations, POST /:id/send, /accept, /reject, /revise
 - **Frontend:** `/sales/quotations`
@@ -715,7 +779,9 @@ Customer quotations with line items, GST calculation and approval workflow.
 - **Price lock:** Accepted quotation prices immutable (new revision required)
 
 ## Module 97 — Customer PO ✅
+
 Register and track customer purchase orders linked to accepted quotations.
+
 - **Tables:** `customer_pos`, `customer_po_items`
 - **API:** GET/POST /customer-po, POST /:id/acknowledge, POST /:id/cancel
 - **Frontend:** `/sales/customer-po`
@@ -728,7 +794,9 @@ Register and track customer purchase orders linked to accepted quotations.
 - **Cancel:** Mandatory cancellation reason
 
 ## Module 98 — Sales Order ✅
+
 Internal fulfillment commitment created from Customer POs.
+
 - **Tables:** `sales_orders`, `sales_order_items`
 - **API:** GET/POST /sales-orders, POST /:id/confirm, POST /:id/cancel, GET /by-cpo/:cpoId
 - **Frontend:** `/sales/sales-orders`
@@ -741,7 +809,9 @@ Internal fulfillment commitment created from Customer POs.
 - **Cancel:** Mandatory reason, cannot cancel DISPATCHED or COMPLETED
 
 ## Module 100 — Dispatch Planning ✅
+
 Plan and approve dispatch of sales order items to customers.
+
 - **Tables:** `dispatch_plans`, `dispatch_plan_items`
 - **API:** GET/POST /dispatch-plans, POST /:id/approve, POST /:id/cancel, GET /pending-so-items/:soId
 - **Frontend:** `/sales/dispatch-planning`
@@ -754,7 +824,9 @@ Plan and approve dispatch of sales order items to customers.
 - **Cancel:** Mandatory reason
 
 ## Module 101 — Dispatch ✅
+
 Execute dispatches from approved plans — Delivery Challans with LR and E-Way Bill.
+
 - **Tables:** `dispatches`, `dispatch_items`
 - **API:** GET/POST /dispatches, GET /dispatches/stats
 - **Frontend:** `/sales/dispatch`
@@ -767,7 +839,9 @@ Execute dispatches from approved plans — Delivery Challans with LR and E-Way B
 - **Price lock:** Unit prices from SO (Rule 10 compliant)
 
 ## Module 102 — Delivery Confirmation ✅
+
 Record customer delivery confirmations with POD — completes the full sales cycle.
+
 - **Tables:** `delivery_confirmations`
 - **API:** GET/POST /delivery-confirmations, GET /stats
 - **Frontend:** `/sales/delivery`
@@ -784,7 +858,9 @@ Record customer delivery confirmations with POD — completes the full sales cyc
 # 🚀 PHASE 13 — FINANCE & GST
 
 ## Module 103 — Chart of Accounts ✅
+
 Hierarchical double-entry ledger account master — foundation of all finance.
+
 - **Tables:** `accounts`, `voucher_entries` (stub)
 - **API:** GET/POST /accounts, GET /accounts/tree, POST /accounts/seed
 - **Frontend:** `/finance/accounts` (new Finance sidebar section)
@@ -796,10 +872,12 @@ Hierarchical double-entry ledger account master — foundation of all finance.
 - **Account types:** ASSET, LIABILITY, EQUITY, INCOME, EXPENSE
 - **Sub types:** BANK, CASH, DEBTOR, CREDITOR, GST, STOCK, FIXED_ASSET, REVENUE, COGS, OPEX
 
-Phase 13: Finance & GST  ✅ COMPLETE (M103-109 all done)
+Phase 13: Finance & GST ✅ COMPLETE (M103-109 all done)
 
 ## Module 104 — Voucher Engine ✅
+
 Double-entry bookkeeping engine — the core of all financial transactions.
+
 - **Tables:** `vouchers`, `voucher_entries`
 - **API:** GET/POST /vouchers, POST /:id/post, POST /:id/cancel
 - **Frontend:** `/finance/vouchers`
@@ -811,7 +889,9 @@ Double-entry bookkeeping engine — the core of all financial transactions.
 - **Cancel:** Reverses account balance changes, mandatory reason
 
 ## Module 105 — Accounts Receivable ✅
+
 Customer invoices, payment tracking and aging analysis.
+
 - **Tables:** `ar_invoices`, `ar_payments`
 - **API:** GET/POST /ar, POST /ar/from-dispatch/:id, POST /ar/payments, GET /ar/aging
 - **Frontend:** `/finance/ar` (2 tabs: Invoices + Aging Report)
@@ -823,7 +903,9 @@ Customer invoices, payment tracking and aging analysis.
 - **Status:** DRAFT→SENT→PARTIAL→PAID / OVERDUE
 
 ## Module 106 — Accounts Payable ✅
+
 Vendor bills, payment tracking and payables aging analysis.
+
 - **Tables:** `ap_bills`, `ap_payments`
 - **API:** GET/POST /ap, POST /ap/payments, GET /ap/aging, GET /ap/stats
 - **Frontend:** `/finance/ap` (2 tabs: Bills + Aging Report)
@@ -835,7 +917,9 @@ Vendor bills, payment tracking and payables aging analysis.
 - **Mirror of AR:** Same pattern as M105 but vendor-side
 
 ## Module 107 — GST Management ✅
+
 Indian GST compliance — GSTR-1, GSTR-3B, Input Tax Credit, return filing.
+
 - **Tables:** `gst_returns`
 - **API:** GET /gst/dashboard, /gst/gstr1, /gst/gstr3b, /gst/returns, POST /generate, /:id/file
 - **Frontend:** `/finance/gst` (4 tabs: Dashboard, GSTR-1, GSTR-3B, Returns)
@@ -847,7 +931,9 @@ Indian GST compliance — GSTR-1, GSTR-3B, Input Tax Credit, return filing.
 - **Computed on-the-fly:** From AR invoices + AP bills (no duplication)
 
 ## Module 108 — Bank Reconciliation ✅
+
 Match bank statement transactions with ledger voucher entries.
+
 - **Tables:** `bank_statements`, `bank_statement_lines`
 - **API:** GET/POST /bank-reconciliation, POST /reconcile, /unreconcile/:id, GET /suggestions/:lineId
 - **Frontend:** `/finance/bank-recon`
@@ -860,7 +946,9 @@ Match bank statement transactions with ledger voucher entries.
 - **Duplicate guard:** One statement per bank account per period
 
 ## Module 109 — Financial Reports ✅
+
 Complete financial reporting suite — Trial Balance, P&L, Balance Sheet, Cash Flow.
+
 - **Tables:** None (computed from accounts + voucher_entries)
 - **API:** GET /financial-reports/summary, /trial-balance, /profit-and-loss, /balance-sheet, /cash-flow
 - **Frontend:** `/finance/reports` (5 tabs: Summary, Trial Balance, P&L, Balance Sheet, Cash Flow)
@@ -872,7 +960,9 @@ Complete financial reporting suite — Trial Balance, P&L, Balance Sheet, Cash F
 - **Period:** Month selector (last 12 months)
 
 ## Module 99 — Credit Control ✅
+
 Customer credit limits, real-time AR exposure tracking and order hold management.
+
 - **Tables:** `customer_credit_limits`, `credit_holds`
 - **API:** GET /credit-control/dashboard, /limits, /holds, /position/:name, POST /check, /limits, /holds/:id/release
 - **Frontend:** `/sales/credit-control` (3 tabs: Dashboard, Limits, Holds)
@@ -888,7 +978,9 @@ Customer credit limits, real-time AR exposure tracking and order hold management
 # 🚀 PHASE 14 — COMMUNICATION & WORKFLOW
 
 ## Module 110 — Notification Engine ✅
+
 In-app notification system with event triggers, priority levels and read tracking.
+
 - **Tables:** `notifications`
 - **API:** GET /notifications, /unread-count, POST /mark-read, /clear-old
 - **Frontend:** `/notifications` (new Notifications sidebar section)
@@ -899,10 +991,12 @@ In-app notification system with event triggers, priority levels and read trackin
 - **Auto-clear:** Removes 30-day-old read notifications
 - **Filters:** All / Unread only
 
-Phase 14: Communication & Workflow  ✅ COMPLETE (M110-113 all done)
+Phase 14: Communication & Workflow ✅ COMPLETE (M110-113 all done)
 
 ## Module 111 — Email/SMS Alerts ✅
+
 Alert template engine with event triggers, variable substitution and send logging.
+
 - **Tables:** `alert_templates`, `alert_logs`
 - **API:** GET/POST /alerts/templates, PUT /templates/:id, POST /trigger, /seed, GET /logs, /stats
 - **Frontend:** `/alerts` (3 tabs: Templates, Alert Log, Trigger Alert)
@@ -914,7 +1008,9 @@ Alert template engine with event triggers, variable substitution and send loggin
 - **Seed:** Idempotent — 7 default templates
 
 ## Module 111 — Email/SMS Alerts ✅
+
 Alert template engine with event triggers, variable substitution and send logging.
+
 - **Tables:** `alert_templates`, `alert_logs`
 - **API:** GET/POST /alerts/templates, PUT /templates/:id, POST /trigger, /seed, GET /logs, /stats
 - **Frontend:** `/alerts` (3 tabs: Templates, Alert Log, Trigger Alert)
@@ -926,7 +1022,9 @@ Alert template engine with event triggers, variable substitution and send loggin
 - **Seed:** Idempotent
 
 ## Module 111 — Email/SMS Alerts ✅
+
 Alert template engine with event triggers, variable substitution and send logging.
+
 - **Tables:** `alert_templates`, `alert_logs`
 - **API:** GET/POST /alerts/templates, PUT /templates/:id, POST /trigger, /seed, GET /logs, /stats
 - **Frontend:** `/alerts` (3 tabs: Templates, Alert Log, Trigger Alert)
@@ -938,7 +1036,9 @@ Alert template engine with event triggers, variable substitution and send loggin
 - **Seed:** Idempotent — 7 default templates
 
 ## Module 112 — Approval Workflows ✅
+
 Multi-level document approval engine with configurable workflows and audit trail.
+
 - **Tables:** `workflow_definitions`, `workflow_steps`, `approval_requests`, `approval_actions`
 - **API:** GET/POST /workflows/definitions, /requests, /submit, /requests/:id/action, /cancel, /seed
 - **Frontend:** `/workflows` (3 tabs: Pending Approvals, All Requests, Definitions)
@@ -951,7 +1051,9 @@ Multi-level document approval engine with configurable workflows and audit trail
 - **Seed:** Idempotent
 
 ## Module 113 — Task Management ✅
+
 Cross-department task assignment, tracking and completion with comments.
+
 - **Tables:** `tasks`, `task_comments`
 - **API:** GET/POST /tasks, PUT /tasks/:id, POST /tasks/:id/status, /tasks/:id/comments
 - **Frontend:** `/tasks` (3 tabs: My Tasks, All Tasks, Create Task)
@@ -970,7 +1072,9 @@ Cross-department task assignment, tracking and completion with comments.
 # 🚀 PHASE 15 — DOCUMENT CENTER
 
 ## Module 114 — Document Management ✅
+
 Upload, categorize, version-control and download company documents.
+
 - **Tables:** `documents`
 - **API:** GET/POST /documents, GET /documents/:id, GET /documents/:id/download, POST /documents/version, DELETE /documents/:id
 - **Frontend:** `/documents` (new Documents sidebar section)
@@ -982,10 +1086,12 @@ Upload, categorize, version-control and download company documents.
 - **Tags:** Comma-separated for search
 - **Download:** Streams binary file with correct MIME type
 
-Phase 15: Document Center  ✅ COMPLETE (M114-116 all done)
+Phase 15: Document Center ✅ COMPLETE (M114-116 all done)
 
 ## Module 114 (Addendum) — Project-Wide Document Attachments ✅
+
 DocumentAttachments reusable component embedded in all relevant pages.
+
 - **Component:** `src/components/shared/DocumentAttachments.jsx`
 - **Props:** referenceType, referenceId, referenceNumber, title
 - **Pages embedded (20 total):**
@@ -997,7 +1103,9 @@ DocumentAttachments reusable component embedded in all relevant pages.
 - **API:** GET /documents?referenceType=X&referenceId=Y
 
 ## Module 115 — PDF Report Engine ✅
+
 Generate professional PDF documents from ERP data using pdfkit.
+
 - **Tables:** None (reads from existing tables)
 - **API:** GET /pdf/purchase-order/:id, /pdf/invoice/:id, /pdf/dispatch/:id, /pdf/ncr/:id
 - **Library:** pdfkit (pure Node.js, no browser needed)
@@ -1010,7 +1118,9 @@ Generate professional PDF documents from ERP data using pdfkit.
 - **Format:** A4, company header, colored table headers, summary box, footer
 
 ## Module 116 — Excel Export Engine ✅
+
 Export any ERP list to .xlsx using exceljs.
+
 - **Tables:** None (reads from existing tables)
 - **API:** GET /excel/ar-invoices, /ap-bills, /purchase-orders, /sales-orders, /stock, /ncr, /tasks, /trial-balance
 - **Library:** exceljs (pure Node.js)
@@ -1027,7 +1137,9 @@ Export any ERP list to .xlsx using exceljs.
 # 🚀 PHASE 16 — REPORTS & BI
 
 ## Module 117 — Executive Dashboard & Analytics ✅
+
 Unified analytics engine covering all business domains.
+
 - **Tables:** None (computed from existing data)
 - **API:** GET /analytics/executive, /sales, /purchase, /inventory, /quality, /finance
 - **Frontend:** `/analytics` (6 tabs: Executive, Sales, Purchase, Inventory, Quality, Finance)
@@ -1038,11 +1150,14 @@ Unified analytics engine covering all business domains.
 - **Quality:** NCR summary by status, CAPA tracking
 - **Finance:** P&L summary, AR aging, cash balance
 
-Phase 16: Reports & BI  ✅ COMPLETE (M117-124 all done)
+Phase 16: Reports & BI ✅ COMPLETE (M117-124 all done)
+
 - **Sidebar:** Analytics section with Executive Dashboard link (above Documents)
 
 ## Module 118 — Sales Analytics ✅
+
 Deep sales analysis with funnel, customer insights and AR aging.
+
 - **Tables:** None (computed from existing data)
 - **API:** GET /analytics/sales-deep?period=12
 - **Frontend:** `/analytics/sales`
@@ -1054,7 +1169,9 @@ Deep sales analysis with funnel, customer insights and AR aging.
 - **AR Aging:** Current, 1-30, 31-60, 61-90, 90+ days buckets
 
 ## Module 119 — Purchase Analytics ✅
+
 Deep purchase analysis with vendor performance and AP aging.
+
 - **Tables:** None (computed from existing data)
 - **API:** GET /analytics/purchase-deep?period=12
 - **Frontend:** `/analytics/purchase`
@@ -1065,7 +1182,9 @@ Deep purchase analysis with vendor performance and AP aging.
 - **AP Aging:** Current, 1-30, 31-60, 61-90, 90+ days outstanding
 
 ## Module 120 — Inventory Analytics ✅
+
 Stock health, movement trends and warehouse distribution analysis.
+
 - **Tables:** None (computed from StockBalance + StockLedger)
 - **API:** GET /analytics/inventory-deep
 - **Frontend:** `/analytics/inventory`
@@ -1077,7 +1196,9 @@ Stock health, movement trends and warehouse distribution analysis.
 - **Zero Stock Alert:** Out-of-stock items
 
 ## Module 121 — Production Analytics ✅
+
 Work order performance, completion rates and production trend analysis.
+
 - **Tables:** None (computed from WorkOrder)
 - **API:** GET /analytics/production-deep
 - **Frontend:** `/analytics/production`
@@ -1089,7 +1210,9 @@ Work order performance, completion rates and production trend analysis.
 - **Summary:** Planned vs Completed vs Rejected with progress bar
 
 ## Module 122 — Quality Analytics ✅
+
 NCR trends, CAPA performance, OQC pass rates and composite quality score.
+
 - **Tables:** None (computed from NcrRecord, CapaRecord, OqcInspection)
 - **API:** GET /analytics/quality-deep
 - **Frontend:** `/analytics/quality`
@@ -1101,7 +1224,9 @@ NCR trends, CAPA performance, OQC pass rates and composite quality score.
 - **OQC Summary:** Pass/Fail split with visual progress bar
 
 ## Module 123 — Finance Analytics ✅
+
 P&L trends, AR/AP aging, GST summary and cash flow analysis.
+
 - **Tables:** None (computed from ArInvoice, ApBill, Account, Voucher)
 - **API:** GET /analytics/finance-deep
 - **Frontend:** `/analytics/finance`
@@ -1113,7 +1238,9 @@ P&L trends, AR/AP aging, GST summary and cash flow analysis.
 - **This Month:** Current month P&L snapshot card
 
 ## Module 124 — MIS Report Builder ✅
+
 8 pre-built MIS reports with filters, table view and CSV export.
+
 - **Tables:** None (reads from existing data)
 - **API:** GET /mis-reports/sales-summary, /purchase-summary, /stock-position, /outstanding-ar, /outstanding-ap, /ncr-summary, /production-summary, /gst-summary
 - **Frontend:** `/analytics/mis-reports`
@@ -1128,31 +1255,37 @@ P&L trends, AR/AP aging, GST summary and cash flow analysis.
 # 🚀 PHASE 9 — ADVANCED QUALITY MANAGEMENT
 
 ## Module 70 — Quality Dashboard ✅
+
 Unified quality operations dashboard (built in Phase 8, confirmed working in Phase 9).
+
 - **API:** GET /quality-dashboard/overview, /ncr-summary, /oqc-trend, /alerts
 - **Frontend:** `/quality/dashboard` → 200
 - **KPIs:** NCR total/open/critical, CAPA overdue, OQC pass rate, alerts
 - **Alerts:** Critical NCR, overdue CAPA, low OQC pass rate
 - **Status:** Was built in Phase 8, confirmed live in Phase 9
 
-Phase 9: Advanced Quality  ✅ COMPLETE (M70-72 all done)
+Phase 9: Advanced Quality ✅ COMPLETE (M70-72 all done)
 
 ---
 
 # 🚀 PHASE 9 — ADVANCED QUALITY MANAGEMENT
 
 ## Module 70 — Quality Dashboard ✅
+
 Unified quality operations dashboard (built in Phase 8, confirmed working in Phase 9).
+
 - **API:** GET /quality-dashboard/overview, /ncr-summary, /oqc-trend, /alerts
 - **Frontend:** `/quality/dashboard` → 200
 - **KPIs:** NCR total/open/critical, CAPA overdue, OQC pass rate, alerts
 - **Alerts:** Critical NCR, overdue CAPA, low OQC pass rate
 - **Status:** Was built in Phase 8, confirmed live in Phase 9
 
-Phase 9: Advanced Quality  ✅ COMPLETE (M70-72 all done)
+Phase 9: Advanced Quality ✅ COMPLETE (M70-72 all done)
 
 ## Module 71 — CAPA Automation ✅
+
 Auto-create CAPA from NCR, escalation engine, effectiveness tracking and health score.
+
 - **Tables:** None (enhances existing CapaRecord + NcrRecord)
 - **API:** POST /capa-automation/auto-create/:ncrId, GET /escalations, /effectiveness/:capaId, /health-score
 - **Frontend:** CAPA page enhanced with health grade (A/B/C/D), completion rate, overdue count, approaching count
@@ -1162,14 +1295,10 @@ Auto-create CAPA from NCR, escalation engine, effectiveness tracking and health 
 - **Health Score:** Composite (completion rate - overdue penalty × 2)
 
 ## Module 72 — Quality Reports ✅
-Comprehensive quality reporting across all quality modules (built in Phase 8, confirmed in Phase 9).
-- **API:** GET /quality-reports/kpi-summary, /ncr-report, /capa-report, /oqc-report, /supplier-report, /complaint-report
-- **Frontend:** `/quality/reports` → 200
-- **Tabs:** KPI Summary, NCR Report, CAPA Report, OQC Report, Supplier Report, Complaint Report
-- **Status:** Built in Phase 8, confirmed live in Phase 9
 
-## Module 72 — Quality Reports ✅
-Comprehensive quality reporting suite (built in Phase 8, confirmed in Phase 9).
+Comprehensive quality reporting across all quality modules (built in Phase 8, confirmed in Phase 9).
+
 - **API:** GET /quality-reports/kpi-summary, /ncr-report, /capa-report, /oqc-report, /supplier-report, /complaint-report
 - **Frontend:** `/quality/reports` (6 tabs: KPI Summary, NCR, CAPA, OQC, Supplier, Complaints)
-- **Status:** Was built in Phase 8, confirmed live in Phase 9
+- **Tabs:** KPI Summary, NCR Report, CAPA Report, OQC Report, Supplier Report, Complaint Report
+- **Status:** Built in Phase 8, confirmed live in Phase 9

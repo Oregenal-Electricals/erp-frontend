@@ -145,6 +145,13 @@ const NAV = [
     ],
   },
   {
+    label: 'HR', icon: BarChart3,
+    children: [
+      { label: 'Employees', href: '/hr/employees', icon: BarChart3 },
+      { label: 'Departments', href: '/hr/departments', icon: BarChart3 },
+    ],
+  },
+  {
     label: 'Analytics', icon: BarChart3,
     children: [
       { label: 'Executive Dashboard', href: '/analytics', icon: BarChart3 },
