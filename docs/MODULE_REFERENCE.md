@@ -1316,7 +1316,7 @@ Employee master, departments, designations and documents.
 - **Sensitive fields:** bankAccountNumber, aadharNumber, panNumber → REDACTED in audit logs
 - **Sidebar:** HR section added (Employees, Departments)
 
-Phase 10: HR & Payroll  🔄 (3/10 complete — M73-75 done)
+Phase 10: HR & Payroll  🔄 (4/10 complete — M73-76 done)
 
 ## Module 74 — Attendance Management ✅
 Daily attendance with overtime calculation engine and shift management.
@@ -1345,3 +1345,18 @@ Leave types, balances, applications and approval workflow.
 - **Workflow:** PENDING → APPROVED/REJECTED; overlap detection; balance validation
 - **Auto-approve:** configurable per leave type (requiresApproval=false)
 - **Cancel:** restores balance — pending restored if PENDING, used restored if APPROVED
+
+## Module 76 — Payroll Engine ✅
+Monthly payroll processing with automatic PF, ESI, LOP and OT calculations.
+- **Tables:** payroll_runs, payroll_entries
+- **API:** POST /payroll/run, GET /payroll, GET /payroll/:id, PUT /payroll/:id/approve, PUT /payroll/entries/:id, POST /payroll/:id/recalculate
+- **Frontend:** `/hr/payroll` (Runs list, Run Payroll, Payroll Register tabs)
+- **Calculations:**
+  - PF Employee = 12% of basic | PF Employer = 12% of basic
+  - ESI Employee = 0.75% of gross (if gross ≤ ₹21,000)
+  - ESI Employer = 3.25% of gross (if gross ≤ ₹21,000)
+  - LOP = absent days × (basic/26)
+  - OT = pulled from attendance records automatically
+  - Net Pay = Gross - PF - ESI - TDS - LOP - Other Deductions
+- **Workflow:** DRAFT → APPROVED → PAID
+- **Working Days:** 26 (Indian payroll standard)
