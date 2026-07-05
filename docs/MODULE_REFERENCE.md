@@ -1316,7 +1316,7 @@ Employee master, departments, designations and documents.
 - **Sensitive fields:** bankAccountNumber, aadharNumber, panNumber → REDACTED in audit logs
 - **Sidebar:** HR section added (Employees, Departments)
 
-Phase 10: HR & Payroll  🔄 (2/10 complete — M73-74 done)
+Phase 10: HR & Payroll  🔄 (3/10 complete — M73-75 done)
 
 ## Module 74 — Attendance Management ✅
 Daily attendance with overtime calculation engine and shift management.
@@ -1333,3 +1333,15 @@ Daily attendance with overtime calculation engine and shift management.
   - Hourly rate = basicSalary / 26 / shiftHours
 - **Shift Config:** Admin-only (code, timing, net hours, lunch, OT multipliers)
 - **Permissions:** Admin sets shifts + lunch; Manager marks attendance; Employee view-only
+
+## Module 75 — Leave Management ✅
+Leave types, balances, applications and approval workflow.
+- **Tables:** leave_types, leave_balances, leave_applications
+- **API:** GET/POST/PUT /leave, /leave/types, /leave/allocate, /leave/bulk-allocate, /leave/apply, /leave/:id/approve, /leave/:id/cancel, /leave/balance/:id
+- **Frontend:** `/hr/leave` (Applications, Balances, Apply, Types, Allocate tabs)
+- **Leave Types:** CL, SL, EL, ML — paid/unpaid, carry-forward, gender-specific
+- **Allocation:** Individual per employee or bulk to all active employees
+- **Balance:** allocated - used - pending = available (updated on apply/approve/reject/cancel)
+- **Workflow:** PENDING → APPROVED/REJECTED; overlap detection; balance validation
+- **Auto-approve:** configurable per leave type (requiresApproval=false)
+- **Cancel:** restores balance — pending restored if PENDING, used restored if APPROVED
