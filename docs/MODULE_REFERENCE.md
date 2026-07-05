@@ -1316,7 +1316,7 @@ Employee master, departments, designations and documents.
 - **Sensitive fields:** bankAccountNumber, aadharNumber, panNumber → REDACTED in audit logs
 - **Sidebar:** HR section added (Employees, Departments)
 
-Phase 10: HR & Payroll  🔄 (7/10 complete — M73-79 done)
+Phase 10: HR & Payroll  🔄 (8/10 complete — M73-80 done)
 
 ## Module 74 — Attendance Management ✅
 Daily attendance with overtime calculation engine and shift management.
@@ -1397,3 +1397,15 @@ Professional PDF salary slips with earnings, deductions and net pay.
 - **Bulk:** All employees in one merged PDF per payroll run
 - **Library:** pdfkit (already installed)
 - **Number to Words:** Indian format (Lakhs, Crores)
+
+## Module 80 — Employee Self Service (ESS) ✅
+Employee-facing portal to view profile, attendance, leave, payslips and apply for leave.
+- **Tables:** None (reads from employees, attendance, leave_balances, payroll_entries)
+- **API:** GET /employees/me (find by userId), existing HR APIs filtered by employeeId
+- **Frontend:** `/hr/my-profile` (My Profile, My Attendance, My Leave, My Payslips, Apply Leave tabs)
+- **My Profile:** Personal info, salary structure, statutory IDs (PAN, PF, ESI, bank)
+- **My Attendance:** Monthly view with OT hours, OT amount summary cards
+- **My Leave:** Balance cards (allocated/used/pending/available) + application history
+- **My Payslips:** Salary slip history with PDF download per month
+- **Apply Leave:** Self-service leave application with balance check
+- **Prerequisite:** Employee must have userId linked to their user account
