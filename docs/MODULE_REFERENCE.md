@@ -1316,7 +1316,7 @@ Employee master, departments, designations and documents.
 - **Sensitive fields:** bankAccountNumber, aadharNumber, panNumber → REDACTED in audit logs
 - **Sidebar:** HR section added (Employees, Departments)
 
-Phase 10: HR & Payroll  🔄 (4/10 complete — M73-76 done)
+Phase 10: HR & Payroll  🔄 (5/10 complete — M73-77 done)
 
 ## Module 74 — Attendance Management ✅
 Daily attendance with overtime calculation engine and shift management.
@@ -1360,3 +1360,15 @@ Monthly payroll processing with automatic PF, ESI, LOP and OT calculations.
   - Net Pay = Gross - PF - ESI - TDS - LOP - Other Deductions
 - **Workflow:** DRAFT → APPROVED → PAID
 - **Working Days:** 26 (Indian payroll standard)
+
+## Module 77 — PF & ESI Management ✅
+Indian statutory compliance — PF challan, ESI challan and annual registers.
+- **Tables:** None (computed from payroll_entries)
+- **API:** GET /pf-esi/rates, /pf-challan, /esi-challan, /pf-register, /esi-register
+- **Frontend:** `/hr/pf-esi` (Rates, PF Challan, ESI Challan, PF Register, ESI Register tabs)
+- **PF Rates:** Employee=12%, Employer EPF=3.67%, EPS=8.33%, EDLI=0.5%, Admin=0.5%
+- **PF Wage Ceiling:** ₹15,000 (PF on min(basic, ₹15,000))
+- **ESI Rates:** Employee=0.75%, Employer=3.25%, Wage ceiling=₹21,000
+- **Challans:** Monthly PF/ESI deposit summary with due dates
+- **Registers:** Annual employee-wise contribution history
+- **Export:** CSV download for government upload
