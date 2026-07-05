@@ -145,6 +145,12 @@ const NAV = [
     ],
   },
   {
+    label: 'My Profile', icon: BarChart3,
+    children: [
+      { label: 'My Profile & ESS', href: '/hr/my-profile', icon: BarChart3 },
+    ],
+  },
+  {
     label: 'HR', icon: BarChart3,
     children: [
       { label: 'Employees', href: '/hr/employees', icon: BarChart3 },
