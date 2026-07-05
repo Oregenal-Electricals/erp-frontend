@@ -1302,3 +1302,18 @@ Comprehensive quality reporting across all quality modules (built in Phase 8, co
 - **Frontend:** `/quality/reports` (6 tabs: KPI Summary, NCR, CAPA, OQC, Supplier, Complaints)
 - **Tabs:** KPI Summary, NCR Report, CAPA Report, OQC Report, Supplier Report, Complaint Report
 - **Status:** Built in Phase 8, confirmed live in Phase 9
+
+---
+
+# 🚀 PHASE 10 — HR & PAYROLL
+
+## Module 73 — Employee Management ✅
+Employee master, departments, designations and documents.
+- **Tables:** employees, hr_departments, hr_designations, employee_documents
+- **API:** GET/POST/PUT /employees, /employees/departments, /employees/designations, /employees/:id/documents
+- **Frontend:** `/hr/employees` (stats, list with filters, create form, view modal, edit modal)
+- **Features:** Employee number auto-generation (EMP-YYYY-XXXX), gross salary calculator, document upload
+- **Sensitive fields:** bankAccountNumber, aadharNumber, panNumber → REDACTED in audit logs
+- **Sidebar:** HR section added (Employees, Departments)
+
+Phase 10: HR & Payroll  🔄 (1/10 complete — M73 done)
