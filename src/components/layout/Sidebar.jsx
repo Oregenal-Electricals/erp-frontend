@@ -151,6 +151,7 @@ const NAV = [
       { label: 'Departments', href: '/hr/departments', icon: BarChart3 },
       { label: 'Attendance', href: '/hr/attendance', icon: BarChart3 },
       { label: 'Leave', href: '/hr/leave', icon: BarChart3 },
+      { label: 'Payroll', href: '/hr/payroll', icon: BarChart3 },
     ],
   },
   {
