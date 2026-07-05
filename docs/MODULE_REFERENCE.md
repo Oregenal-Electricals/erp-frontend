@@ -1316,7 +1316,7 @@ Employee master, departments, designations and documents.
 - **Sensitive fields:** bankAccountNumber, aadharNumber, panNumber → REDACTED in audit logs
 - **Sidebar:** HR section added (Employees, Departments)
 
-Phase 10: HR & Payroll  🔄 (6/10 complete — M73-78 done)
+Phase 10: HR & Payroll  🔄 (7/10 complete — M73-79 done)
 
 ## Module 74 — Attendance Management ✅
 Daily attendance with overtime calculation engine and shift management.
@@ -1386,3 +1386,14 @@ Section 192 TDS on salary — declarations, tax calculation, challan and Form 16
   - HRA Exemption: min(HRA, 50%/40% basic, rent-10% basic)
 - **Monthly TDS = Annual Tax / 12**
 - **Form 16:** Annual TDS certificate with full computation breakdown
+
+## Module 79 — Salary Slip Generation ✅
+Professional PDF salary slips with earnings, deductions and net pay.
+- **Tables:** None (reads from payroll_entries)
+- **API:** GET /salary-slip/download/:empId?month=&year=, /salary-slip/bulk/:runId, /salary-slip/history/:empId
+- **Frontend:** Download buttons on Payroll Register and Runs list
+- **PDF Format:** Company header, employee info, attendance, earnings table, deductions table, net pay, in-words
+- **Individual:** Per employee per month PDF download
+- **Bulk:** All employees in one merged PDF per payroll run
+- **Library:** pdfkit (already installed)
+- **Number to Words:** Indian format (Lakhs, Crores)
