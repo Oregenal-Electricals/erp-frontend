@@ -4,6 +4,26 @@ import AppLayout from '@/components/layout/AppLayout';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+
+  async function downloadSlip(empId, month, year) {
+    const res = await fetch(`${API}/salary-slip/download/${empId}?month=${month}&year=${year}`, {headers:{Authorization:`Bearer ${getToken()}`}});
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download=`salary-slip-${month}-${year}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async function downloadBulkSlips(runId, runNumber) {
+    const res = await fetch(`${API}/salary-slip/bulk/${runId}`, {headers:{Authorization:`Bearer ${getToken()}`}});
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download=`salary-slips-${runNumber}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
 const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—';
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -142,6 +162,7 @@ export default function PayrollPage() {
                           {r.status==='DRAFT' && <button onClick={()=>handleApprove(r.id,'APPROVED')} disabled={saving} className="px-2 py-1 text-xs bg-blue-600 text-white rounded">Approve</button>}
                           {r.status==='APPROVED' && <button onClick={()=>handleApprove(r.id,'PAID')} disabled={saving} className="px-2 py-1 text-xs bg-green-600 text-white rounded">Mark Paid</button>}
                           {r.status==='DRAFT' && <button onClick={()=>handleRecalculate(r.id)} disabled={saving} className="px-2 py-1 text-xs border text-orange-600 border-orange-300 rounded">Recalc</button>}
+                          {r.status!=='DRAFT' && <button onClick={()=>downloadBulkSlips(r.id,r.runNumber)} className="px-2 py-1 text-xs bg-red-600 text-white rounded">⬇ Slips</button>}
                         </div>
                       </td>
                     </tr>
@@ -251,6 +272,7 @@ export default function PayrollPage() {
                           <td className="px-3 py-2 text-red-600 font-medium">{fmt(e.totalDeductions)}</td>
                           <td className="px-3 py-2 font-bold text-green-600">{fmt(e.netPay)}</td>
                           <td className="px-3 py-2">
+                            <button onClick={()=>downloadSlip(e.employeeId,selectedRun.month,selectedRun.year)} className="px-2 py-1 text-xs bg-red-600 text-white rounded">⬇ Slip</button>
                             {selectedRun.status==='DRAFT' && (
                               <button onClick={()=>{setEditEntry({...e,payrollRunId:selectedRun.id});setEditForm({tdsAmount:e.tdsAmount,otherDeductions:e.otherDeductions,otherAllowances:e.otherAllowances,remarks:e.remarks||''});setError('');}} className="px-2 py-1 text-xs border rounded hover:bg-gray-50">Edit</button>
                             )}
