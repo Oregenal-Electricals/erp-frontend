@@ -165,6 +165,12 @@ const NAV = [
     ],
   },
   {
+    label: 'Accounting', icon: BarChart3,
+    children: [
+      { label: 'Chart of Accounts', href: '/accounting/chart-of-accounts', icon: BarChart3 },
+    ],
+  },
+  {
     label: 'Analytics', icon: BarChart3,
     children: [
       { label: 'Executive Dashboard', href: '/analytics', icon: BarChart3 },
