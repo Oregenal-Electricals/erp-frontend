@@ -1316,7 +1316,7 @@ Employee master, departments, designations and documents.
 - **Sensitive fields:** bankAccountNumber, aadharNumber, panNumber → REDACTED in audit logs
 - **Sidebar:** HR section added (Employees, Departments)
 
-Phase 10: HR & Payroll  🔄 (9/10 complete — M73-81 done)
+Phase 10: HR & Payroll  ✅ COMPLETE (10/10 — M73-82 done)
 
 ## Module 74 — Attendance Management ✅
 Daily attendance with overtime calculation engine and shift management.
@@ -1423,3 +1423,15 @@ Employee-facing portal to view profile, attendance, leave, payslips and apply fo
   5. Attrition — joined vs resigned vs terminated, attrition rate %
   6. OT Report — overtime hours and cost by employee
 - **Export:** CSV download for all reports
+
+## Module 82 — Training Management ✅
+Training programs, sessions, enrollment, attendance and certification.
+- **Tables:** training_programs, training_sessions, training_enrollments
+- **API:** GET/POST/PUT /training/programs, /training/sessions, /training/enroll, /training/sessions/:id/attendance, /training/enrollments/:id/complete, /training/employee/:id, /training/stats
+- **Frontend:** `/hr/training` (Sessions, Programs, Create Session, Create Program tabs)
+- **Programs:** code, name, category (SAFETY/TECHNICAL/SOFT_SKILLS/COMPLIANCE/INDUCTION), mandatory flag, validity months
+- **Sessions:** session number auto-generated (TS-YYYY-NNN), venue, trainer, max participants
+- **Enrollment:** bulk enroll multiple employees, max participant check
+- **Attendance:** mark present/absent per employee per session (bulk or individual)
+- **Completion:** score, pass/fail, auto-certificate generation (CERT-session-empNo-timestamp)
+- **Certificate Expiry:** auto-calculated from program validity months
