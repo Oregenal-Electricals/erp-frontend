@@ -1435,3 +1435,21 @@ Training programs, sessions, enrollment, attendance and certification.
 - **Attendance:** mark present/absent per employee per session (bulk or individual)
 - **Completion:** score, pass/fail, auto-certificate generation (CERT-session-empNo-timestamp)
 - **Certificate Expiry:** auto-calculated from program validity months
+
+---
+
+# 🚀 PHASE 11 — ACCOUNTING & FINANCE
+
+## Module 83 — Chart of Accounts ✅
+Indian standard Chart of Accounts with groups, heads and opening balances.
+- **Tables:** account_groups, account_heads
+- **API:** POST /accounting/seed-coa, GET/POST/PUT /accounting/groups, /accounting/accounts, GET /accounting/stats
+- **Frontend:** `/accounting/chart-of-accounts` (Accounts, Groups, Create Account, Create Group tabs)
+- **Seed:** 12 account groups + 55 standard Indian accounts (one-click seed)
+- **Groups:** CA, FA, OA (Assets) | CL, LL (Liabilities) | EQ (Equity) | SR, OI (Revenue) | COGS, OE, FE, TE (Expenses)
+- **Accounts:** 1001-1041 (Assets), 2001-2051 (Liabilities), 3001-3003 (Equity), 4001-4103 (Revenue), 5001-5302 (Expenses)
+- **GST Accounts:** CGST/SGST/IGST input credit + output payable
+- **Flags:** isBankAccount, isCashAccount, isSystemAccount (protected), gstApplicable
+- **Sidebar:** Accounting section added
+
+Phase 11: Accounting & Finance  🔄 (1/10 complete — M83 done)
