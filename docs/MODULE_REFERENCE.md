@@ -1624,3 +1624,29 @@ Real-time machine status board and connectivity management.
 - **Statuses:** ONLINE, RUNNING, IDLE, OFFLINE, ERROR, MAINTENANCE
 
 Phase 18: Industry 4.0 ✅ COMPLETE (4/4 — M127-M130 done)
+
+---
+
+# 🚀 PHASE 19 — ENTERPRISE EXPANSION
+
+## Module 131 — Multi Plant Management ✅
+Plant-wise manufacturing and operations management.
+- **Backend:** src/masters/ (Plant model, CRUD APIs)
+- **Frontend:** `/masters/plant` → 200
+- **Architecture:** Every transaction linked to plant via companyId+plantId
+- **Features:** Plant master, unit master, plant-wise reporting
+
+## Module 132 — Multi Company Management ✅
+Complete multi-company data isolation.
+- **Architecture:** companyId on ALL 100+ tables from day one
+- **Frontend:** `/masters/company` → 200
+- **Features:** Company switching (super admin), isolated data per company
+- **Security:** JWT includes companyId, enforced on every API
+
+## Module 133 — Multi Country Management ✅
+Country-specific configuration support.
+- **Frontend:** `/settings/system` → country, currency, tax settings
+- **Features:** GST (India), VAT (international), currency config per company
+- **Architecture:** Company master has country, currency, tax regime fields
+
+Phase 19: Enterprise Expansion ✅ COMPLETE (3/3 — M131-M133 done)
