@@ -1438,9 +1438,9 @@ Training programs, sessions, enrollment, attendance and certification.
 
 ---
 
-# 🚀 PHASE 11 — ACCOUNTING & FINANCE
+# 🚀 PHASE 13 — FINANCE & GST
 
-## Module 83 — Chart of Accounts ✅
+## Module 103 — Chart of Accounts ✅
 Indian standard Chart of Accounts with groups, heads and opening balances.
 - **Tables:** account_groups, account_heads
 - **API:** POST /accounting/seed-coa, GET/POST/PUT /accounting/groups, /accounting/accounts, GET /accounting/stats
@@ -1452,4 +1452,4 @@ Indian standard Chart of Accounts with groups, heads and opening balances.
 - **Flags:** isBankAccount, isCashAccount, isSystemAccount (protected), gstApplicable
 - **Sidebar:** Accounting section added
 
-Phase 11: Accounting & Finance  🔄 (1/10 complete — M83 done)
+Phase 13: Finance & GST  🔄 (1/7 complete — M103 done)
