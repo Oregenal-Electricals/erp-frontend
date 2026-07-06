@@ -1592,3 +1592,35 @@ Customer-facing portal to view orders, dispatches and complaints.
 Phase 17: Portals ✅ COMPLETE (2/2 — M125-M126 done)
 
 ## TOTAL MODULES COMPLETE: 126+
+
+---
+
+# 🚀 PHASE 18 — INDUSTRY 4.0
+
+## Module 127 — AI Analytics ✅
+Rule-based AI insights from existing ERP data.
+- **API:** GET /iot/ai-insights
+- **Frontend:** `/iot` (AI Insights tab)
+- **Insights:** Top OT employees, high stock items, production efficiency rate
+
+## Module 128 — Predictive Analytics ✅
+Machine health predictions and maintenance forecasting.
+- **API:** GET /iot/predictive
+- **Frontend:** `/iot` (Predictive tab)
+- **Predictions:** Maintenance due, downtime risk, recommendations per machine
+
+## Module 129 — IoT Integration ✅
+REST endpoints to receive machine sensor data with threshold alerts.
+- **Tables:** iot_machines, machine_readings, iot_alerts
+- **API:** POST /iot/readings, POST /iot/readings/bulk, GET /iot/readings/:machineId
+- **Alert Engine:** Auto-raises alerts on threshold breach (TEMPERATURE>80°C, VIBRATION>10mm/s etc.)
+- **Frontend:** `/iot` (Machines tab, Alerts tab)
+
+## Module 130 — Machine Connectivity ✅
+Real-time machine status board and connectivity management.
+- **API:** GET /iot/machines, GET /iot/machines/:id, POST /iot/machines, PUT /iot/machines/:id/status
+- **Frontend:** `/iot` (Dashboard tab — live status board)
+- **Machine Types:** CNC, SMT, ASSEMBLY, TESTING, CONVEYOR, INJECTION, WELDING, GENERAL
+- **Statuses:** ONLINE, RUNNING, IDLE, OFFLINE, ERROR, MAINTENANCE
+
+Phase 18: Industry 4.0 ✅ COMPLETE (4/4 — M127-M130 done)
