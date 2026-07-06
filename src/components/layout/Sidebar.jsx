@@ -165,6 +165,14 @@ const NAV = [
     ],
   },
   {
+    label: 'Industry 4.0', icon: BarChart3,
+    children: [
+      { label: 'IoT & AI Dashboard', href: '/iot', icon: BarChart3 },
+      { label: 'Vendor Portal', href: '/vendor-portal', icon: BarChart3 },
+      { label: 'Customer Portal', href: '/customer-portal', icon: BarChart3 },
+    ],
+  },
+  {
     label: 'Analytics', icon: BarChart3,
     children: [
       { label: 'Executive Dashboard', href: '/analytics', icon: BarChart3 },
