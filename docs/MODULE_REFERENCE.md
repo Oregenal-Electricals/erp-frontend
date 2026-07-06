@@ -1316,7 +1316,7 @@ Employee master, departments, designations and documents.
 - **Sensitive fields:** bankAccountNumber, aadharNumber, panNumber → REDACTED in audit logs
 - **Sidebar:** HR section added (Employees, Departments)
 
-Phase 10: HR & Payroll  🔄 (8/10 complete — M73-80 done)
+Phase 10: HR & Payroll  🔄 (9/10 complete — M73-81 done)
 
 ## Module 74 — Attendance Management ✅
 Daily attendance with overtime calculation engine and shift management.
@@ -1409,3 +1409,17 @@ Employee-facing portal to view profile, attendance, leave, payslips and apply fo
 - **My Payslips:** Salary slip history with PDF download per month
 - **Apply Leave:** Self-service leave application with balance check
 - **Prerequisite:** Employee must have userId linked to their user account
+
+## Module 81 — HR Reports ✅
+6 HR analytics reports with summary cards, tables and CSV export.
+- **Tables:** None (computed from all HR tables)
+- **API:** GET /hr-reports/headcount, /attendance-summary, /leave-utilization, /payroll-cost, /attrition, /ot-report
+- **Frontend:** `/hr/reports` (report selector panel + dynamic output)
+- **Reports:**
+  1. Headcount — dept/type/gender breakdown, joiners/leavers this month
+  2. Attendance Summary — monthly per employee (present/absent/OT)
+  3. Leave Utilization — by leave type with utilization % progress bar
+  4. Payroll Cost — department-wise gross/PF/ESI/TDS/OT/net breakdown
+  5. Attrition — joined vs resigned vs terminated, attrition rate %
+  6. OT Report — overtime hours and cost by employee
+- **Export:** CSV download for all reports
