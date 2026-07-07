@@ -8,6 +8,7 @@ import { isAuthenticated } from '@/lib/auth';
 export default function AppLayout({ children }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -30,10 +31,29 @@ export default function AppLayout({ children }) {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
-        <main className="flex-1 p-6 overflow-auto">{children}</main>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar — hidden on mobile unless open */}
+      <div className={`
+        fixed inset-y-0 left-0 z-30 w-64 transform transition-transform duration-300 ease-in-out
+        lg:relative lg:translate-x-0 lg:flex lg:flex-shrink-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <Sidebar onClose={() => setSidebarOpen(false)} />
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-w-0 w-full">
+        <Header onMenuClick={() => setSidebarOpen(true)} />
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
       </div>
     </div>
   );

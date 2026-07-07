@@ -272,7 +272,7 @@ function NavItem({ item }) {
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }) {
   return (
     <aside className="w-60 min-h-screen bg-white border-r border-gray-200 flex flex-col shrink-0">
       <div className="px-4 py-4 border-b border-gray-200">
