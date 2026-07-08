@@ -63,12 +63,18 @@ export default function PurchaseRequisitionsPage() {
       requiredDate: form.requiredDate,
       priority: form.priority,
       notes: form.notes || undefined,
-      items: form.items.map(i=>({
-        rawMaterialId: i.rawMaterialId,
-        quantity: parseFloat(i.quantity),
-        uom: i.uom,
-        remarks: i.remarks || undefined,
-      })).filter(i=>i.rawMaterialId && i.quantity)
+      items: form.items.filter(i=>i.rawMaterialId && i.quantity).map(i=>{
+        const rm = rawMaterials.find(r=>r.id===i.rawMaterialId);
+        return {
+          rawMaterialId: i.rawMaterialId,
+          itemCode: rm?.code || i.rawMaterialId,
+          itemName: rm?.name || i.rawMaterialId,
+          itemType: 'RAW_MATERIAL',
+          uom: i.uom || 'NOS',
+          requiredQty: parseFloat(i.quantity),
+          notes: i.remarks || undefined,
+        };
+      })
     };
     if (!body.title) { setError('Enter PR title'); setSaving(false); return; }
     if (!body.requiredDate) { setError('Select required date'); setSaving(false); return; }
