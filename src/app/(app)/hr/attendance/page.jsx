@@ -1,4 +1,5 @@
 'use client';
+// xlsx loaded dynamically
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 
@@ -8,7 +9,7 @@ const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigit
 const fmtTime = d => d ? new Date(d).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}) : '—';
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) : '—';
 const STATUS_COLORS = { PRESENT:'bg-green-100 text-green-700', ABSENT:'bg-red-100 text-red-600', HALF_DAY:'bg-yellow-100 text-yellow-700', HOLIDAY:'bg-blue-100 text-blue-700', WEEK_OFF:'bg-gray-100 text-gray-500', LEAVE:'bg-purple-100 text-purple-700' };
-const TABS = ['Daily View','Mark Attendance','Bulk Mark','Shifts'];
+const TABS = ['Daily View','Mark Attendance','Bulk Mark','Shifts','Bulk Upload'];
 
 export default function AttendancePage() {
   const [activeTab, setActiveTab] = useState('Daily View');
@@ -18,6 +19,10 @@ export default function AttendancePage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadRows, setUploadRows] = useState([]);
+  const [uploadImporting, setUploadImporting] = useState(false);
+  const [uploadResults, setUploadResults] = useState(null);
+  const [uploadError, setUploadError] = useState('');
   const [error, setError] = useState('');
   const [editModal, setEditModal] = useState(null);
   const [shiftModal, setShiftModal] = useState(false);
@@ -434,6 +439,223 @@ export default function AttendancePage() {
             </div>
           </div>
         )}
+
+        {/* BULK UPLOAD TAB */}
+        {activeTab==='Bulk Upload' && (
+          <div className="space-y-6">
+            {/* Info Banner */}
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+              <h3 className="font-bold text-indigo-800 mb-1">📎 Bulk Attendance Upload</h3>
+              <p className="text-xs text-indigo-600">Supports CSV, Excel (.xlsx) and PDF (text-based) files</p>
+              <div className="mt-2 font-mono text-xs bg-white rounded p-2 text-gray-600">
+                Required columns: <span className="font-bold text-indigo-700">employeeNumber, date, status, inTime, outTime, remarks</span><br/>
+                Status values: PRESENT | ABSENT | HALF_DAY | LEAVE | HOLIDAY | WEEK_OFF
+              </div>
+            </div>
+
+            {/* Template Download */}
+            <div className="bg-white rounded-xl border shadow-sm p-5">
+              <h3 className="font-bold text-gray-700 mb-3">Step 1: Download Template</h3>
+              <div className="flex gap-3">
+                <button
+                  onClick={()=>{
+                    const sample = 'employeeNumber,date,status,inTime,outTime,remarks\nEMP-001,2026-07-08,PRESENT,09:00,18:00,\nEMP-002,2026-07-08,PRESENT,09:15,18:00,Late arrival\nEMP-003,2026-07-08,ABSENT,,,Sick leave\nEMP-004,2026-07-08,HALF_DAY,09:00,13:00,\nEMP-005,2026-07-08,LEAVE,,,Annual leave\nEMP-006,2026-07-08,WEEK_OFF,,,Sunday';
+                    const blob = new Blob([sample],{type:'text/csv'});
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href=url; a.download='attendance-template.csv'; a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium"
+                >⬇ CSV Template</button>
+                <button
+                  onClick={async()=>{
+                    const XLSX = await import('xlsx');
+                    const wb = XLSX.utils.book_new();
+                    const data = [
+                      ['employeeNumber','date','status','inTime','outTime','remarks'],
+                      ['EMP-001','2026-07-08','PRESENT','09:00','18:00',''],
+                      ['EMP-002','2026-07-08','PRESENT','09:15','18:00','Late arrival'],
+                      ['EMP-003','2026-07-08','ABSENT','','','Sick leave'],
+                      ['EMP-004','2026-07-08','HALF_DAY','09:00','13:00',''],
+                      ['EMP-005','2026-07-08','LEAVE','','','Annual leave'],
+                    ];
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    ws['!cols'] = [{wch:15},{wch:12},{wch:12},{wch:10},{wch:10},{wch:20}];
+                    XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
+                    XLSX.writeFile(wb, 'attendance-template.xlsx');
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium"
+                >⬇ Excel Template</button>
+              </div>
+            </div>
+
+            {/* Upload */}
+            <div className="bg-white rounded-xl border shadow-sm p-5">
+              <h3 className="font-bold text-gray-700 mb-3">Step 2: Upload File</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* File Upload */}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-2">Upload File (CSV / Excel / PDF)</label>
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx,.xls,.pdf"
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                    onChange={async(e)=>{
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      setUploadRows([]); setUploadResults(null); setUploadError('');
+                      try {
+                        let rows = [];
+                        if (file.name.endsWith('.csv')) {
+                          const text = await file.text();
+                          const lines = text.trim().split('\n').filter(l=>l.trim());
+                          const headers = lines[0].split(',').map(h=>h.trim());
+                          rows = lines.slice(1).map(l=>{
+                            const vals = l.split(',').map(v=>v.trim());
+                            const obj = {};
+                            headers.forEach((h,i)=>obj[h]=vals[i]||'');
+                            return obj;
+                          });
+                        } else if (file.name.endsWith('.xlsx')||file.name.endsWith('.xls')) {
+                          const XLSX = await import('xlsx');
+                          const buf = await file.arrayBuffer();
+                          const wb = XLSX.read(buf);
+                          const ws = wb.Sheets[wb.SheetNames[0]];
+                          const data = XLSX.utils.sheet_to_json(ws, {defval:''});
+                          rows = data.map(r=>({
+                            employeeNumber: String(r.employeeNumber||r['Employee Number']||r['Emp No']||'').trim(),
+                            date: String(r.date||r['Date']||'').trim(),
+                            status: String(r.status||r['Status']||'PRESENT').trim().toUpperCase(),
+                            inTime: String(r.inTime||r['In Time']||r['Check In']||'').trim(),
+                            outTime: String(r.outTime||r['Out Time']||r['Check Out']||'').trim(),
+                            remarks: String(r.remarks||r['Remarks']||'').trim(),
+                          }));
+                        } else if (file.name.endsWith('.pdf')) {
+                          setUploadError('PDF import: Please ensure your PDF has text data. Scanned PDFs are not supported. Use CSV or Excel for best results.');
+                          return;
+                        }
+                        rows = rows.filter(r=>r.employeeNumber&&r.date);
+                        setUploadRows(rows);
+                      } catch(err) {
+                        setUploadError('Error reading file: '+err.message);
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* Paste CSV */}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-2">Or Paste CSV Data</label>
+                  <textarea
+                    className="w-full border rounded-lg px-3 py-2 text-xs font-mono h-28"
+                    placeholder={'employeeNumber,date,status,inTime,outTime,remarks\nEMP-001,2026-07-08,PRESENT,09:00,18:00,'}
+                    onChange={e=>{
+                      const text = e.target.value.trim();
+                      setUploadResults(null); setUploadError('');
+                      if (!text) { setUploadRows([]); return; }
+                      const lines = text.split('\n').filter(l=>l.trim());
+                      if (lines.length<2) { setUploadRows([]); return; }
+                      const headers = lines[0].split(',').map(h=>h.trim());
+                      const rows = lines.slice(1).map(l=>{
+                        const vals = l.split(',').map(v=>v.trim());
+                        const obj = {};
+                        headers.forEach((h,i)=>obj[h]=vals[i]||'');
+                        return obj;
+                      }).filter(r=>r.employeeNumber&&r.date);
+                      setUploadRows(rows);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {uploadError&&<div className="mt-3 bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{uploadError}</div>}
+            </div>
+
+            {/* Preview */}
+            {uploadRows.length>0&&(
+              <div className="bg-white rounded-xl border shadow-sm">
+                <div className="p-4 border-b flex justify-between items-center">
+                  <h3 className="font-bold text-gray-700">Step 3: Preview & Import ({uploadRows.length} records)</h3>
+                  <button
+                    onClick={async()=>{
+                      setUploadImporting(true); setUploadResults(null);
+                      const empRes = await fetch(`${API}/employees?limit=200`,{headers:{Authorization:`Bearer ${getToken()}`}});
+                      const empData = await empRes.json();
+                      const empMap = {};
+                      (empData.data||[]).forEach(e=>{ empMap[e.employeeNumber]=e.id; });
+
+                      let success=0, failed=0, errors=[];
+                      for (const row of uploadRows) {
+                        const empId = empMap[row.employeeNumber];
+                        if (!empId) { failed++; errors.push(`${row.employeeNumber}: Employee not found`); continue; }
+                        try {
+                          const body = {
+                            employeeId:empId,
+                            date:row.date,
+                            status:row.status||'PRESENT',
+                            checkIn:row.inTime?`${row.date}T${row.inTime}:00`:undefined,
+                            checkOut:row.outTime?`${row.date}T${row.outTime}:00`:undefined,
+                            remarks:row.remarks||undefined,
+                          };
+                          const res = await fetch(`${API}/attendance`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${getToken()}`},body:JSON.stringify(body)});
+                          if (res.ok) success++;
+                          else { const d=await res.json(); failed++; errors.push(`${row.employeeNumber} ${row.date}: ${Array.isArray(d.message)?d.message.join(', '):d.message}`); }
+                        } catch(err) { failed++; errors.push(`${row.employeeNumber}: ${err.message}`); }
+                      }
+                      setUploadResults({total:uploadRows.length,success,failed,errors});
+                      setUploadImporting(false);
+                      if (success>0) fetchAll();
+                    }}
+                    disabled={uploadImporting}
+                    className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                  >
+                    {uploadImporting?'Importing...':'🚀 Import All'}
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-50 text-gray-500 uppercase">
+                      <tr><th className="px-3 py-2 text-left">Emp No</th><th className="px-3 py-2 text-left">Date</th><th className="px-3 py-2 text-left">Status</th><th className="px-3 py-2 text-left">In Time</th><th className="px-3 py-2 text-left">Out Time</th><th className="px-3 py-2 text-left">Remarks</th></tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {uploadRows.slice(0,15).map((row,i)=>(
+                        <tr key={i} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 font-mono font-bold text-indigo-600">{row.employeeNumber}</td>
+                          <td className="px-3 py-2">{row.date}</td>
+                          <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[row.status]||'bg-gray-100'}`}>{row.status}</span></td>
+                          <td className="px-3 py-2">{row.inTime||'—'}</td>
+                          <td className="px-3 py-2">{row.outTime||'—'}</td>
+                          <td className="px-3 py-2 text-gray-500">{row.remarks||'—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {uploadRows.length>15&&<div className="px-4 py-2 text-xs text-gray-400">...and {uploadRows.length-15} more rows</div>}
+                </div>
+              </div>
+            )}
+
+            {/* Results */}
+            {uploadResults&&(
+              <div className={`rounded-xl border p-5 ${uploadResults.failed===0?'bg-green-50 border-green-200':'bg-yellow-50 border-yellow-200'}`}>
+                <h3 className="font-bold text-gray-800 mb-3">Import Results</h3>
+                <div className="grid grid-cols-3 gap-4 mb-3 text-center">
+                  <div><div className="text-2xl font-bold text-gray-800">{uploadResults.total}</div><div className="text-xs text-gray-500">Total</div></div>
+                  <div><div className="text-2xl font-bold text-green-600">{uploadResults.success}</div><div className="text-xs text-gray-500">Imported</div></div>
+                  <div><div className="text-2xl font-bold text-red-600">{uploadResults.failed}</div><div className="text-xs text-gray-500">Failed</div></div>
+                </div>
+                {uploadResults.errors.length>0&&(
+                  <div className="bg-red-50 rounded-lg p-3 max-h-40 overflow-y-auto">
+                    {uploadResults.errors.map((e,i)=><div key={i} className="text-xs text-red-600 py-0.5">{i+1}. {e}</div>)}
+                  </div>
+                )}
+                {uploadResults.failed===0&&<div className="text-green-600 font-bold text-center text-sm">✅ All attendance records imported successfully!</div>}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </AppLayout>
   );
