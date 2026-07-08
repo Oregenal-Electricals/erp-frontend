@@ -24,8 +24,11 @@ export default function PurchaseRequisitionsPage() {
   const [selected, setSelected] = useState(null);
 
   const [form, setForm] = useState({
-    remarks: '',
-    items: [{ rawMaterialId: '', quantity: '', uom: '', requiredDate: '', remarks: '' }]
+    title: '',
+    requiredDate: '',
+    priority: 'NORMAL',
+    notes: '',
+    items: [{ rawMaterialId: '', quantity: '', uom: '', remarks: '' }]
   });
 
   async function fetchAll() {
@@ -56,15 +59,19 @@ export default function PurchaseRequisitionsPage() {
   async function handleSubmit() {
     setSaving(true); setError('');
     const body = {
-      remarks: form.remarks,
+      title: form.title,
+      requiredDate: form.requiredDate,
+      priority: form.priority,
+      notes: form.notes || undefined,
       items: form.items.map(i=>({
         rawMaterialId: i.rawMaterialId,
         quantity: parseFloat(i.quantity),
         uom: i.uom,
-        requiredDate: i.requiredDate,
         remarks: i.remarks || undefined,
       })).filter(i=>i.rawMaterialId && i.quantity)
     };
+    if (!body.title) { setError('Enter PR title'); setSaving(false); return; }
+    if (!body.requiredDate) { setError('Select required date'); setSaving(false); return; }
     if (!body.items.length) { setError('Add at least one item'); setSaving(false); return; }
     const res = await fetch(`${API}/purchase-requisitions`, {
       method:'POST',
@@ -74,7 +81,7 @@ export default function PurchaseRequisitionsPage() {
     const data = await res.json();
     if (res.ok) {
       setShowForm(false);
-      setForm({remarks:'', items:[{rawMaterialId:'',quantity:'',uom:'',requiredDate:'',remarks:''}]});
+      setForm({title:'',requiredDate:'',priority:'NORMAL',notes:'',items:[{rawMaterialId:'',quantity:'',uom:'',remarks:''}]});
       fetchAll();
     } else {
       setError(Array.isArray(data.message)?data.message.join(', '):data.message||'Failed');
@@ -153,9 +160,25 @@ export default function PurchaseRequisitionsPage() {
               </div>
               <div className="p-5 space-y-4">
                 {error&&<div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Remarks</label>
-                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.remarks} onChange={e=>setForm(f=>({...f,remarks:e.target.value}))} placeholder="Purpose of requisition..." />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-xs text-gray-500 mb-1">PR Title *</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="e.g. Raw materials for July production" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Required By Date *</label>
+                    <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.requiredDate} onChange={e=>setForm(f=>({...f,requiredDate:e.target.value}))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Priority</label>
+                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.priority} onChange={e=>setForm(f=>({...f,priority:e.target.value}))}>
+                      {['LOW','NORMAL','HIGH','URGENT'].map(p=><option key={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs text-gray-500 mb-1">Notes</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Additional notes..." />
+                  </div>
                 </div>
 
                 <div>
@@ -206,7 +229,7 @@ export default function PurchaseRequisitionsPage() {
               </div>
               <div className="p-5 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
                 <button onClick={()=>setShowForm(false)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
-                <button onClick={handleSubmit} disabled={saving} className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+                <button onClick={handleSubmit} disabled={saving||!form.title||!form.requiredDate} className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">
                   {saving?'Creating...':'Create PR'}
                 </button>
               </div>
