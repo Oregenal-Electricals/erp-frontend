@@ -173,7 +173,7 @@ export default function PurchaseRequisitionsPage() {
                               onChange={e=>{
                                 const rm = rawMaterials.find(r=>r.id===e.target.value);
                                 updateItem(i,'rawMaterialId',e.target.value);
-                                if(rm) updateItem(i,'uom',rm.uom?.code||'NOS');
+                                updateItem(i,'uom', rm?.uom?.code || rm?.uomCode || 'NOS');
                               }}>
                               <option value="">— Select Material —</option>
                               {rawMaterials.map(r=><option key={r.id} value={r.id}>{r.name} ({r.code})</option>)}
@@ -184,8 +184,8 @@ export default function PurchaseRequisitionsPage() {
                             <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={item.quantity} onChange={e=>updateItem(i,'quantity',e.target.value)} placeholder="0" />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-500 mb-1">UOM</label>
-                            <input className="w-full border rounded-lg px-3 py-2 text-sm" value={item.uom} onChange={e=>updateItem(i,'uom',e.target.value)} placeholder="NOS/KG/MTR" />
+                            <label className="block text-xs text-gray-500 mb-1">UOM (auto)</label>
+                            <input className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 font-bold text-indigo-600" value={item.uom||'—'} readOnly />
                           </div>
                           <div>
                             <label className="block text-xs text-gray-500 mb-1">Required Date</label>
