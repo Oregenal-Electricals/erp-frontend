@@ -209,6 +209,7 @@ const NAV = [
   {
     label: 'Settings', icon: Settings,
     children: [
+      { label: 'Data Import', href: '/data-import', icon: Database },
       { label: 'System Settings', href: '/settings/system',        icon: Settings      },
       { label: 'Numbering Series',href: '/settings/numbering',     icon: Hash          },
       { label: 'Custom Fields',   href: '/settings/custom-fields', icon: SlidersHorizontal },
