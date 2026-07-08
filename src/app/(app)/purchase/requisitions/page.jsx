@@ -6,7 +6,7 @@ import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() {
-  if (typeof window !== 'undefined') return localStorage.getItem('accessToken');
+  if (typeof window !== 'undefined') return localStorage.getItem('erp_token');
 }
 
 const STATUS_COLORS = {

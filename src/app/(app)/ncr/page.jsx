@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 const API = process.env.NEXT_PUBLIC_API_URL;
-function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—';
 const SEVERITY_COLORS = {LOW:'bg-green-100 text-green-700',MEDIUM:'bg-yellow-100 text-yellow-700',HIGH:'bg-orange-100 text-orange-700',CRITICAL:'bg-red-100 text-red-700'};
 const STATUS_COLORS = {OPEN:'bg-red-100 text-red-700',IN_PROGRESS:'bg-yellow-100 text-yellow-700',CLOSED:'bg-green-100 text-green-700'};

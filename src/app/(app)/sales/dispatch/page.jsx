@@ -15,7 +15,7 @@ async function downloadPdf(id) {
   } else alert('PDF generation failed');
 }
 
-function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 

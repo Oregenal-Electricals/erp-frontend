@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
-function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 
 const TYPE_COLORS = { ASSET:'bg-blue-100 text-blue-700', LIABILITY:'bg-red-100 text-red-700', EQUITY:'bg-purple-100 text-purple-700', INCOME:'bg-green-100 text-green-700', EXPENSE:'bg-orange-100 text-orange-700' };

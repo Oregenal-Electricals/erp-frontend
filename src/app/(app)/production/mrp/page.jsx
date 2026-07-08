@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
-function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 
 const STATUS_COLORS = {
   AVAILABLE: 'bg-green-100 text-green-700',

@@ -15,7 +15,7 @@ async function downloadPdf(id) {
   } else alert('PDF generation failed');
 }
 
-function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 
   async function downloadExcel(endpoint, filename) {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {headers:{Authorization:`Bearer ${getToken()}`}});

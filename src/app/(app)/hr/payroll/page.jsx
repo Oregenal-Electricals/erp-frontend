@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
-function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 
   async function downloadSlip(empId, month, year) {
     const res = await fetch(`${API}/salary-slip/download/${empId}?month=${month}&year=${year}`, {headers:{Authorization:`Bearer ${getToken()}`}});

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
-function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 const BLANK_LINE = { transactionDate:'', description:'', referenceNumber:'', creditAmount:'', debitAmount:'', balance:'' };

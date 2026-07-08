@@ -4,7 +4,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
-function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 
 const STATUS_COLORS = { OPEN:'bg-blue-100 text-blue-700', INVESTIGATING:'bg-yellow-100 text-yellow-700', RESPONDED:'bg-purple-100 text-purple-700', CLOSED:'bg-green-100 text-green-700' };

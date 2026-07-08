@@ -17,7 +17,7 @@ async function downloadPdf(id) {
   } else alert('PDF generation failed');
 }
 
-function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('accessToken'); }
+function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 
 const STATUS_COLORS = {
   DRAFT: 'bg-gray-100 text-gray-600',
