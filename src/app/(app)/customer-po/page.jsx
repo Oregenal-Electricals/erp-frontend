@@ -274,23 +274,46 @@ export default function CustomerPoPage() {
                 <div className="border rounded-lg p-4 bg-gray-50">
                   <h3 className="font-semibold text-gray-700 mb-3">Material Shortage Check <span className="text-xs font-normal text-gray-400">(runs automatically when the PO is created)</span></h3>
 
-                  {shortages?.data?.length > 0 && (
+                  {shortages?.itemResults ? (
                     <div className="space-y-2">
-                      {shortages.data.map((s) => (
-                        <div key={s.id} className="bg-white rounded p-3 text-sm flex justify-between border border-red-100">
-                          <span>{s.itemCode} — {s.itemName}</span>
-                          <span className="text-red-600 font-medium">need {s.requiredQty} {s.uom} / have {s.availableQty} {s.uom} → short {s.shortageQty}</span>
-                        </div>
-                      ))}
-                      <div className="text-xs text-gray-500">{shortages.openCount} open shortage(s) — flagged for Purchase. Last checked: {fmtDateTime(shortages.mrpRunAt)}.</div>
+                      {shortages.itemResults.map((item, i) => {
+                        const style = {
+                          CHECKED: 'bg-white border-gray-200',
+                          CHECKED_DIRECT_STOCK: 'bg-white border-gray-200',
+                          BOM_MISSING: 'bg-orange-50 border-orange-200',
+                          NO_PRODUCT_MASTER: 'bg-red-50 border-red-200',
+                        }[item.status] || 'bg-white border-gray-200';
+                        return (
+                          <div key={i} className={`rounded p-3 text-sm border ${style}`}>
+                            <div className="flex justify-between font-medium text-gray-800">
+                              <span>{item.itemCode} — {item.itemName}</span>
+                              <span className="text-xs uppercase text-gray-500">{item.status.replace(/_/g,' ')}</span>
+                            </div>
+                            {item.message && <div className="text-xs text-gray-600 mt-1">{item.message}</div>}
+                            {item.components && item.components.map((c,ci) => (
+                              <div key={ci} className={`flex justify-between text-xs mt-1 pl-3 ${c.status==='SHORTAGE' ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
+                                <span>{c.itemCode} ({c.itemName})</span>
+                                <span>need {c.netRequired} {c.uom} / have {c.availableQty} {c.uom} {c.shortage > 0 && `→ short ${c.shortage}`}</span>
+                              </div>
+                            ))}
+                            {item.status === 'CHECKED_DIRECT_STOCK' && (
+                              <div className={`text-xs mt-1 ${item.shortage > 0 ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
+                                need {item.requiredQty} / have {item.availableQty} {item.shortage > 0 && `→ short ${item.shortage}`}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      <div className="text-xs text-gray-500 mt-2">
+                        {shortages.openCount > 0
+                          ? `${shortages.openCount} shortage(s) flagged for Purchase.`
+                          : shortages.itemResults.every(i => i.status === 'CHECKED' || i.status === 'CHECKED_DIRECT_STOCK')
+                            ? 'No shortages — all materials available in stock.'
+                            : 'Some items could not be checked — see status above.'}
+                        {' '}Checked {fmtDateTime(shortages.mrpRunAt)}.
+                      </div>
                     </div>
-                  )}
-
-                  {shortages && shortages.data?.length === 0 && viewDetail.mrpRunAt && (
-                    <div className="text-sm text-green-700 bg-green-50 rounded p-3">✓ No shortages — all materials available in stock. Checked {fmtDateTime(viewDetail.mrpRunAt)}.</div>
-                  )}
-
-                  {!viewDetail.mrpRunAt && (
+                  ) : (
                     <div className="text-xs text-gray-400">Shortage check has not run yet for this PO.</div>
                   )}
                 </div>
