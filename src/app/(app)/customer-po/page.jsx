@@ -38,6 +38,7 @@ export default function CustomerPoPage() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [viewDetail, setViewDetail] = useState(null);
   const [shortages, setShortages] = useState(null);
   const [cancelModal, setCancelModal] = useState(null);
@@ -73,7 +74,7 @@ export default function CustomerPoPage() {
     return { subtotal: acc.subtotal + (parseFloat(item.qty)||0)*(parseFloat(item.unitPrice)||0), gst: acc.gst + c.gstAmt, total: acc.total + c.total };
   }, { subtotal: 0, gst: 0, total: 0 });
 
-  async function handleCreate() {
+  async function handleSave() {
     setSaving(true); setError('');
     const body = {
       poType: form.poType,
@@ -94,14 +95,41 @@ export default function CustomerPoPage() {
       body.verbalConfirmedBy = form.verbalConfirmedBy;
       body.verbalConfirmedDate = form.verbalConfirmedDate ? new Date(form.verbalConfirmedDate).toISOString() : new Date().toISOString();
     }
-    const res = await fetch(`${API}/customer-po`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    const url = editingId ? `${API}/customer-po/${editingId}` : `${API}/customer-po`;
+    const method = editingId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
       body: JSON.stringify(body),
     });
     const data = await res.json();
-    if (res.ok) { setShowModal(false); fetchAll(); }
+    if (res.ok) {
+      setShowModal(false); setEditingId(null); fetchAll();
+      if (viewDetail && editingId === viewDetail.id) openDetail(viewDetail.id);
+    }
     else setError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed');
     setSaving(false);
+  }
+
+  function openEdit(cpo) {
+    setForm({
+      poType: cpo.poType,
+      customerPoNumber: cpo.poType === 'WRITTEN' ? cpo.customerPoNumber : '',
+      verbalConfirmedBy: cpo.verbalConfirmedBy || '',
+      verbalConfirmedDate: cpo.verbalConfirmedDate ? cpo.verbalConfirmedDate.split('T')[0] : '',
+      quotationId: cpo.quotationId || '',
+      customerName: cpo.customerName,
+      customerEmail: cpo.customerEmail || '',
+      customerPhone: cpo.customerPhone || '',
+      deliveryAddress: cpo.deliveryAddress || '',
+      poDate: cpo.poDate.split('T')[0],
+      deliveryDate: cpo.deliveryDate.split('T')[0],
+      currency: cpo.currency || 'INR',
+      remarks: cpo.remarks || '',
+      items: cpo.items.map(i => ({ itemCode: i.itemCode, itemName: i.itemName, description: i.description || '', qty: i.qty, uom: i.uom, unitPrice: i.unitPrice, discount: i.discount, gstRate: i.gstRate })),
+    });
+    setEditingId(cpo.id);
+    setError('');
+    setShowModal(true);
   }
 
   async function handleAction(id, action, body={}) {
@@ -134,7 +162,7 @@ export default function CustomerPoPage() {
             <h1 className="text-2xl font-bold text-gray-900">Customer PO</h1>
             <p className="text-gray-500 text-sm mt-1">Log written or verbal customer purchase orders and check material availability</p>
           </div>
-          <button onClick={()=>{ setForm({...BLANK_FORM}); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New Customer PO</button>
+          <button onClick={()=>{ setForm({...BLANK_FORM}); setEditingId(null); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New Customer PO</button>
         </div>
 
         {stats && (
@@ -323,6 +351,7 @@ export default function CustomerPoPage() {
                 <DocumentAttachments referenceType="CUSTOMER_PO" referenceId={viewDetail?.id} referenceNumber={viewDetail?.cpoNumber} title="Customer PO Attachments" />
               </div>
               <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
+                {viewDetail.status==='RECEIVED' && <button onClick={()=>openEdit(viewDetail)} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Edit</button>}
                 {viewDetail.status==='RECEIVED' && <button onClick={()=>handleAction(viewDetail.id,'acknowledge')} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Acknowledge</button>}
                 {!['COMPLETED','CANCELLED'].includes(viewDetail.status) && <button onClick={()=>{setCancelModal(viewDetail.id);setCancelReason('');}} className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm">Cancel PO</button>}
                 <button onClick={()=>{setViewDetail(null);setShortages(null);}} className="px-4 py-2 border rounded-lg text-sm">Close</button>
@@ -336,8 +365,8 @@ export default function CustomerPoPage() {
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-screen overflow-y-auto">
               <div className="p-6 border-b flex justify-between sticky top-0 bg-white">
-                <h2 className="text-lg font-bold text-blue-700">New Customer PO</h2>
-                <button onClick={()=>setShowModal(false)} className="text-gray-400 text-xl">✕</button>
+                <h2 className="text-lg font-bold text-blue-700">{editingId ? 'Edit Customer PO' : 'New Customer PO'}</h2>
+                <button onClick={()=>{setShowModal(false);setEditingId(null);}} className="text-gray-400 text-xl">✕</button>
               </div>
               <div className="p-6 space-y-6">
                 {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
@@ -418,8 +447,8 @@ export default function CustomerPoPage() {
                 <div><label className="block text-sm text-gray-600 mb-1">Remarks</label><textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} value={form.remarks} onChange={e=>setForm(f=>({...f,remarks:e.target.value}))} /></div>
               </div>
               <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
-                <button onClick={()=>setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
-                <button onClick={handleCreate} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50">{saving?'Creating...':'Create Customer PO'}</button>
+                <button onClick={()=>{setShowModal(false);setEditingId(null);}} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50">{saving?'Saving...':editingId?'Save Changes':'Create Customer PO'}</button>
               </div>
             </div>
           </div>
