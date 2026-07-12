@@ -10,7 +10,7 @@ export default function Page() {
   const [total, setTotal] = useState(0);
   useEffect(()=>{
     if (!getToken()) { setLoading(false); return; }
-    fetch(`${API}/bom?limit=20`, {headers:{Authorization:`Bearer ${getToken()}`}})
+    fetch(`${API}/boms?limit=20`, {headers:{Authorization:`Bearer ${getToken()}`}})
       .then(r=>r.ok?r.json():null)
       .then(d=>{ if(d){ setData(d.data||d||[]); setTotal(d.total||(d.data||d||[]).length); } setLoading(false); })
       .catch(()=>setLoading(false));
