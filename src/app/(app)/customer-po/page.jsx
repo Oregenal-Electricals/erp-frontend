@@ -47,6 +47,7 @@ export default function CustomerPoPage() {
   const [increaseForm, setIncreaseForm] = useState(null);
   const [increaseSaving, setIncreaseSaving] = useState(false);
   const [increaseError, setIncreaseError] = useState('');
+  const [recheckSaving, setRecheckSaving] = useState(false);
   const [form, setForm] = useState({...BLANK_FORM});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -211,6 +212,21 @@ export default function CustomerPoPage() {
     else setShortages(null);
   }
 
+  async function runRecheck(id) {
+    setRecheckSaving(true);
+    const res = await fetch(`${API}/customer-po/${id}/run-shortage-check`, {
+      method: 'POST', headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (res.ok) {
+      await openDetail(id);
+      fetchAll();
+    } else {
+      const d = await res.json();
+      alert(d.message || 'Re-check failed');
+    }
+    setRecheckSaving(false);
+  }
+
   return (
     <AppLayout>
       <div className="p-6 max-w-7xl mx-auto">
@@ -357,7 +373,10 @@ export default function CustomerPoPage() {
                 </div>
 
                 <div className="border rounded-lg p-4 bg-gray-50">
-                  <h3 className="font-semibold text-gray-700 mb-3">Material Shortage Check <span className="text-xs font-normal text-gray-400">(runs automatically when the PO is created)</span></h3>
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="font-semibold text-gray-700">Material Shortage Check <span className="text-xs font-normal text-gray-400">(runs automatically when created; re-check if stock or other orders changed)</span></h3>
+                    <button onClick={()=>runRecheck(viewDetail.id)} disabled={recheckSaving} className="px-3 py-1.5 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50">{recheckSaving?'Checking...':'↻ Re-check'}</button>
+                  </div>
 
                   {shortages?.itemResults ? (
                     <div className="space-y-2">
