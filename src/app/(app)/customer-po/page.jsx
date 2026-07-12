@@ -43,6 +43,10 @@ export default function CustomerPoPage() {
   const [shortages, setShortages] = useState(null);
   const [cancelModal, setCancelModal] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [increaseModal, setIncreaseModal] = useState(null);
+  const [increaseForm, setIncreaseForm] = useState(null);
+  const [increaseSaving, setIncreaseSaving] = useState(false);
+  const [increaseError, setIncreaseError] = useState('');
   const [form, setForm] = useState({...BLANK_FORM});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -108,6 +112,59 @@ export default function CustomerPoPage() {
     }
     else setError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed');
     setSaving(false);
+  }
+
+  function openIncrease(cpo) {
+    setIncreaseModal(cpo);
+    setIncreaseForm({
+      poType: 'VERBAL',
+      customerPoNumber: '',
+      verbalConfirmedBy: '',
+      verbalConfirmedDate: '',
+      deliveryDate: '',
+      remarks: '',
+      items: cpo.items.map(i => ({ itemCode: i.itemCode, itemName: i.itemName, description: '', qty: '', uom: i.uom, unitPrice: i.unitPrice, discount: 0, gstRate: i.gstRate })),
+    });
+    setIncreaseError('');
+  }
+
+  function updateIncreaseItem(i, key, val) {
+    setIncreaseForm(f => { const items = [...f.items]; items[i] = { ...items[i], [key]: val }; return { ...f, items }; });
+  }
+
+  async function handleIncreaseSave() {
+    setIncreaseSaving(true); setIncreaseError('');
+    const itemsToSend = increaseForm.items.filter(i => parseFloat(i.qty) > 0);
+    if (itemsToSend.length === 0) {
+      setIncreaseError('Enter an additional quantity for at least one item.');
+      setIncreaseSaving(false);
+      return;
+    }
+    const body = {
+      poType: increaseForm.poType,
+      deliveryDate: new Date(increaseForm.deliveryDate).toISOString(),
+      remarks: increaseForm.remarks || undefined,
+      items: itemsToSend.map(i => ({ ...i, qty: parseFloat(i.qty)||1, unitPrice: parseFloat(i.unitPrice)||0, discount: parseFloat(i.discount)||0, gstRate: parseFloat(i.gstRate)||18 })),
+    };
+    if (increaseForm.poType === 'WRITTEN') body.customerPoNumber = increaseForm.customerPoNumber;
+    else {
+      body.verbalConfirmedBy = increaseForm.verbalConfirmedBy;
+      body.verbalConfirmedDate = increaseForm.verbalConfirmedDate ? new Date(increaseForm.verbalConfirmedDate).toISOString() : new Date().toISOString();
+    }
+    const res = await fetch(`${API}/customer-po/${increaseModal.id}/increase-quantity`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setIncreaseModal(null);
+      fetchAll();
+      openDetail(increaseModal.id);
+      alert(`New PO ${data.cpoNumber} created for the increased quantity.`);
+    } else {
+      setIncreaseError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed');
+    }
+    setIncreaseSaving(false);
   }
 
   function openEdit(cpo) {
@@ -348,10 +405,33 @@ export default function CustomerPoPage() {
 
                 {viewDetail.remarks && <div className="mt-4 p-3 bg-blue-50 rounded text-xs text-gray-600"><div className="font-semibold mb-1">Remarks:</div>{viewDetail.remarks}</div>}
 
+                {viewDetail.amendmentOf && (
+                  <div className="mt-4 p-3 bg-purple-50 rounded text-xs text-purple-700">
+                    This is an increase-quantity order against <span className="font-mono font-semibold">{viewDetail.amendmentOf.cpoNumber}</span> ({viewDetail.amendmentOf.customerPoNumber})
+                  </div>
+                )}
+
+                {viewDetail.amendmentChildren && viewDetail.amendmentChildren.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-xs font-semibold text-gray-600 mb-2">Linked Increase Orders</div>
+                    <div className="space-y-1">
+                      {viewDetail.amendmentChildren.map(child => (
+                        <div key={child.id} className="flex justify-between items-center bg-purple-50 rounded p-2 text-xs cursor-pointer hover:bg-purple-100" onClick={()=>openDetail(child.id)}>
+                          <span className="font-mono font-medium text-purple-700">{child.cpoNumber}</span>
+                          <span className={`px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[child.status]}`}>{child.status}</span>
+                          <span className="font-semibold">{fmt(child.totalAmount)}</span>
+                          <span className="text-gray-400">{fmtDate(child.createdAt)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <DocumentAttachments referenceType="CUSTOMER_PO" referenceId={viewDetail?.id} referenceNumber={viewDetail?.cpoNumber} title="Customer PO Attachments" />
               </div>
               <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
                 {viewDetail.status==='RECEIVED' && <button onClick={()=>openEdit(viewDetail)} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Edit</button>}
+                {!['RECEIVED','CANCELLED'].includes(viewDetail.status) && <button onClick={()=>openIncrease(viewDetail)} className="px-4 py-2 border border-purple-300 text-purple-700 rounded-lg text-sm hover:bg-purple-50">+ Increase Quantity</button>}
                 {viewDetail.status==='RECEIVED' && <button onClick={()=>handleAction(viewDetail.id,'acknowledge')} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Acknowledge</button>}
                 {!['COMPLETED','CANCELLED'].includes(viewDetail.status) && <button onClick={()=>{setCancelModal(viewDetail.id);setCancelReason('');}} className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm">Cancel PO</button>}
                 <button onClick={()=>{setViewDetail(null);setShortages(null);}} className="px-4 py-2 border rounded-lg text-sm">Close</button>
@@ -469,6 +549,74 @@ export default function CustomerPoPage() {
               <div className="p-6 border-t flex justify-end gap-3">
                 <button onClick={()=>setCancelModal(null)} className="px-4 py-2 border rounded-lg text-sm">Back</button>
                 <button onClick={async()=>{ await handleAction(cancelModal,'cancel',{cancelReason}); setCancelModal(null); }} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm">Confirm Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* INCREASE QUANTITY MODAL */}
+        {increaseModal && increaseForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-screen overflow-y-auto">
+              <div className="p-6 border-b flex justify-between sticky top-0 bg-white">
+                <div>
+                  <h2 className="text-lg font-bold text-purple-700">Increase Quantity</h2>
+                  <p className="text-xs text-gray-500 mt-1">Creates a new PO for the extra quantity, linked to <span className="font-mono">{increaseModal.cpoNumber}</span>. The original stays unchanged.</p>
+                </div>
+                <button onClick={()=>setIncreaseModal(null)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="p-6 space-y-6">
+                {increaseError && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{increaseError}</div>}
+
+                <div>
+                  <label className="block text-sm text-gray-600 mb-2">How was this increase communicated? *</label>
+                  <div className="flex gap-3">
+                    <button type="button" onClick={()=>setIncreaseForm(f=>({...f,poType:'WRITTEN'}))} className={`flex-1 px-4 py-2 rounded-lg border-2 text-sm font-medium ${increaseForm.poType==='WRITTEN' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-500'}`}>📄 Written</button>
+                    <button type="button" onClick={()=>setIncreaseForm(f=>({...f,poType:'VERBAL'}))} className={`flex-1 px-4 py-2 rounded-lg border-2 text-sm font-medium ${increaseForm.poType==='VERBAL' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-500'}`}>📞 Verbal</button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {increaseForm.poType === 'WRITTEN' ? (
+                    <div className="col-span-2">
+                      <label className="block text-sm text-gray-600 mb-1">Customer PO Number *</label>
+                      <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono" value={increaseForm.customerPoNumber} onChange={e=>setIncreaseForm(f=>({...f,customerPoNumber:e.target.value}))} placeholder="e.g. PO-2026-4521-A" />
+                    </div>
+                  ) : (
+                    <div className="col-span-2 grid grid-cols-2 gap-4">
+                      <div><label className="block text-sm text-gray-600 mb-1">Confirmed By *</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={increaseForm.verbalConfirmedBy} onChange={e=>setIncreaseForm(f=>({...f,verbalConfirmedBy:e.target.value}))} placeholder="e.g. Rahul - phone call" /></div>
+                      <div><label className="block text-sm text-gray-600 mb-1">Confirmed Date</label><input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={increaseForm.verbalConfirmedDate} onChange={e=>setIncreaseForm(f=>({...f,verbalConfirmedDate:e.target.value}))} /></div>
+                    </div>
+                  )}
+                  <div className="col-span-2"><label className="block text-sm text-gray-600 mb-1">Delivery Date for Extra Quantity *</label><input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={increaseForm.deliveryDate} onChange={e=>setIncreaseForm(f=>({...f,deliveryDate:e.target.value}))} /></div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-gray-700 mb-2">Enter Additional Quantity Per Item</h3>
+                  <p className="text-xs text-gray-400 mb-3">Leave qty blank/0 for items you don't want to increase.</p>
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-xs text-gray-500"><tr>{['Item','Additional Qty','Unit Price','Total'].map(h=><th key={h} className="px-2 py-2 text-left">{h}</th>)}</tr></thead>
+                    <tbody>
+                      {increaseForm.items.map((item,i)=>{
+                        const c = calcItem(item);
+                        return (
+                          <tr key={i} className="border-b">
+                            <td className="px-2 py-2"><div className="font-mono text-xs text-blue-600">{item.itemCode}</div><div className="text-xs">{item.itemName}</div></td>
+                            <td className="px-2 py-1"><input type="number" className="border rounded px-2 py-1 text-xs w-24" value={item.qty} onChange={e=>updateIncreaseItem(i,'qty',e.target.value)} placeholder="0" /></td>
+                            <td className="px-2 py-1"><input type="number" className="border rounded px-2 py-1 text-xs w-24" value={item.unitPrice} onChange={e=>updateIncreaseItem(i,'unitPrice',e.target.value)} /></td>
+                            <td className="px-2 py-1 text-xs font-bold text-purple-700">{fmt(c.total)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div><label className="block text-sm text-gray-600 mb-1">Note (optional)</label><textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} value={increaseForm.remarks} onChange={e=>setIncreaseForm(f=>({...f,remarks:e.target.value}))} placeholder="Any additional context for this increase..." /></div>
+              </div>
+              <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
+                <button onClick={()=>setIncreaseModal(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                <button onClick={handleIncreaseSave} disabled={increaseSaving} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm disabled:opacity-50">{increaseSaving?'Creating...':'Create Increase Order'}</button>
               </div>
             </div>
           </div>
