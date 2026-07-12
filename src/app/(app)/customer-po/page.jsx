@@ -11,7 +11,6 @@ const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigit
 
 const STATUS_COLORS = { RECEIVED:'bg-gray-100 text-gray-600', ACKNOWLEDGED:'bg-blue-100 text-blue-700', IN_PROGRESS:'bg-yellow-100 text-yellow-700', COMPLETED:'bg-green-100 text-green-700', CANCELLED:'bg-red-100 text-red-600' };
 const PO_TYPE_COLORS = { WRITTEN:'bg-indigo-100 text-indigo-700', VERBAL:'bg-purple-100 text-purple-700' };
-const SHORTAGE_ITEM_COLORS = { CHECKED:'bg-gray-50', CHECKED_DIRECT_STOCK:'bg-gray-50', BOM_MISSING:'bg-orange-50', NO_PRODUCT_MASTER:'bg-red-50' };
 
 const BLANK_ITEM = { itemCode:'', itemName:'', description:'', qty:1, uom:'PCS', unitPrice:'', discount:0, gstRate:18 };
 const BLANK_FORM = { poType:'WRITTEN', customerPoNumber:'', verbalConfirmedBy:'', verbalConfirmedDate:'', quotationId:'', customerName:'', customerEmail:'', customerPhone:'', deliveryAddress:'', poDate:'', deliveryDate:'', currency:'INR', remarks:'', items:[{...BLANK_ITEM}] };
@@ -41,7 +40,6 @@ export default function CustomerPoPage() {
   const [showModal, setShowModal] = useState(false);
   const [viewDetail, setViewDetail] = useState(null);
   const [shortages, setShortages] = useState(null);
-  const [runningCheck, setRunningCheck] = useState(false);
   const [cancelModal, setCancelModal] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [form, setForm] = useState({...BLANK_FORM});
@@ -123,24 +121,9 @@ export default function CustomerPoPage() {
   async function openDetail(id) {
     const res = await fetch(`${API}/customer-po/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
     if (res.ok) setViewDetail(await res.json());
-    setShortages(null);
     const sRes = await fetch(`${API}/customer-po/${id}/shortages`, { headers: { Authorization: `Bearer ${getToken()}` } });
-    if (sRes.ok) { const d = await sRes.json(); if (d.data?.length > 0) setShortages(d); }
-  }
-
-  async function runShortageCheck(id) {
-    setRunningCheck(true);
-    const res = await fetch(`${API}/customer-po/${id}/run-shortage-check`, {
-      method: 'POST', headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    if (res.ok) {
-      const result = await res.json();
-      setShortages({ cpoNumber: result.cpoNumber, data: null, openCount: result.summary.shortageCount, _runResult: result });
-    } else {
-      const d = await res.json();
-      alert(d.message || 'Shortage check failed');
-    }
-    setRunningCheck(false);
+    if (sRes.ok) setShortages(await sRes.json());
+    else setShortages(null);
   }
 
   return (
@@ -289,60 +272,27 @@ export default function CustomerPoPage() {
                 </div>
 
                 <div className="border rounded-lg p-4 bg-gray-50">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-semibold text-gray-700">Material Shortage Check</h3>
-                    {viewDetail.status !== 'CANCELLED' && (
-                      <button onClick={()=>runShortageCheck(viewDetail.id)} disabled={runningCheck} className="px-3 py-1.5 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50">
-                        {runningCheck ? 'Checking...' : 'Run Shortage Check'}
-                      </button>
-                    )}
-                  </div>
+                  <h3 className="font-semibold text-gray-700 mb-3">Material Shortage Check <span className="text-xs font-normal text-gray-400">(runs automatically when the PO is created)</span></h3>
 
-                  {shortages?._runResult && (
-                    <div className="space-y-2">
-                      {shortages._runResult.itemResults.map((item, i) => (
-                        <div key={i} className={`rounded p-3 text-sm ${SHORTAGE_ITEM_COLORS[item.status] || 'bg-white'}`}>
-                          <div className="flex justify-between font-medium">
-                            <span>{item.itemCode} — {item.itemName}</span>
-                            <span className="text-xs uppercase text-gray-500">{item.status.replace(/_/g,' ')}</span>
-                          </div>
-                          {item.message && <div className="text-xs text-gray-500 mt-1">{item.message}</div>}
-                          {item.components && item.components.map((c,ci) => (
-                            <div key={ci} className={`flex justify-between text-xs mt-1 pl-3 ${c.status==='SHORTAGE' ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
-                              <span>{c.itemCode} ({c.itemName})</span>
-                              <span>need {c.netRequired} {c.uom} / have {c.availableQty} {c.uom} {c.shortage > 0 && `→ short ${c.shortage}`}</span>
-                            </div>
-                          ))}
-                          {item.status === 'CHECKED_DIRECT_STOCK' && (
-                            <div className={`text-xs mt-1 ${item.shortage > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
-                              need {item.requiredQty} / have {item.availableQty} {item.shortage > 0 && `→ short ${item.shortage}`}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      <div className="text-xs text-gray-500 mt-2">
-                        {shortages._runResult.summary.hasShortage
-                          ? `${shortages._runResult.summary.shortageCount} shortage(s) flagged for Purchase.`
-                          : 'No shortages — all materials available in stock.'}
-                        {shortages._runResult.summary.bomTasksCreated?.length > 0 &&
-                          ` ${shortages._runResult.summary.bomTasksCreated.length} BOM-creation task(s) raised: ${shortages._runResult.summary.bomTasksCreated.join(', ')}.`}
-                      </div>
-                    </div>
-                  )}
-
-                  {!shortages?._runResult && shortages?.data?.length > 0 && (
+                  {shortages?.data?.length > 0 && (
                     <div className="space-y-2">
                       {shortages.data.map((s) => (
-                        <div key={s.id} className="bg-white rounded p-3 text-sm flex justify-between">
+                        <div key={s.id} className="bg-white rounded p-3 text-sm flex justify-between border border-red-100">
                           <span>{s.itemCode} — {s.itemName}</span>
                           <span className="text-red-600 font-medium">need {s.requiredQty} {s.uom} / have {s.availableQty} {s.uom} → short {s.shortageQty}</span>
                         </div>
                       ))}
-                      <div className="text-xs text-gray-500">Last checked: {fmtDateTime(viewDetail.mrpRunAt)}. {shortages.openCount} open shortage(s).</div>
+                      <div className="text-xs text-gray-500">{shortages.openCount} open shortage(s) — flagged for Purchase. Last checked: {fmtDateTime(shortages.mrpRunAt)}.</div>
                     </div>
                   )}
 
-                  {!shortages && <div className="text-xs text-gray-400">No shortage check has been run yet for this PO.</div>}
+                  {shortages && shortages.data?.length === 0 && viewDetail.mrpRunAt && (
+                    <div className="text-sm text-green-700 bg-green-50 rounded p-3">✓ No shortages — all materials available in stock. Checked {fmtDateTime(viewDetail.mrpRunAt)}.</div>
+                  )}
+
+                  {!viewDetail.mrpRunAt && (
+                    <div className="text-xs text-gray-400">Shortage check has not run yet for this PO.</div>
+                  )}
                 </div>
 
                 {viewDetail.remarks && <div className="mt-4 p-3 bg-blue-50 rounded text-xs text-gray-600"><div className="font-semibold mb-1">Remarks:</div>{viewDetail.remarks}</div>}
