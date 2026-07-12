@@ -206,7 +206,7 @@ export default function CustomerPoPage() {
                     <span className="font-bold text-gray-800">{fmt(c.totalAmount)}</span>
                     <span className="text-xs text-gray-400">{c.items?.length||0} items</span>
                     {c.status==='RECEIVED' && <button onClick={()=>handleAction(c.id,'acknowledge')} className="px-2 py-1 text-xs bg-blue-600 text-white rounded">Acknowledge</button>}
-                    <button onClick={()=>openDetail(c.id)} className="px-2 py-1 text-xs border rounded hover:bg-gray-50">View</button>
+                    <button onClick={()=>openDetail(c.id)} className="px-3 py-1.5 text-xs font-medium border border-gray-300 text-gray-700 bg-white rounded hover:bg-gray-100">View</button>
                   </div>
                 </div>
               </div>
