@@ -211,6 +211,7 @@ const NAV = [
     children: [
       { label: 'Data Import', href: '/data-import', icon: Database },
       { label: 'System Settings', href: '/settings/system',        icon: Settings      },
+      { label: 'Roles & Permissions', href: '/settings/roles-permissions', icon: Shield },
       { label: 'Numbering Series',href: '/settings/numbering',     icon: Hash          },
       { label: 'Custom Fields',   href: '/settings/custom-fields', icon: SlidersHorizontal },
       { label: 'Dummy Data',      href: '/settings/dummy-data',    icon: Database      },
