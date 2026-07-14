@@ -27,43 +27,57 @@ function getToken() { if (typeof window !== 'undefined') return localStorage.get
  * accidentally hides from a role that should see it - tighten specific
  * entries as gaps are found.
  */
-const PATH_PERMISSION_PREFIX = {
-  'companies': 'COMPANY', 'plants': 'PLANT', 'units': 'UNIT',
-  'departments': 'DEPARTMENT', 'branches': 'BRANCH', 'financial-years': 'FINANCIAL_YEAR',
-  'users': 'USER',
-  'purchase-requisitions': 'PURCHASE', 'purchase-orders': 'PURCHASE',
-  'vendor-quotations': 'PURCHASE', 'po-amendments': 'PURCHASE', 'po-approvals': 'PURCHASE',
-  'purchase-analytics': 'PURCHASE', 'price-lists': 'PURCHASE', 'price-history': 'PURCHASE',
-  'rfqs': 'PURCHASE', 'rfq': 'PURCHASE', 'quotation-comparison': 'PURCHASE', 'vendors': 'VENDORS',
-  'customs-entries': 'PURCHASE', 'import-orders': 'PURCHASE', 'landed-costs': 'PURCHASE',
-  'shipments': 'SALES', 'shipping-documents': 'SALES',
-  'sales-orders': 'SALES', 'quotations': 'SALES', 'leads': 'SALES', 'customer-po': 'SALES',
-  'customer-complaints': 'SALES', 'delivery-confirmations': 'SALES', 'dispatch': 'SALES',
-  'dispatch-plans': 'SALES', 'proforma-invoices': 'SALES', 'credit-control': 'SALES',
-  'customer-portal': 'SYSTEM',
-  'inventory-dashboard': 'INVENTORY', 'warehouse': 'INVENTORY', 'warehouses': 'INVENTORY',
-  'bom': 'INVENTORY', 'bom-revisions': 'INVENTORY', 'grn': 'INVENTORY', 'iqc': 'QUALITY',
-  'stock-ledger': 'INVENTORY', 'rejected-stock': 'INVENTORY', 'rack-bin': 'INVENTORY',
-  'stock-putaway': 'INVENTORY', 'stock-batches': 'INVENTORY', 'stock-issues': 'INVENTORY',
-  'stock-transfers': 'INVENTORY', 'stock-adjustments': 'INVENTORY', 'stock-reports': 'INVENTORY',
-  'inventory-valuation': 'INVENTORY', 'inventory-reports': 'INVENTORY', 'raw-materials': 'INVENTORY',
-  'products': 'INVENTORY', 'product-revisions': 'INVENTORY',
-  'work-orders': 'PRODUCTION', 'production-entries': 'PRODUCTION', 'production-cost-sheets': 'PRODUCTION',
-  'production-issues': 'PRODUCTION', 'production-dashboard': 'PRODUCTION', 'production-reports': 'PRODUCTION',
-  'mrp': 'PRODUCTION', 'fg-receipts': 'PRODUCTION',
-  'oqc': 'QUALITY', 'production-qc': 'QUALITY', 'capa': 'QUALITY', 'ncr': 'QUALITY',
-  'rca': 'QUALITY', 'quality-dashboard': 'QUALITY', 'quality-reports': 'QUALITY', 'supplier-quality': 'QUALITY',
-  'attendance': 'HR', 'hr-reports': 'HR', 'payroll': 'HR', 'salary-slip': 'HR',
-  'pf-esi': 'HR', 'employees': 'HR', 'leave': 'HR', 'training': 'HR',
-  'accounting': 'FINANCE', 'accounts': 'FINANCE', 'ar': 'FINANCE', 'ap': 'FINANCE',
-  'gst': 'FINANCE', 'bank-reconciliation': 'FINANCE', 'financial-reports': 'FINANCE',
-  'tds': 'FINANCE', 'payment-instruments': 'FINANCE', 'vouchers': 'FINANCE',
-  'iot': 'SYSTEM', 'tasks': 'SYSTEM', 'notifications': 'SYSTEM', 'documents': 'SYSTEM',
-  'workflows': 'SYSTEM', 'alerts': 'SYSTEM', 'vendor-portal': 'SYSTEM',
-  'mis-reports': 'REPORTS', 'analytics': 'REPORTS',
-  'system': 'SETTINGS', 'numbering': 'SETTINGS', 'custom-fields': 'SETTINGS', 'dummy-data': 'SETTINGS',
-  'gate-inward': null, 'gate-outward': null, 'gate-passes': null, 'visitors': null,
-  'vehicle-logs': null, 'gate-dashboard': null, 'change-requests': null,
+/**
+ * Maps a nav item's href to the EXACT permission required to see it -
+ * now granular per-tab (e.g. Stock Adjustment and Stock Ledger require
+ * different permissions), not shared domain-wide permissions. Reuses
+ * the new granular permissions seeded into the database, inherited
+ * automatically from whichever domain permission a role already held.
+ *
+ * Unknown path segments default to VISIBLE (fail open) so nothing
+ * accidentally hides from a role that should see it.
+ */
+const PATH_PERMISSION = {
+  'change-requests': 'CHANGE_REQUEST_VIEW',
+  'gate-dashboard': 'GATE_DASHBOARD_VIEW', 'gate-inward': 'GATE_INWARD_VIEW',
+  'gate-outward': 'GATE_OUTWARD_VIEW', 'gate-passes': 'GATE_PASS_VIEW',
+  'visitors': 'VISITOR_VIEW', 'vehicle-logs': 'VEHICLE_LOG_VIEW',
+  'purchase-requisitions': 'PURCHASE_REQUISITION_VIEW', 'purchase-orders': 'PURCHASE_ORDER_VIEW',
+  'rfqs': 'RFQ_VIEW', 'rfq': 'RFQ_VIEW', 'vendor-quotations': 'VENDOR_QUOTATION_VIEW',
+  'quotation-comparison': 'QUOTATION_COMPARISON_VIEW', 'po-amendments': 'PO_AMENDMENT_VIEW',
+  'po-approvals': 'PO_APPROVAL_VIEW', 'purchase-analytics': 'PURCHASE_ANALYTICS_VIEW',
+  'price-lists': 'PRICE_LIST_VIEW', 'price-history': 'PRICE_HISTORY_VIEW', 'vendors': 'VENDORS_VIEW',
+  'import-orders': 'IMPORT_ORDER_VIEW', 'customs-entries': 'CUSTOMS_ENTRY_VIEW',
+  'landed-costs': 'LANDED_COST_VIEW', 'shipments': 'SHIPMENT_VIEW', 'shipping-documents': 'SHIPPING_DOCUMENT_VIEW',
+  'leads': 'LEAD_VIEW', 'quotations': 'QUOTATION_VIEW', 'customer-po': 'CUSTOMER_PO_VIEW',
+  'sales-orders': 'SALES_ORDER_VIEW', 'dispatch-plans': 'DISPATCH_PLAN_VIEW', 'dispatch': 'DISPATCH_VIEW',
+  'delivery-confirmations': 'DELIVERY_CONFIRMATION_VIEW', 'proforma-invoices': 'PROFORMA_INVOICE_VIEW',
+  'credit-control': 'CREDIT_CONTROL_VIEW', 'customer-complaints': 'CUSTOMER_COMPLAINT_VIEW',
+  'customer-portal': 'CUSTOMER_PORTAL_VIEW',
+  'inventory-dashboard': 'INVENTORY_DASHBOARD_VIEW', 'warehouse': 'WAREHOUSE_VIEW',
+  'bom': 'BOM_VIEW', 'bom-revisions': 'BOM_REVISION_VIEW', 'grn': 'GRN_VIEW', 'iqc': 'IQC_VIEW',
+  'stock-ledger': 'STOCK_LEDGER_VIEW', 'rejected-stock': 'REJECTED_STOCK_VIEW', 'rack-bin': 'RACK_BIN_VIEW',
+  'stock-putaway': 'STOCK_PUTAWAY_VIEW', 'stock-batches': 'STOCK_BATCH_VIEW', 'stock-issues': 'STOCK_ISSUE_VIEW',
+  'stock-transfers': 'STOCK_TRANSFER_VIEW', 'stock-adjustments': 'STOCK_ADJUSTMENT_VIEW',
+  'stock-reports': 'STOCK_REPORT_VIEW', 'inventory-valuation': 'INVENTORY_VALUATION_VIEW',
+  'inventory-reports': 'INVENTORY_REPORT_VIEW', 'raw-materials': 'INVENTORY_VIEW', 'products': 'INVENTORY_VIEW',
+  'production-dashboard': 'PRODUCTION_DASHBOARD_VIEW', 'work-orders': 'WORK_ORDER_VIEW', 'mrp': 'MRP_VIEW',
+  'production-entries': 'PRODUCTION_ENTRY_VIEW', 'fg-receipts': 'FG_RECEIPT_VIEW',
+  'production-issues': 'PRODUCTION_ISSUE_VIEW', 'production-cost-sheets': 'PRODUCTION_COST_SHEET_VIEW',
+  'production-reports': 'PRODUCTION_REPORT_VIEW',
+  'quality-dashboard': 'QUALITY_DASHBOARD_VIEW', 'production-qc': 'PRODUCTION_QC_VIEW', 'oqc': 'OQC_VIEW',
+  'ncr': 'NCR_VIEW', 'capa': 'CAPA_VIEW', 'rca': 'RCA_VIEW', 'supplier-quality': 'SUPPLIER_QUALITY_VIEW',
+  'quality-reports': 'QUALITY_REPORT_VIEW',
+  'employees': 'EMPLOYEE_VIEW', 'attendance': 'ATTENDANCE_VIEW', 'leave': 'LEAVE_VIEW',
+  'payroll': 'PAYROLL_VIEW', 'salary-slip': 'SALARY_SLIP_VIEW', 'pf-esi': 'PF_ESI_VIEW',
+  'training': 'TRAINING_VIEW', 'hr-reports': 'HR_REPORT_VIEW',
+  'accounting': 'ACCOUNTING_VIEW', 'accounts': 'CHART_OF_ACCOUNTS_VIEW', 'vouchers': 'VOUCHER_VIEW',
+  'ar': 'AR_VIEW', 'ap': 'AP_VIEW', 'gst': 'GST_VIEW', 'bank-reconciliation': 'BANK_RECONCILIATION_VIEW',
+  'payment-instruments': 'PAYMENT_INSTRUMENT_VIEW', 'tds': 'TDS_VIEW', 'financial-reports': 'FINANCIAL_REPORT_VIEW',
+  'iot': 'IOT_VIEW', 'tasks': 'TASK_VIEW', 'notifications': 'NOTIFICATION_VIEW', 'documents': 'DOCUMENT_VIEW',
+  'workflows': 'WORKFLOW_VIEW', 'alerts': 'ALERT_VIEW', 'vendor-portal': 'VENDOR_PORTAL_VIEW',
+  'mis-reports': 'MIS_REPORT_VIEW', 'analytics': 'ANALYTICS_TAB_VIEW',
+  'system': 'SETTINGS_VIEW', 'numbering': 'SETTINGS_VIEW', 'custom-fields': 'SETTINGS_VIEW', 'dummy-data': 'SETTINGS_VIEW',
 };
 
 function getRequiredPermission(href) {
@@ -71,11 +85,7 @@ function getRequiredPermission(href) {
   const segments = href.split('/').filter(Boolean);
   if (segments.includes('roles-permissions')) return 'SYSTEM_MANAGE_ROLES';
   for (const seg of segments) {
-    if (PATH_PERMISSION_PREFIX[seg] !== undefined) {
-      const prefix = PATH_PERMISSION_PREFIX[seg];
-      if (prefix === null) return null;
-      return `${prefix}_VIEW`;
-    }
+    if (PATH_PERMISSION[seg] !== undefined) return PATH_PERMISSION[seg];
   }
   return null; // unknown path - fail open (visible)
 }
