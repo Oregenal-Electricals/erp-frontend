@@ -113,12 +113,12 @@ const NAV = [
   {
     label: 'Master Setup', icon: Settings,
     children: [
-      { label: 'Companies', href: '/masters/companies', icon: Building2 },
-      { label: 'Plants', href: '/masters/plants', icon: Factory },
-      { label: 'Units', href: '/masters/units', icon: Layers },
-      { label: 'Departments', href: '/masters/departments', icon: Users2 },
-      { label: 'Branches', href: '/masters/branches', icon: GitBranch },
-      { label: 'Financial Year', href: '/masters/financial-years', icon: Calendar },
+      { label: 'Companies', href: '/masters/company', icon: Building2 },
+      { label: 'Plants', href: '/masters/plant', icon: Factory },
+      { label: 'Units', href: '/masters/unit', icon: Layers },
+      { label: 'Departments', href: '/masters/department', icon: Users2 },
+      { label: 'Branches', href: '/masters/branch', icon: GitBranch },
+      { label: 'Financial Year', href: '/masters/financial-year', icon: Calendar },
     ],
   },
   {
@@ -138,11 +138,6 @@ const NAV = [
     label: 'Gate Management', icon: Shield,
     children: [
       { label: 'Gate Dashboard', href: '/gate-dashboard', icon: LayoutDashboard },
-      { label: 'Gate Inward', href: '/gate-inward', icon: LogIn },
-      { label: 'Gate Outward', href: '/gate-outward', icon: Truck },
-      { label: 'Gate Passes', href: '/gate-passes', icon: BadgeCheck },
-      { label: 'Visitors', href: '/visitors', icon: UserCheck },
-      { label: 'Vehicle Logs', href: '/vehicle-logs', icon: Activity },
     ],
   },
   {
