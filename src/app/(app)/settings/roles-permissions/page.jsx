@@ -5,31 +5,157 @@ import AppLayout from '@/components/layout/AppLayout';
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 
-const PERMISSION_GROUPS = [
-  { label: 'Master Setup', perms: ['COMPANY_VIEW','COMPANY_CREATE','COMPANY_EDIT','PLANT_VIEW','PLANT_CREATE','PLANT_EDIT','UNIT_VIEW','UNIT_CREATE','UNIT_EDIT','DEPARTMENT_VIEW','DEPARTMENT_CREATE','DEPARTMENT_EDIT','BRANCH_VIEW','BRANCH_CREATE','BRANCH_EDIT','FINANCIAL_YEAR_VIEW','FINANCIAL_YEAR_CREATE','FINANCIAL_YEAR_MANAGE'] },
-  { label: 'User Management', perms: ['USER_VIEW','USER_CREATE','USER_EDIT','USER_TOGGLE_STATUS','USER_RESET_PASSWORD','USER_UNLOCK'] },
-  { label: 'Purchase', perms: ['PURCHASE_VIEW','PURCHASE_CREATE','PURCHASE_EDIT','PURCHASE_APPROVE'] },
-  { label: 'Inventory', perms: ['INVENTORY_VIEW','INVENTORY_CREATE','INVENTORY_EDIT'] },
-  { label: 'Production', perms: ['PRODUCTION_VIEW','PRODUCTION_CREATE','PRODUCTION_EDIT'] },
-  { label: 'Quality', perms: ['QUALITY_VIEW','QUALITY_CREATE','QUALITY_EDIT'] },
-  { label: 'Finance', perms: ['FINANCE_VIEW','FINANCE_CREATE','FINANCE_EDIT','FINANCE_APPROVE'] },
-  { label: 'Vendors', perms: ['VENDORS_VIEW','VENDORS_CREATE','VENDORS_EDIT','VENDORS_DELETE'] },
-  { label: 'Reports', perms: ['REPORTS_VIEW','REPORTS_EXPORT'] },
-  { label: 'Settings', perms: ['SETTINGS_VIEW','SETTINGS_MANAGE'] },
-  { label: 'HR', perms: ['HR_VIEW','HR_CREATE','HR_EDIT','HR_APPROVE'] },
-  { label: 'Sales', perms: ['SALES_VIEW','SALES_CREATE','SALES_EDIT','SALES_APPROVE'] },
-  { label: 'System (tasks, notifications, documents, roles)', perms: ['SYSTEM_VIEW','SYSTEM_CREATE','SYSTEM_EDIT','SYSTEM_MANAGE_ROLES'] },
-  { label: 'Audit', perms: ['AUDIT_VIEW'] },
+const PERMISSION_SECTIONS = [
+  {
+    label: 'Master Setup',
+    tabs: [
+      { label: 'Companies', perm: 'COMPANY_VIEW' }, { label: 'Plants', perm: 'PLANT_VIEW' },
+      { label: 'Units', perm: 'UNIT_VIEW' }, { label: 'Departments', perm: 'DEPARTMENT_VIEW' },
+      { label: 'Branches', perm: 'BRANCH_VIEW' }, { label: 'Financial Year', perm: 'FINANCIAL_YEAR_VIEW' },
+    ],
+    actions: ['COMPANY_CREATE','COMPANY_EDIT','PLANT_CREATE','PLANT_EDIT','UNIT_CREATE','UNIT_EDIT',
+      'DEPARTMENT_CREATE','DEPARTMENT_EDIT','BRANCH_CREATE','BRANCH_EDIT','FINANCIAL_YEAR_CREATE','FINANCIAL_YEAR_MANAGE'],
+  },
+  { label: 'User Management', tabs: [{ label: 'Users', perm: 'USER_VIEW' }],
+    actions: ['USER_CREATE','USER_EDIT','USER_TOGGLE_STATUS','USER_RESET_PASSWORD','USER_UNLOCK'] },
+  { label: 'Change Requests', tabs: [{ label: 'Change Requests', perm: 'CHANGE_REQUEST_VIEW' }], actions: [] },
+  {
+    label: 'Gate Management',
+    tabs: [
+      { label: 'Gate Dashboard', perm: 'GATE_DASHBOARD_VIEW' }, { label: 'Gate Inward', perm: 'GATE_INWARD_VIEW' },
+      { label: 'Gate Outward', perm: 'GATE_OUTWARD_VIEW' }, { label: 'Gate Passes', perm: 'GATE_PASS_VIEW' },
+      { label: 'Visitors', perm: 'VISITOR_VIEW' }, { label: 'Vehicle Logs', perm: 'VEHICLE_LOG_VIEW' },
+    ],
+    actions: ['SYSTEM_CREATE', 'SYSTEM_EDIT'],
+  },
+  {
+    label: 'Purchase',
+    tabs: [
+      { label: 'Purchase Requisitions', perm: 'PURCHASE_REQUISITION_VIEW' }, { label: 'Purchase Orders', perm: 'PURCHASE_ORDER_VIEW' },
+      { label: 'RFQs', perm: 'RFQ_VIEW' }, { label: 'Vendor Quotations', perm: 'VENDOR_QUOTATION_VIEW' },
+      { label: 'Quotation Comparison', perm: 'QUOTATION_COMPARISON_VIEW' }, { label: 'PO Amendments', perm: 'PO_AMENDMENT_VIEW' },
+      { label: 'PO Approvals', perm: 'PO_APPROVAL_VIEW' }, { label: 'Purchase Analytics', perm: 'PURCHASE_ANALYTICS_VIEW' },
+      { label: 'Price Lists', perm: 'PRICE_LIST_VIEW' }, { label: 'Price History', perm: 'PRICE_HISTORY_VIEW' },
+      { label: 'Vendors', perm: 'VENDORS_VIEW' },
+    ],
+    actions: ['PURCHASE_CREATE','PURCHASE_EDIT','PURCHASE_APPROVE','VENDORS_CREATE','VENDORS_EDIT','VENDORS_DELETE'],
+  },
+  {
+    label: 'Import',
+    tabs: [
+      { label: 'Import Orders', perm: 'IMPORT_ORDER_VIEW' }, { label: 'Customs Entries', perm: 'CUSTOMS_ENTRY_VIEW' },
+      { label: 'Landed Costs', perm: 'LANDED_COST_VIEW' }, { label: 'Shipments', perm: 'SHIPMENT_VIEW' },
+      { label: 'Shipping Documents', perm: 'SHIPPING_DOCUMENT_VIEW' },
+    ],
+    actions: ['PURCHASE_CREATE','PURCHASE_EDIT'],
+  },
+  {
+    label: 'Sales',
+    tabs: [
+      { label: 'Leads', perm: 'LEAD_VIEW' }, { label: 'Quotations', perm: 'QUOTATION_VIEW' },
+      { label: 'Customer PO', perm: 'CUSTOMER_PO_VIEW' }, { label: 'Sales Orders', perm: 'SALES_ORDER_VIEW' },
+      { label: 'Dispatch Plans', perm: 'DISPATCH_PLAN_VIEW' }, { label: 'Dispatch', perm: 'DISPATCH_VIEW' },
+      { label: 'Delivery Confirmations', perm: 'DELIVERY_CONFIRMATION_VIEW' }, { label: 'Proforma Invoices', perm: 'PROFORMA_INVOICE_VIEW' },
+      { label: 'Credit Control', perm: 'CREDIT_CONTROL_VIEW' }, { label: 'Customer Complaints', perm: 'CUSTOMER_COMPLAINT_VIEW' },
+      { label: 'Customer Portal', perm: 'CUSTOMER_PORTAL_VIEW' },
+    ],
+    actions: ['SALES_CREATE','SALES_EDIT','SALES_APPROVE'],
+  },
+  {
+    label: 'Inventory',
+    tabs: [
+      { label: 'Inv. Dashboard', perm: 'INVENTORY_DASHBOARD_VIEW' }, { label: 'Warehouses', perm: 'WAREHOUSE_VIEW' },
+      { label: 'BOM', perm: 'BOM_VIEW' }, { label: 'BOM Revisions', perm: 'BOM_REVISION_VIEW' },
+      { label: 'GRN', perm: 'GRN_VIEW' }, { label: 'IQC', perm: 'IQC_VIEW' },
+      { label: 'Stock Ledger', perm: 'STOCK_LEDGER_VIEW' }, { label: 'Rejected Stock', perm: 'REJECTED_STOCK_VIEW' },
+      { label: 'Rack & Bin', perm: 'RACK_BIN_VIEW' }, { label: 'Stock Putaway', perm: 'STOCK_PUTAWAY_VIEW' },
+      { label: 'Batches & Lots', perm: 'STOCK_BATCH_VIEW' }, { label: 'Stock Issues', perm: 'STOCK_ISSUE_VIEW' },
+      { label: 'Stock Transfer', perm: 'STOCK_TRANSFER_VIEW' }, { label: 'Stock Adjustment', perm: 'STOCK_ADJUSTMENT_VIEW' },
+      { label: 'Stock Reports', perm: 'STOCK_REPORT_VIEW' }, { label: 'Inv. Valuation', perm: 'INVENTORY_VALUATION_VIEW' },
+      { label: 'Inv. Reports', perm: 'INVENTORY_REPORT_VIEW' },
+    ],
+    actions: ['INVENTORY_CREATE','INVENTORY_EDIT'],
+  },
+  {
+    label: 'Production',
+    tabs: [
+      { label: 'Production Dashboard', perm: 'PRODUCTION_DASHBOARD_VIEW' }, { label: 'Work Orders', perm: 'WORK_ORDER_VIEW' },
+      { label: 'MRP', perm: 'MRP_VIEW' }, { label: 'Production Entries', perm: 'PRODUCTION_ENTRY_VIEW' },
+      { label: 'FG Receipts', perm: 'FG_RECEIPT_VIEW' }, { label: 'Production Issues', perm: 'PRODUCTION_ISSUE_VIEW' },
+      { label: 'Cost Sheets', perm: 'PRODUCTION_COST_SHEET_VIEW' }, { label: 'Production Reports', perm: 'PRODUCTION_REPORT_VIEW' },
+    ],
+    actions: ['PRODUCTION_CREATE','PRODUCTION_EDIT'],
+  },
+  {
+    label: 'Quality',
+    tabs: [
+      { label: 'Quality Dashboard', perm: 'QUALITY_DASHBOARD_VIEW' }, { label: 'IQC', perm: 'IQC_VIEW' },
+      { label: 'Production QC', perm: 'PRODUCTION_QC_VIEW' }, { label: 'OQC', perm: 'OQC_VIEW' },
+      { label: 'NCR', perm: 'NCR_VIEW' }, { label: 'CAPA', perm: 'CAPA_VIEW' },
+      { label: 'RCA', perm: 'RCA_VIEW' }, { label: 'Supplier Quality', perm: 'SUPPLIER_QUALITY_VIEW' },
+      { label: 'Quality Reports', perm: 'QUALITY_REPORT_VIEW' },
+    ],
+    actions: ['QUALITY_CREATE','QUALITY_EDIT'],
+  },
+  {
+    label: 'HR',
+    tabs: [
+      { label: 'Employees', perm: 'EMPLOYEE_VIEW' }, { label: 'Attendance', perm: 'ATTENDANCE_VIEW' },
+      { label: 'Leave', perm: 'LEAVE_VIEW' }, { label: 'Payroll', perm: 'PAYROLL_VIEW' },
+      { label: 'Salary Slip', perm: 'SALARY_SLIP_VIEW' }, { label: 'PF/ESI', perm: 'PF_ESI_VIEW' },
+      { label: 'Training', perm: 'TRAINING_VIEW' }, { label: 'HR Reports', perm: 'HR_REPORT_VIEW' },
+    ],
+    actions: ['HR_CREATE','HR_EDIT','HR_APPROVE'],
+  },
+  {
+    label: 'Finance',
+    tabs: [
+      { label: 'Accounting', perm: 'ACCOUNTING_VIEW' }, { label: 'Chart of Accounts', perm: 'CHART_OF_ACCOUNTS_VIEW' },
+      { label: 'Vouchers', perm: 'VOUCHER_VIEW' }, { label: 'Accounts Receivable', perm: 'AR_VIEW' },
+      { label: 'Accounts Payable', perm: 'AP_VIEW' }, { label: 'GST', perm: 'GST_VIEW' },
+      { label: 'Bank Reconciliation', perm: 'BANK_RECONCILIATION_VIEW' }, { label: 'Payment Instruments', perm: 'PAYMENT_INSTRUMENT_VIEW' },
+      { label: 'TDS', perm: 'TDS_VIEW' }, { label: 'Financial Reports', perm: 'FINANCIAL_REPORT_VIEW' },
+    ],
+    actions: ['FINANCE_CREATE','FINANCE_EDIT','FINANCE_APPROVE'],
+  },
+  {
+    label: 'Industry 4.0 / System',
+    tabs: [
+      { label: 'IoT Dashboard', perm: 'IOT_VIEW' }, { label: 'Tasks', perm: 'TASK_VIEW' },
+      { label: 'Notifications', perm: 'NOTIFICATION_VIEW' }, { label: 'Documents', perm: 'DOCUMENT_VIEW' },
+      { label: 'Workflows', perm: 'WORKFLOW_VIEW' }, { label: 'Alerts', perm: 'ALERT_VIEW' },
+      { label: 'Vendor Portal', perm: 'VENDOR_PORTAL_VIEW' },
+    ],
+    actions: ['SYSTEM_CREATE','SYSTEM_EDIT','SYSTEM_MANAGE_ROLES'],
+  },
+  {
+    label: 'Analytics',
+    tabs: [{ label: 'MIS Reports', perm: 'MIS_REPORT_VIEW' }, { label: 'Analytics', perm: 'ANALYTICS_TAB_VIEW' }],
+    actions: ['REPORTS_EXPORT'],
+  },
+  {
+    label: 'Settings',
+    tabs: [{ label: 'Settings Pages', perm: 'SETTINGS_VIEW' }],
+    actions: ['SETTINGS_MANAGE'],
+  },
+  {
+    label: 'Audit',
+    tabs: [{ label: 'Audit Log', perm: 'AUDIT_VIEW' }],
+    actions: [],
+  },
 ];
 
-const PERM_LABELS = {
-  VIEW: 'View', CREATE: 'Create', EDIT: 'Edit', APPROVE: 'Approve', DELETE: 'Delete',
-  MANAGE: 'Manage', TOGGLE_STATUS: 'Toggle Status', RESET_PASSWORD: 'Reset Password',
-  UNLOCK: 'Unlock', EXPORT: 'Export', MANAGE_ROLES: 'Manage Roles',
+const ACTION_LABELS = {
+  CREATE: 'Create', EDIT: 'Edit', APPROVE: 'Approve', DELETE: 'Delete', MANAGE: 'Manage',
+  TOGGLE_STATUS: 'Toggle Status', RESET_PASSWORD: 'Reset Password', UNLOCK: 'Unlock',
+  EXPORT: 'Export', MANAGE_ROLES: 'Manage Roles',
 };
-function permAction(perm, groupPrefixLen) {
-  const suffix = perm.slice(groupPrefixLen);
-  return PERM_LABELS[suffix] || suffix;
+function actionLabel(perm) {
+  const parts = perm.split('_');
+  const last = parts[parts.length - 1];
+  const secondLast = parts[parts.length - 2];
+  const key = `${secondLast}_${last}` in ACTION_LABELS ? `${secondLast}_${last}` : last;
+  return ACTION_LABELS[key] || last;
 }
 
 export default function RolesPermissionsPage() {
@@ -65,7 +191,7 @@ export default function RolesPermissionsPage() {
     setter(next);
   }
 
-  function toggleGroup(set, setter, perms, allChecked) {
+  function toggleAll(set, setter, perms, allChecked) {
     const next = new Set(set);
     if (allChecked) perms.forEach(p => next.delete(p));
     else perms.forEach(p => next.add(p));
@@ -103,27 +229,49 @@ export default function RolesPermissionsPage() {
     else alert(data.message || 'Failed to delete role');
   }
 
-  function PermissionGrid({ selected, onToggle, onToggleGroup }) {
+  function PermissionGrid({ selected, onToggle, onToggleAll }) {
     return (
-      <div className="space-y-4">
-        {PERMISSION_GROUPS.map(group => {
-          const prefixLen = group.perms[0].split('_').slice(0, -1).join('_').length + 1;
-          const allChecked = group.perms.every(p => selected.has(p));
-          const someChecked = group.perms.some(p => selected.has(p));
+      <div className="space-y-3">
+        {PERMISSION_SECTIONS.map(section => {
+          const allPerms = [...section.tabs.map(t => t.perm), ...section.actions];
+          const allChecked = allPerms.length > 0 && allPerms.every(p => selected.has(p));
+          const someChecked = allPerms.some(p => selected.has(p));
           return (
-            <div key={group.label} className="border rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <input type="checkbox" checked={allChecked} ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }} onChange={() => onToggleGroup(group.perms, allChecked)} />
-                <span className="font-semibold text-sm text-gray-700">{group.label}</span>
+            <div key={section.label} className="border rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-2 pb-2 border-b">
+                <input type="checkbox" checked={allChecked}
+                  ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }}
+                  onChange={() => onToggleAll(allPerms, allChecked)} />
+                <span className="font-semibold text-sm text-gray-800">{section.label}</span>
               </div>
-              <div className="flex flex-wrap gap-3 pl-6">
-                {group.perms.map(perm => (
-                  <label key={perm} className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
-                    <input type="checkbox" checked={selected.has(perm)} onChange={() => onToggle(perm)} />
-                    {permAction(perm, prefixLen)}
-                  </label>
-                ))}
-              </div>
+
+              {section.tabs.length > 0 && (
+                <div className="mb-2">
+                  <div className="text-xs text-gray-400 font-medium mb-1 pl-6">Tabs (view access)</div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 pl-6">
+                    {section.tabs.map(tab => (
+                      <label key={tab.perm} className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                        <input type="checkbox" checked={selected.has(tab.perm)} onChange={() => onToggle(tab.perm)} />
+                        {tab.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {section.actions.length > 0 && (
+                <div>
+                  <div className="text-xs text-gray-400 font-medium mb-1 pl-6">Actions (whole section)</div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 pl-6">
+                    {section.actions.map(perm => (
+                      <label key={perm} className="flex items-center gap-1.5 text-xs text-indigo-700 cursor-pointer">
+                        <input type="checkbox" checked={selected.has(perm)} onChange={() => onToggle(perm)} />
+                        {actionLabel(perm)}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -137,7 +285,7 @@ export default function RolesPermissionsPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Roles & Permissions</h1>
-            <p className="text-gray-500 text-sm mt-1">Control what each role can see and do. Super Admin is always protected and cannot be changed.</p>
+            <p className="text-gray-500 text-sm mt-1">Control exactly which tabs each role sees, and what actions they can take. Super Admin is always protected.</p>
           </div>
           <button onClick={() => { setCreateForm({ name: '', label: '', description: '' }); setCreatePerms(new Set()); setError(''); setShowCreate(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ Create Role</button>
         </div>
@@ -146,16 +294,14 @@ export default function RolesPermissionsPage() {
           {loading ? <div className="text-center py-10 text-gray-400">Loading...</div>
           : roles.map(role => (
             <div key={role.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
-              <div className="flex items-center gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-800">{role.label}</span>
-                    <span className="font-mono text-xs text-gray-400">{role.name}</span>
-                    {role.isProtected && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Protected</span>}
-                    {role.isSystemRole && !role.isProtected && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">System</span>}
-                  </div>
-                  {role.description && <div className="text-xs text-gray-400 mt-0.5">{role.description}</div>}
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-800">{role.label}</span>
+                  <span className="font-mono text-xs text-gray-400">{role.name}</span>
+                  {role.isProtected && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Protected</span>}
+                  {role.isSystemRole && !role.isProtected && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">System</span>}
                 </div>
+                {role.description && <div className="text-xs text-gray-400 mt-0.5">{role.description}</div>}
               </div>
               <div className="flex items-center gap-4">
                 <span className="text-xs text-gray-500">{role.permissionCount} permissions</span>
@@ -173,10 +319,9 @@ export default function RolesPermissionsPage() {
           ))}
         </div>
 
-        {/* EDIT PERMISSIONS MODAL */}
         {editRole && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-screen overflow-y-auto">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-screen overflow-y-auto">
               <div className="p-6 border-b flex justify-between sticky top-0 bg-white">
                 <div>
                   <h2 className="text-lg font-bold">{editRole.label}</h2>
@@ -189,7 +334,7 @@ export default function RolesPermissionsPage() {
                 <PermissionGrid
                   selected={editPerms}
                   onToggle={(p) => togglePerm(editPerms, setEditPerms, p)}
-                  onToggleGroup={(perms, allChecked) => toggleGroup(editPerms, setEditPerms, perms, allChecked)}
+                  onToggleAll={(perms, allChecked) => toggleAll(editPerms, setEditPerms, perms, allChecked)}
                 />
               </div>
               <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
@@ -200,10 +345,9 @@ export default function RolesPermissionsPage() {
           </div>
         )}
 
-        {/* CREATE ROLE MODAL */}
         {showCreate && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-screen overflow-y-auto">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-screen overflow-y-auto">
               <div className="p-6 border-b flex justify-between sticky top-0 bg-white">
                 <h2 className="text-lg font-bold text-blue-700">Create New Role</h2>
                 <button onClick={() => setShowCreate(false)} className="text-gray-400 text-xl">✕</button>
@@ -229,7 +373,7 @@ export default function RolesPermissionsPage() {
                   <PermissionGrid
                     selected={createPerms}
                     onToggle={(p) => togglePerm(createPerms, setCreatePerms, p)}
-                    onToggleGroup={(perms, allChecked) => toggleGroup(createPerms, setCreatePerms, perms, allChecked)}
+                    onToggleAll={(perms, allChecked) => toggleAll(createPerms, setCreatePerms, perms, allChecked)}
                   />
                 </div>
               </div>
@@ -241,7 +385,6 @@ export default function RolesPermissionsPage() {
           </div>
         )}
 
-        {/* DELETE CONFIRM MODAL */}
         {deleteConfirm && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
