@@ -38,11 +38,6 @@ export default function LoginPage() {
     if (e.key === 'Enter') handleLogin();
   };
 
-  const fillDemo = () => {
-    setEmail('admin@acmeelectronics.com');
-    setPassword('Admin@1234');
-    setError('');
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 to-blue-100 flex items-center justify-center p-4">
@@ -82,7 +77,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="admin@acmeelectronics.com"
+                placeholder="you@company.com"
                 autoComplete="email"
                 className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 font-medium placeholder-gray-400 bg-white focus:outline-none focus:border-blue-500 transition-colors"
               />
@@ -118,27 +113,6 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Demo credentials */}
-          <div className="mt-6 pt-5 border-t border-gray-100">
-            <p className="text-xs text-center text-gray-400 mb-2">
-              Demo credentials — click to auto-fill
-            </p>
-            <button
-              type="button"
-              onClick={fillDemo}
-              className="w-full bg-gray-50 hover:bg-blue-50 border-2 border-gray-200 hover:border-blue-200 rounded-xl p-3 text-left transition-colors"
-            >
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-500">Email:</span>
-                <span className="font-mono text-gray-900 font-bold">admin@acmeelectronics.com</span>
-              </div>
-              <div className="flex justify-between text-xs mt-1">
-                <span className="text-gray-500">Password:</span>
-                <span className="font-mono text-gray-900 font-bold">Admin@1234</span>
-              </div>
-              <p className="text-xs text-blue-500 text-center mt-2 font-semibold">↑ Click to auto-fill</p>
-            </button>
-          </div>
 
         </div>
       </div>
