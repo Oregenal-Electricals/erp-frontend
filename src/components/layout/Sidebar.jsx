@@ -80,8 +80,18 @@ const PATH_PERMISSION = {
   'system': 'SETTINGS_VIEW', 'numbering': 'SETTINGS_VIEW', 'custom-fields': 'SETTINGS_VIEW', 'dummy-data': 'SETTINGS_VIEW',
 };
 
+// Full-path overrides checked before generic single-segment matching -
+// needed when two different domains reuse the same final path segment
+// for genuinely different features (e.g. /purchase/quotations is really
+// "Vendor Quotations", distinct from /sales/quotations' customer quotes,
+// even though both end in the same word).
+const FULL_PATH_OVERRIDES = {
+  '/purchase/quotations': 'VENDOR_QUOTATION_VIEW',
+};
+
 function getRequiredPermission(href) {
   if (!href) return null;
+  if (FULL_PATH_OVERRIDES[href] !== undefined) return FULL_PATH_OVERRIDES[href];
   const segments = href.split('/').filter(Boolean);
   if (segments.includes('roles-permissions')) return 'SYSTEM_MANAGE_ROLES';
   for (const seg of segments) {
@@ -146,6 +156,7 @@ const NAV = [
       { label: 'Purchase Requisitions', href: '/purchase-requisitions', icon: FileText },
       { label: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
       { label: 'RFQs', href: '/purchase/rfqs', icon: FileText },
+      { label: 'Vendor Quotations', href: '/purchase/quotations', icon: FileText },
       { label: 'Quotation Comparison', href: '/quotation-comparison', icon: BarChart3 },
       { label: 'PO Amendments', href: '/po-amendments', icon: GitBranch },
       { label: 'PO Approvals', href: '/po-approvals', icon: BadgeCheck },
@@ -167,10 +178,10 @@ const NAV = [
   {
     label: 'Sales', icon: Tag,
     children: [
-      { label: 'Leads', href: '/leads', icon: Users2 },
-      { label: 'Quotations', href: '/quotations', icon: FileText },
+      { label: 'Leads', href: '/sales/leads', icon: Users2 },
+      { label: 'Quotations', href: '/sales/quotations', icon: FileText },
       { label: 'Customer PO', href: '/customer-po', icon: ClipboardList },
-      { label: 'Sales Orders', href: '/sales-orders', icon: ShoppingCart },
+      { label: 'Sales Orders', href: '/sales/sales-orders', icon: ShoppingCart },
       { label: 'Dispatch Plans', href: '/dispatch-plans', icon: Truck },
       { label: 'Dispatch', href: '/sales/dispatch', icon: Truck },
       { label: 'Delivery Confirmations', href: '/delivery-confirmations', icon: BadgeCheck },
@@ -206,7 +217,7 @@ const NAV = [
     label: 'Production', icon: Factory,
     children: [
       { label: 'Production Dashboard', href: '/production-dashboard', icon: BarChart3 },
-      { label: 'Work Orders', href: '/work-orders', icon: ClipboardList },
+      { label: 'Work Orders', href: '/production/work-orders', icon: ClipboardList },
       { label: 'MRP', href: '/production/mrp', icon: BarChart3 },
       { label: 'Production Entries', href: '/production-entries', icon: FileText },
       { label: 'FG Receipts', href: '/fg-receipts', icon: PackageCheck },
@@ -222,8 +233,8 @@ const NAV = [
       { label: 'IQC', href: '/inventory/iqc', icon: BadgeCheck },
       { label: 'Production QC', href: '/production-qc', icon: BadgeCheck },
       { label: 'OQC', href: '/quality/oqc', icon: ClipboardList },
-      { label: 'NCR', href: '/ncr', icon: FileText },
-      { label: 'CAPA', href: '/capa', icon: ClipboardList },
+      { label: 'NCR', href: '/quality/ncr', icon: FileText },
+      { label: 'CAPA', href: '/quality/capa', icon: ClipboardList },
       { label: 'RCA', href: '/quality/rca', icon: Activity },
       { label: 'Supplier Quality', href: '/supplier-quality', icon: Users2 },
       { label: 'Quality Reports', href: '/quality-reports', icon: FileText },
