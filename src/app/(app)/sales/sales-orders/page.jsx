@@ -139,7 +139,6 @@ export default function SalesOrdersPage() {
             <h1 className="text-2xl font-bold text-gray-900">Sales Orders</h1>
             <p className="text-gray-500 text-sm mt-1">Internal fulfillment commitments created from Customer POs</p>
           </div>
-          <button onClick={()=>{ setForm({cpoId:'',deliveryDate:'',remarks:'',items:[{...BLANK_ITEM}]}); setError(''); setShowModal(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium">+ Create SO</button>
           <button onClick={()=>downloadExcel('/excel/sales-orders','Sales Orders')} className="px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">⬇ Excel</button>
         </div>
 
@@ -272,79 +271,6 @@ export default function SalesOrdersPage() {
                 {viewDetail.status==='DRAFT' && <button onClick={()=>handleConfirm(viewDetail.id)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Confirm SO</button>}
                 {!['COMPLETED','CANCELLED','DISPATCHED'].includes(viewDetail.status) && <button onClick={()=>{setCancelModal(viewDetail.id);setCancelReason('');setViewDetail(null);}} className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm">Cancel SO</button>}
                 <button onClick={()=>setViewDetail(null)} className="px-4 py-2 border rounded-lg text-sm">Close</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-screen overflow-y-auto">
-              <div className="p-6 border-b flex justify-between sticky top-0 bg-white">
-                <h2 className="text-lg font-bold text-indigo-700">Create Sales Order</h2>
-                <button onClick={()=>setShowModal(false)} className="text-gray-400 text-xl">✕</button>
-              </div>
-              <div className="p-6 space-y-6">
-                {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <label className="block text-sm text-gray-600 mb-1">Customer PO *</label>
-                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.cpoId} onChange={e=>handleCpoSelect(e.target.value)}>
-                      <option value="">— Select Acknowledged CPO —</option>
-                      {cpos.map(c=><option key={c.id} value={c.id}>{c.cpoNumber} | {c.customerPoNumber} | {c.customerName} | {fmt(c.totalAmount)}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Committed Delivery Date *</label>
-                    <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.deliveryDate} onChange={e=>setForm(f=>({...f,deliveryDate:e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Remarks</label>
-                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.remarks} onChange={e=>setForm(f=>({...f,remarks:e.target.value}))} />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-semibold text-gray-700">SO Line Items</h3>
-                    <button onClick={addItem} className="px-3 py-1 text-xs bg-indigo-50 text-indigo-600 border border-indigo-200 rounded">+ Add Item</button>
-                  </div>
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 text-xs text-gray-500"><tr>{['Item Code','Item Name','Qty','UOM','Unit Price','GST%','Total',''].map(h=><th key={h} className="px-2 py-2 text-left">{h}</th>)}</tr></thead>
-                    <tbody>
-                      {form.items.map((item,i)=>{
-                        const c = calcItem(item);
-                        return (
-                          <tr key={i} className="border-b">
-                            <td className="px-1 py-1"><input className="border rounded px-2 py-1 text-xs w-24 font-mono" value={item.itemCode} onChange={e=>updateItem(i,'itemCode',e.target.value)} /></td>
-                            <td className="px-1 py-1"><input className="border rounded px-2 py-1 text-xs w-36" value={item.itemName} onChange={e=>updateItem(i,'itemName',e.target.value)} /></td>
-                            <td className="px-1 py-1"><input type="number" className="border rounded px-2 py-1 text-xs w-16" value={item.qty} onChange={e=>updateItem(i,'qty',e.target.value)} /></td>
-                            <td className="px-1 py-1"><input className="border rounded px-2 py-1 text-xs w-14" value={item.uom} onChange={e=>updateItem(i,'uom',e.target.value)} /></td>
-                            <td className="px-1 py-1"><input type="number" className="border rounded px-2 py-1 text-xs w-24" value={item.unitPrice} onChange={e=>updateItem(i,'unitPrice',e.target.value)} /></td>
-                            <td className="px-1 py-1">
-                              <select className="border rounded px-1 py-1 text-xs w-16" value={item.gstRate} onChange={e=>updateItem(i,'gstRate',e.target.value)}>
-                                {[0,5,12,18,28].map(r=><option key={r} value={r}>{r}%</option>)}
-                              </select>
-                            </td>
-                            <td className="px-2 py-1 text-xs font-bold text-indigo-700">{fmt(c.total)}</td>
-                            <td className="px-1 py-1"><button onClick={()=>removeItem(i)} className="text-red-400 hover:text-red-600 text-lg">×</button></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  <div className="flex justify-end mt-3">
-                    <div className="text-sm space-y-1 w-48">
-                      <div className="flex justify-between text-gray-500"><span>Subtotal:</span><span>{fmt(totals.subtotal)}</span></div>
-                      <div className="flex justify-between text-gray-500"><span>GST:</span><span>{fmt(totals.gst)}</span></div>
-                      <div className="flex justify-between font-bold border-t pt-1"><span>Total:</span><span className="text-indigo-700">{fmt(totals.total)}</span></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
-                <button onClick={()=>setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
-                <button onClick={handleCreate} disabled={saving} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm disabled:opacity-50">{saving?'Creating...':'Create SO'}</button>
               </div>
             </div>
           </div>
