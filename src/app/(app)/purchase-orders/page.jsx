@@ -44,21 +44,28 @@ export default function PurchaseOrdersPage() {
       vendorId:form.vendorId,
       deliveryDate:form.deliveryDate||undefined,
       paymentTerms:form.paymentTerms,
-      remarks:form.remarks,
-      items:form.items.filter(i=>i.rawMaterialId&&i.quantity&&i.unitPrice).map(i=>({
-        rawMaterialId:i.rawMaterialId,
-        quantity:parseFloat(i.quantity),
-        unitPrice:parseFloat(i.unitPrice),
-        uom:i.uom,
-        remarks:i.remarks||undefined,
-      }))
+      notes:form.remarks||undefined,
+      items:form.items.filter(i=>i.rawMaterialId&&i.quantity&&i.unitPrice).map(i=>{
+        const rm = rawMaterials.find(r=>r.id===i.rawMaterialId);
+        return {
+          itemCode: rm?.code || '',
+          itemName: rm?.name || '',
+          orderedQty: parseFloat(i.quantity),
+          unitPrice: parseFloat(i.unitPrice),
+          uom: i.uom || 'NOS',
+        };
+      })
     };
     if (!body.vendorId) { setError('Select a vendor'); setSaving(false); return; }
     if (!body.items.length) { setError('Add at least one item with price'); setSaving(false); return; }
     const res = await fetch(`${API}/purchase-orders`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${getToken()}`},body:JSON.stringify(body)});
     const data = await res.json();
     if (res.ok) { setShowForm(false); setForm({vendorId:'',deliveryDate:'',paymentTerms:'NET_30',remarks:'',items:[{rawMaterialId:'',quantity:'',unitPrice:'',uom:'',remarks:''}]}); fetchAll(); }
-    else setError(Array.isArray(data.message)?data.message.join(', '):data.message||'Failed');
+    else {
+      const detail = Array.isArray(data.errors) ? data.errors.join(' | ') : '';
+      const summary = Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed';
+      setError(detail ? `${summary}: ${detail}` : summary);
+    }
     setSaving(false);
   }
 
