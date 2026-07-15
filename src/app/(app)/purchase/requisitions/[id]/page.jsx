@@ -134,7 +134,7 @@ export default function PurchaseRequisitionDetailPage() {
             <h2 className="font-semibold text-gray-700">PR Items</h2>
             <div className="flex gap-2">
               {isDraft && <button onClick={() => setShowItemModal(true)} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm">+ Add Item</button>}
-              {isDraft && pr.items?.length > 0 && <button onClick={handleSubmit} className="bg-yellow-500 text-white px-3 py-1.5 rounded-lg text-sm">Submit for Approval</button>}
+              {isDraft && pr.items?.length > 0 && <button onClick={handleSubmit} className="bg-yellow-500 text-gray-900 px-3 py-1.5 rounded-lg text-sm">Submit for Approval</button>}
               {pr.status === 'SUBMITTED' && (
                 <>
                   <button onClick={handleApprove} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm">Approve</button>

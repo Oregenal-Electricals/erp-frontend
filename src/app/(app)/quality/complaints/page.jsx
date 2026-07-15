@@ -160,7 +160,7 @@ export default function ComplaintsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-400">{fmtDate(c.complaintDate)}</span>
-                      {c.status==='OPEN' && <button onClick={e=>{e.stopPropagation();handleStatusUpdate(c.id,'INVESTIGATING');}} className="px-2 py-1 text-xs bg-yellow-500 text-white rounded">Investigate</button>}
+                      {c.status==='OPEN' && <button onClick={e=>{e.stopPropagation();handleStatusUpdate(c.id,'INVESTIGATING');}} className="px-2 py-1 text-xs bg-yellow-500 text-gray-900 rounded">Investigate</button>}
                       {['OPEN','INVESTIGATING'].includes(c.status) && <button onClick={e=>{e.stopPropagation();setRespondModal(c.id);setRespondForm({rootCause:'',correctiveAction:'',eighthDNumber:'',remarks:''});}} className="px-2 py-1 text-xs bg-purple-600 text-white rounded">Respond</button>}
                       {c.status==='RESPONDED' && <button onClick={e=>{e.stopPropagation();handleClose(c.id);}} className="px-2 py-1 text-xs bg-green-600 text-white rounded">Close</button>}
                       <span className="text-gray-400 text-xs">{expandedId===c.id?'▲':'▼'}</span>

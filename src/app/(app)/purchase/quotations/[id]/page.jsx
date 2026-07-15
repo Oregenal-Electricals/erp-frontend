@@ -119,7 +119,7 @@ export default function VendorQuotationDetailPage() {
 
         <div className="flex gap-2 mb-6">
           {isDraft && q.items?.every(i => i.unitPrice > 0) && (
-            <button onClick={() => handleAction('submit')} className="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-yellow-600">Submit Quotation</button>
+            <button onClick={() => handleAction('submit')} className="bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg text-sm hover:bg-yellow-600">Submit Quotation</button>
           )}
           {q.status === 'SUBMITTED' && (
             <button onClick={() => handleAction('finalize')} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">Finalize</button>

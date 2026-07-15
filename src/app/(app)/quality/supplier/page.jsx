@@ -221,7 +221,7 @@ export default function SupplierQualityPage() {
                       </div>
                       <div className="flex gap-2 items-center">
                         <span className="text-xs text-gray-400">Due: {fmtDate(c.dueDate)}</span>
-                        {c.status==='SENT' && <button onClick={()=>{setRespondModal(c.id);setRespondForm({supplierResponse:'',supplierRootCause:'',supplierAction:''});}} className="px-2 py-1 text-xs bg-yellow-500 text-white rounded">Record Response</button>}
+                        {c.status==='SENT' && <button onClick={()=>{setRespondModal(c.id);setRespondForm({supplierResponse:'',supplierRootCause:'',supplierAction:''});}} className="px-2 py-1 text-xs bg-yellow-500 text-gray-900 rounded">Record Response</button>}
                         {c.status==='RESPONDED' && <button onClick={()=>handleCarAction(c.id,'verify')} className="px-2 py-1 text-xs bg-purple-600 text-white rounded">Verify</button>}
                         {c.status==='VERIFIED' && <button onClick={()=>handleCarAction(c.id,'close')} className="px-2 py-1 text-xs bg-green-600 text-white rounded">Close</button>}
                       </div>
@@ -351,7 +351,7 @@ export default function SupplierQualityPage() {
               </div>
               <div className="p-6 border-t flex justify-end gap-3">
                 <button onClick={()=>setRespondModal(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
-                <button onClick={handleRespond} disabled={saving} className="px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm disabled:opacity-50">{saving?'Saving...':'Record Response'}</button>
+                <button onClick={handleRespond} disabled={saving} className="px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg text-sm disabled:opacity-50">{saving?'Saving...':'Record Response'}</button>
               </div>
             </div>
           </div>

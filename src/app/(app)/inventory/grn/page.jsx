@@ -210,7 +210,7 @@ export default function GrnPage() {
                       <div className="text-xs text-gray-400">{grn._count?.items} items · {new Date(grn.receivedDate || grn.createdAt).toLocaleDateString()}</div>
                     </div>
                     {grn.status === 'DRAFT' && (
-                      <button onClick={e => { e.stopPropagation(); handleSubmit(grn.id); }} className="px-3 py-1 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600">Submit for IQC</button>
+                      <button onClick={e => { e.stopPropagation(); handleSubmit(grn.id); }} className="px-3 py-1 text-xs bg-yellow-500 text-gray-900 rounded hover:bg-yellow-600">Submit for IQC</button>
                     )}
                     <span className="text-gray-400 text-xs">{expandedId === grn.id ? '▲' : '▼'}</span>
                   </div>

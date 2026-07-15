@@ -136,7 +136,7 @@ export default function QualityDashboardPage() {
                       <div key={t.label} className="flex items-center gap-3">
                         <span className="text-xs text-gray-500 w-16 font-mono">{t.label}</span>
                         <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                          <div className={`h-full rounded-full flex items-center justify-end pr-2 text-xs font-bold text-white ${t.passRate>=95?'bg-green-500':t.passRate>=80?'bg-yellow-500':t.total===0?'bg-gray-200':'bg-red-500'}`}
+                          <div className={`h-full rounded-full flex items-center justify-end pr-2 text-xs font-bold ${t.passRate>=95?'bg-green-500 text-white':t.passRate>=80?'bg-yellow-500 text-gray-900':t.total===0?'bg-gray-200 text-gray-600':'bg-red-500 text-white'}`}
                             style={{width: t.total===0?'0%':`${t.passRate}%`, minWidth: t.total>0?'30px':'0'}}>
                             {t.total > 0 && `${t.passRate}%`}
                           </div>

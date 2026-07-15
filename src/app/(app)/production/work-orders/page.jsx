@@ -159,7 +159,7 @@ export default function WorkOrdersPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {wo.status === 'DRAFT' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'release')}} className="px-2 py-1 text-xs bg-blue-600 text-white rounded">Release</button>}
-                    {wo.status === 'RELEASED' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'start')}} className="px-2 py-1 text-xs bg-yellow-500 text-white rounded">Start</button>}
+                    {wo.status === 'RELEASED' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'start')}} className="px-2 py-1 text-xs bg-yellow-500 text-gray-900 rounded">Start</button>}
                     {wo.status === 'IN_PROGRESS' && <button onClick={e=>{e.stopPropagation();setCompleteModal(wo.id);setCompleteForm({completedQty:wo.plannedQty,rejectedQty:'0'})}} className="px-2 py-1 text-xs bg-green-600 text-white rounded">Complete</button>}
                     {['DRAFT','RELEASED'].includes(wo.status) && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'cancel')}} className="px-2 py-1 text-xs bg-red-500 text-white rounded">Cancel</button>}
                     <span className="text-gray-400 text-xs">{expandedId===wo.id?'▲':'▼'}</span>

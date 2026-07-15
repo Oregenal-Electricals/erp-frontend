@@ -127,7 +127,7 @@ export default function CapaPage() {
                     <td className="px-3 py-2"><span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[r.status]}`}>{r.status?.replace(/_/g,' ')}</span></td>
                     <td className="px-3 py-2">
                       <div className="flex gap-1">
-                        {r.status==='ASSIGNED' && <button onClick={()=>handleStatusUpdate(r.id,'IN_PROGRESS')} className="px-2 py-1 text-xs bg-yellow-500 text-white rounded">Start</button>}
+                        {r.status==='ASSIGNED' && <button onClick={()=>handleStatusUpdate(r.id,'IN_PROGRESS')} className="px-2 py-1 text-xs bg-yellow-500 text-gray-900 rounded">Start</button>}
                         {r.status==='IN_PROGRESS' && <button onClick={()=>handleStatusUpdate(r.id,'COMPLETED')} className="px-2 py-1 text-xs bg-purple-600 text-white rounded">Complete</button>}
                         {r.status==='COMPLETED' && <button onClick={()=>{setVerifyModal(r.id);setVerifyForm({effectivenessCheck:''});}} className="px-2 py-1 text-xs bg-green-600 text-white rounded">Verify</button>}
                       </div>
