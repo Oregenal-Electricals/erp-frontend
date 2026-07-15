@@ -11,10 +11,13 @@ export default function CreateGateInwardPage() {
   const router = useRouter();
   const [plants, setPlants]           = useState([]);
   const [vehicleLogs, setVehicleLogs] = useState([]);
+  const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [warning, setWarning] = useState('');
   const [form, setForm] = useState({
     plantId: '', vehicleLogId: '',
+    poId: '',
     supplierName: '', supplierMobile: '', supplierGstin: '',
-    poNumber: '', invoiceNumber: '', invoiceDate: '', invoiceAmount: '',
+    invoiceNumber: '', invoiceDate: '', invoiceAmount: '',
     materialDescription: '', quantity: '', unit: 'NOS',
     grossWeight: '', netWeight: '', packageCount: '',
     remarks: '',
@@ -25,16 +28,27 @@ export default function CreateGateInwardPage() {
   useEffect(() => {
     api.get('/masters/plants').then(({ data }) => setPlants(data));
     api.get('/vehicle-logs/active').then(({ data }) => setVehicleLogs(data));
+    api.get('/purchase-orders?limit=200&status=SENT').then((res) => setPurchaseOrders(res.data?.data || []));
   }, []);
 
   const handleChange = (e) => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
+
+  const handlePoSelect = (poId) => {
+    const po = purchaseOrders.find(p => p.id === poId);
+    setForm(p => ({
+      ...p,
+      poId,
+      supplierName: po?.vendor?.name || p.supplierName,
+      supplierGstin: po?.vendor?.gstin || p.supplierGstin,
+    }));
+  };
 
   const handleSubmit = async () => {
     if (!form.plantId || !form.supplierName || !form.materialDescription || !form.quantity) {
       setError('Plant, supplier, material and quantity are required');
       return;
     }
-    setError(''); setSaving(true);
+    setError(''); setWarning(''); setSaving(true);
     try {
       const payload = { ...form };
       if (payload.quantity)     payload.quantity     = parseFloat(payload.quantity);
@@ -42,6 +56,7 @@ export default function CreateGateInwardPage() {
       if (payload.netWeight)    payload.netWeight    = parseFloat(payload.netWeight);
       if (payload.invoiceAmount) payload.invoiceAmount = parseFloat(payload.invoiceAmount);
       if (payload.packageCount) payload.packageCount = parseInt(payload.packageCount);
+      if (!payload.poId)          delete payload.poId;
       if (!payload.vehicleLogId)  delete payload.vehicleLogId;
       if (!payload.invoiceDate)   delete payload.invoiceDate;
       if (!payload.invoiceAmount) delete payload.invoiceAmount;
@@ -50,7 +65,11 @@ export default function CreateGateInwardPage() {
       if (!payload.packageCount)  delete payload.packageCount;
 
       const { data } = await api.post('/gate-inward', payload);
-      router.push(`/gate/inward/${data.id}`);
+      if (data.vendorMismatchWarning) {
+        router.push(`/gate/inward/${data.id}?warning=${encodeURIComponent(data.vendorMismatchWarning)}`);
+      } else {
+        router.push(`/gate/inward/${data.id}`);
+      }
     } catch (err) {
       const msg = err.response?.data?.message;
       setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed to create GIN');
@@ -116,11 +135,15 @@ export default function CreateGateInwardPage() {
           {/* Invoice Info */}
           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Invoice / PO Details</h3>
           <div className="grid grid-cols-4 gap-4 mb-5">
-            <div>
-              <label className={labelClass}>PO Number</label>
-              <input type="text" name="poNumber" value={form.poNumber} onChange={handleChange}
-                placeholder="PO-26-27-0001"
-                style={{ color: '#111827', backgroundColor: '#ffffff' }} className={inputClass} />
+            <div className="col-span-2">
+              <label className={labelClass}>Purchase Order</label>
+              <select value={form.poId} onChange={e=>handlePoSelect(e.target.value)}
+                style={{ color: '#111827', backgroundColor: '#ffffff' }} className={inputClass}>
+                <option value="">No PO (non-purchase delivery)</option>
+                {purchaseOrders.map(po => (
+                  <option key={po.id} value={po.id}>{po.poNumber} — {po.vendor?.name} ({po.vendor?.code})</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className={labelClass}>Invoice Number</label>
