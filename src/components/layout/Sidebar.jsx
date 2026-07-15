@@ -87,6 +87,7 @@ const PATH_PERMISSION = {
 // even though both end in the same word).
 const FULL_PATH_OVERRIDES = {
   '/purchase/quotations': 'VENDOR_QUOTATION_VIEW',
+  '/purchase/shortages': 'PURCHASE_VIEW',
   '/gate/inward': 'GATE_INWARD_VIEW',
   '/gate/outward': 'GATE_OUTWARD_VIEW',
   '/gate/passes': 'GATE_PASS_VIEW',
@@ -167,6 +168,7 @@ const NAV = [
     children: [
       { label: 'Purchase Requisitions', href: '/purchase-requisitions', icon: FileText },
       { label: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
+      { label: 'Material Shortages', href: '/purchase/shortages', icon: ClipboardList },
       { label: 'RFQs', href: '/purchase/rfqs', icon: FileText },
       { label: 'Vendor Quotations', href: '/purchase/quotations', icon: FileText },
       { label: 'Quotation Comparison', href: '/quotation-comparison', icon: BarChart3 },
