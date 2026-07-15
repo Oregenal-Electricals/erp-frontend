@@ -88,6 +88,7 @@ export default function BomListPage() {
             <p className="text-gray-500 text-sm mt-1">Bill of Materials — define component requirements per product</p>
           </div>
           <button onClick={() => { setForm({ productId: '', version: 'v1', description: '' }); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ Create BOM</button>
+          <a href="/inventory/bom/upload" className="ml-2 border border-indigo-300 text-indigo-700 px-4 py-2 rounded-lg hover:bg-indigo-50 font-medium inline-block">Upload BOM</a>
         </div>
 
         {stats && (
