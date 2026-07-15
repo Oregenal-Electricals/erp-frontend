@@ -87,6 +87,12 @@ const PATH_PERMISSION = {
 // even though both end in the same word).
 const FULL_PATH_OVERRIDES = {
   '/purchase/quotations': 'VENDOR_QUOTATION_VIEW',
+  '/gate/inward': 'GATE_INWARD_VIEW',
+  '/gate/outward': 'GATE_OUTWARD_VIEW',
+  '/gate/passes': 'GATE_PASS_VIEW',
+  '/gate/vehicles': 'VEHICLE_LOG_VIEW',
+  '/gate/visitors': 'VISITOR_VIEW',
+  '/gate/check-in': 'GATE_INWARD_VIEW',
 };
 
 function getRequiredPermission(href) {
@@ -148,6 +154,12 @@ const NAV = [
     label: 'Gate Management', icon: Shield,
     children: [
       { label: 'Gate Dashboard', href: '/gate-dashboard', icon: LayoutDashboard },
+      { label: 'Gate Inward', href: '/gate/inward', icon: PackageCheck },
+      { label: 'Gate Outward', href: '/gate/outward', icon: PackageOpen },
+      { label: 'Gate Passes', href: '/gate/passes', icon: BadgeCheck },
+      { label: 'Vehicle Log', href: '/gate/vehicles', icon: Truck },
+      { label: 'Visitors', href: '/gate/visitors', icon: UserCheck },
+      { label: 'Check-In', href: '/gate/check-in', icon: LogIn },
     ],
   },
   {
