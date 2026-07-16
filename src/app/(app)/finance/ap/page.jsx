@@ -42,8 +42,17 @@ export default function ApPage() {
   const [payModal, setPayModal] = useState(null);
   const [payForm, setPayForm] = useState({ amount:'', paymentMode:'NEFT', referenceNumber:'', remarks:'' });
   const [form, setForm] = useState({ vendorBillNumber:'', vendorId:'', vendorName:'', poId:'', billDate:'', paymentTerms:'NET_30', subtotal:'', totalGst:'', totalAmount:'', remarks:'' });
+  const [billable, setBillable] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  async function handlePoSelect(poId) {
+    setForm(f => ({ ...f, poId }));
+    setBillable(null);
+    if (!poId) return;
+    const res = await fetch(`${API}/ap/billable/${poId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) setBillable(await res.json());
+  }
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
@@ -321,10 +330,17 @@ export default function ApPage() {
                   </div>
                   {!form.vendorId && <div className="col-span-2"><label className="block text-sm text-gray-600 mb-1">Vendor Name (manual)</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.vendorName} onChange={e=>setForm(f=>({...f,vendorName:e.target.value}))} /></div>}
                   <div className="col-span-2"><label className="block text-sm text-gray-600 mb-1">Link PO</label>
-                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.poId} onChange={e=>setForm(f=>({...f,poId:e.target.value}))}>
+                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.poId} onChange={e=>handlePoSelect(e.target.value)}>
                       <option value="">— Optional —</option>
                       {pos.map(p=><option key={p.id} value={p.id}>{p.poNumber}</option>)}
                     </select>
+                    {billable && (
+                      <p className="text-xs mt-1 text-gray-500">
+                        Accepted so far: <span className="font-semibold text-gray-700">₹{billable.totalAcceptedValue.toLocaleString('en-IN')}</span>
+                        {' · '}Already billed: <span className="font-semibold text-gray-700">₹{billable.alreadyBilled.toLocaleString('en-IN')}</span>
+                        {' · '}<span className="font-semibold text-green-600">Billable now: ₹{billable.remainingBillable.toLocaleString('en-IN')}</span>
+                      </p>
+                    )}
                   </div>
                   <div><label className="block text-sm text-gray-600 mb-1">Payment Terms</label>
                     <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.paymentTerms} onChange={e=>setForm(f=>({...f,paymentTerms:e.target.value}))}>
@@ -333,7 +349,11 @@ export default function ApPage() {
                   </div>
                   <div><label className="block text-sm text-gray-600 mb-1">Subtotal (₹) *</label><input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.subtotal} onChange={e=>setForm(f=>({...f,subtotal:e.target.value}))} onBlur={calcTotal} /></div>
                   <div><label className="block text-sm text-gray-600 mb-1">Total GST (₹)</label><input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.totalGst} onChange={e=>setForm(f=>({...f,totalGst:e.target.value}))} onBlur={calcTotal} /></div>
-                  <div><label className="block text-sm text-gray-600 mb-1">Total Amount (₹) *</label><input type="number" className="w-full border rounded-lg px-3 py-2 text-sm font-bold" value={form.totalAmount} onChange={e=>setForm(f=>({...f,totalAmount:e.target.value}))} /></div>
+                  <div><label className="block text-sm text-gray-600 mb-1">Total Amount (₹) *
+                    {billable && billable.remainingBillable > 0 && (
+                      <button type="button" onClick={()=>setForm(f=>({...f,totalAmount:String(billable.remainingBillable)}))} className="ml-2 text-indigo-600 hover:underline font-normal">Use billable amount</button>
+                    )}
+                  </label><input type="number" className="w-full border rounded-lg px-3 py-2 text-sm font-bold" value={form.totalAmount} onChange={e=>setForm(f=>({...f,totalAmount:e.target.value}))} /></div>
                   <div className="col-span-2"><label className="block text-sm text-gray-600 mb-1">Remarks</label><textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} value={form.remarks} onChange={e=>setForm(f=>({...f,remarks:e.target.value}))} /></div>
                 </div>
               </div>
