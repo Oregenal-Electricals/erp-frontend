@@ -287,8 +287,9 @@ export default function PurchaseOrdersPage() {
                             <td className="px-3 py-2">{fmt(item.unitPrice)}</td>
                             <td className="px-3 py-2 font-bold">{fmt(item.orderedQty*item.unitPrice)}</td>
                             {selected.status==='DRAFT' && (
-                              <td className="px-3 py-2">
+                              <td className="px-3 py-2 flex gap-1">
                                 <button onClick={()=>setEditingItemId(item.id)} className="text-xs px-2 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100">Edit</button>
+                                <button onClick={()=>handleRemoveItem(item)} className="text-xs px-2 py-1 bg-red-50 text-red-500 rounded hover:bg-red-100">Remove</button>
                               </td>
                             )}
                           </>
