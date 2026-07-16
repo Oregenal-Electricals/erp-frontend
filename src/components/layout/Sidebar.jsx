@@ -297,9 +297,19 @@ const NAV = [
   },
 ];
 
+const SIDEBAR_STORAGE_KEY = 'erp_sidebar_open_sections';
+
 export default function Sidebar() {
   const pathname = usePathname();
   const [openSections, setOpenSections] = useState({});
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      if (saved) setOpenSections(JSON.parse(saved));
+    } catch {}
+    setHydrated(true);
+  }, []);
   const [user, setUser] = useState(null);
   const [myPermissions, setMyPermissions] = useState(null);
 
@@ -338,7 +348,11 @@ export default function Sidebar() {
   }
 
   function toggleSection(label) {
-    setOpenSections(prev => ({ ...prev, [label]: !prev[label] }));
+    setOpenSections(prev => {
+      const next = { ...prev, [label]: !prev[label] };
+      try { localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
   }
 
   return (
@@ -361,15 +375,16 @@ export default function Sidebar() {
           const visibleChildren = item.children.filter(c => itemVisible(c.href));
           if (visibleChildren.length === 0) return null;
 
-          const isOpen = openSections[item.label] ?? true;
+          const containsActivePage = visibleChildren.some(c => c.href === pathname);
+          const sectionIsOpen = item.label in openSections ? openSections[item.label] : (hydrated && containsActivePage);
           const Icon = item.icon;
           return (
             <div key={item.label} className="mb-1">
               <button onClick={() => toggleSection(item.label)} className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50 font-medium">
                 <span className="flex items-center gap-2"><Icon size={16} /> {item.label}</span>
-                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                {sectionIsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </button>
-              {isOpen && (
+              {sectionIsOpen && (
                 <div className="ml-4 mt-1 space-y-0.5">
                   {visibleChildren.map(child => {
                     const ChildIcon = child.icon;
