@@ -70,7 +70,12 @@ export default function PurchaseOrdersPage() {
   }
 
   async function handleApprove(id) {
-    await fetch(`${API}/purchase-orders/${id}/approve`,{method:'PUT',headers:{Authorization:`Bearer ${getToken()}`}});
+    const res = await fetch(`${API}/purchase-orders/${id}/approve`,{method:'POST',headers:{Authorization:`Bearer ${getToken()}`}});
+    if (!res.ok) {
+      const d = await res.json().catch(()=>({}));
+      alert(d.message || 'Failed to approve PO - check you have permission to approve purchase orders.');
+      return;
+    }
     fetchAll();
   }
 
@@ -100,7 +105,11 @@ export default function PurchaseOrdersPage() {
                     <td className="px-4 py-3 text-xs text-gray-400">{fmtDate(po.createdAt)}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
-                        <button onClick={()=>setSelected(po)} className="px-2 py-1 text-xs border rounded hover:bg-gray-50">View</button>
+                        <button onClick={async ()=>{
+                          const res = await fetch(`${API}/purchase-orders/${po.id}`,{headers:{Authorization:`Bearer ${getToken()}`}});
+                          if (res.ok) setSelected(await res.json());
+                          else setSelected(po);
+                        }} className="px-2 py-1 text-xs border rounded hover:bg-gray-50">View</button>
                         {po.status==='DRAFT'&&<button onClick={()=>handleApprove(po.id)} className="px-2 py-1 text-xs bg-green-600 text-white rounded">Approve</button>}
                       </div>
                     </td>
