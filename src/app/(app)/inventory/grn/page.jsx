@@ -26,6 +26,7 @@ export default function GrnPage() {
   const [warehouses, setWarehouses] = useState([]);
   const [pos, setPos] = useState([]);
   const [ipos, setIpos] = useState([]);
+  const [gateEntries, setGateEntries] = useState([]);
   const [landedCosts, setLandedCosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -36,7 +37,7 @@ export default function GrnPage() {
   const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
-  const [form, setForm] = useState({ grnType: 'IMPORT', poId: '', ipoId: '', landedCostId: '', warehouseId: '', vehicleNumber: '', dcNumber: '', invoiceNumber: '', invoiceDate: '', remarks: '' });
+  const [form, setForm] = useState({ grnType: 'IMPORT', poId: '', ipoId: '', gateInwardEntryId: '', landedCostId: '', warehouseId: '', vehicleNumber: '', dcNumber: '', invoiceNumber: '', invoiceDate: '', remarks: '' });
   const [items, setItems] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -47,18 +48,20 @@ export default function GrnPage() {
     if (search) params.set('search', search);
     if (status) params.set('status', status);
     if (grnType) params.set('grnType', grnType);
-    const [grnRes, statsRes, whRes, poRes, ipoRes] = await Promise.all([
+    const [grnRes, statsRes, whRes, poRes, ipoRes, ginRes] = await Promise.all([
       fetch(`${API}/grn?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/grn/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/warehouses?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/purchase-orders?status=APPROVED&limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/import-orders?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/gate-inward?limit=100&status=PENDING`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (grnRes.ok) { const d = await grnRes.json(); setGrns(d.data); setTotalPages(d.totalPages); setTotal(d.total); }
     if (statsRes.ok) setStats(await statsRes.json());
     if (whRes.ok) { const d = await whRes.json(); setWarehouses(d.data || d); }
     if (poRes.ok) { const d = await poRes.json(); setPos(d.data || []); }
     if (ipoRes.ok) { const d = await ipoRes.json(); setIpos(d.data?.filter(i => ['CUSTOMS_CLEARED','SHIPPED'].includes(i.status)) || []); }
+    if (ginRes.ok) { const d = await ginRes.json(); setGateEntries(d.data || []); }
     setLoading(false);
   }, [page, search, status, grnType]);
 
@@ -117,11 +120,28 @@ export default function GrnPage() {
     }
   }
 
+  async function handleGinSelect(ginId) {
+    if (!ginId) { setForm(f => ({ ...f, gateInwardEntryId: '' })); setItems([]); return; }
+    const res = await fetch(`${API}/gate-inward/${ginId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (!res.ok) return;
+    const gin = await res.json();
+    setForm(f => ({
+      ...f,
+      gateInwardEntryId: ginId,
+      invoiceNumber: gin.invoiceNumber || f.invoiceNumber,
+      invoiceDate: gin.invoiceDate ? gin.invoiceDate.split('T')[0] : f.invoiceDate,
+    }));
+    if (gin.poId) {
+      await handleSourceSelect('DOMESTIC', gin.poId);
+    }
+  }
+
   async function handleCreate() {
     setSaving(true); setError('');
     const body = { ...form, items: items.map(i => ({ ...i })) };
     if (!body.poId) delete body.poId;
     if (!body.ipoId) delete body.ipoId;
+    if (!body.gateInwardEntryId) delete body.gateInwardEntryId;
     if (!body.landedCostId) delete body.landedCostId;
     if (!body.vehicleNumber) delete body.vehicleNumber;
     if (!body.dcNumber) delete body.dcNumber;
@@ -276,6 +296,17 @@ export default function GrnPage() {
                       <option value="DOMESTIC">Domestic</option>
                     </select>
                   </div>
+                  {form.grnType === 'DOMESTIC' && (
+                    <div className="col-span-2">
+                      <label className="block text-sm text-gray-600 mb-1">Gate Inward Entry (optional - auto-fills PO/invoice below)</label>
+                      <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.gateInwardEntryId} onChange={e => handleGinSelect(e.target.value)}>
+                        <option value="">— No gate entry (enter manually) —</option>
+                        {gateEntries.map(g => (
+                          <option key={g.id} value={g.id}>{g.ginNumber} — {g.supplierName} {g.poNumber ? `(${g.poNumber})` : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">{form.grnType === 'IMPORT' ? 'Import PO' : 'Purchase Order'} *</label>
                     <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.grnType === 'IMPORT' ? form.ipoId : form.poId} onChange={e => handleSourceSelect(form.grnType, e.target.value)}>
