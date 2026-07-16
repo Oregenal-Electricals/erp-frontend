@@ -5,12 +5,6 @@ import AppLayout from '@/components/layout/AppLayout';
 import PageHeader from '@/components/common/PageHeader';
 import api from '@/lib/api';
 
-const ROLES = [
-  'SUPER_ADMIN','CORPORATE_ADMIN','PLANT_HEAD','UNIT_HEAD',
-  'PRODUCTION_HEAD','PLANNING_MANAGER','PURCHASE_MANAGER',
-  'STORE_MANAGER','QC_MANAGER','FINANCE_MANAGER','HR_MANAGER',
-  'SUPERVISOR','OPERATOR','VIEWER',
-];
 
 export default function EditUserPage() {
   const router = useRouter();
@@ -20,6 +14,7 @@ export default function EditUserPage() {
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
   const [success, setSuccess] = useState('');
+  const [roles, setRoles] = useState([]);
 
   useEffect(() => {
     api.get(`/users/${id}`)
@@ -32,6 +27,7 @@ export default function EditUserPage() {
       }))
       .catch(() => setError('Failed to load user'))
       .finally(() => setLoading(false));
+    api.get('/roles').then(({ data }) => setRoles(data?.data || data || []));
   }, [id]);
 
   const handleChange = (e) =>
@@ -92,7 +88,7 @@ export default function EditUserPage() {
               <select name="role" value={form.role || 'VIEWER'} onChange={handleChange}
                 style={{ color: '#111827', backgroundColor: '#ffffff' }}
                 className={inputClass}>
-                {ROLES.map((r) => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
+                {roles.map((r) => <option key={r.id} value={r.name}>{r.label}</option>)}
               </select>
             </div>
 

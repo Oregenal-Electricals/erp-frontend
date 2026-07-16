@@ -5,27 +5,22 @@ import AppLayout from '@/components/layout/AppLayout';
 import PageHeader from '@/components/common/PageHeader';
 import api from '@/lib/api';
 
-const ROLES = [
-  'SUPER_ADMIN','CORPORATE_ADMIN','PLANT_HEAD','UNIT_HEAD',
-  'PRODUCTION_HEAD','PLANNING_MANAGER','PURCHASE_MANAGER',
-  'STORE_MANAGER','QC_MANAGER','FINANCE_MANAGER','HR_MANAGER',
-  'SUPERVISOR','OPERATOR','VIEWER',
-];
-
 export default function CreateUserPage() {
   const router = useRouter();
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '',
-    employeeCode: '', password: '', role: 'VIEWER',
+    employeeCode: '', password: '', role: '',
     additionalRoles: [],
     companyId: '', mustChangePwd: true,
   });
   const [companies, setCompanies] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [error, setError]   = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     api.get('/masters/companies').then(({ data }) => setCompanies(data));
+    api.get('/roles').then(({ data }) => setRoles(data?.data || data || []));
   }, []);
 
   const handleChange = (e) => {
@@ -89,27 +84,27 @@ export default function CreateUserPage() {
               <select name="role" value={form.role} onChange={handleChange}
                 style={{ color: '#111827', backgroundColor: '#ffffff' }}
                 className={inputClass}>
-                {ROLES.map((r) => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
+                {roles.map((r) => <option key={r.id} value={r.name}>{r.label}</option>)}
               </select>
             </div>
             <div className="col-span-2">
               <label className={labelClass}>Additional Roles <span className="text-xs font-normal text-gray-400">(optional — for users with multiple responsibilities)</span></label>
               <div className="grid grid-cols-2 gap-2 mt-1 p-3 border-2 border-gray-200 rounded-lg bg-gray-50">
-                {ROLES.filter(r => r !== form.role).map(r => (
-                  <label key={r} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                {roles.filter(r => r.name !== form.role).map(r => (
+                  <label key={r.id} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                     <input type="checkbox"
-                      checked={form.additionalRoles.includes(r)}
+                      checked={form.additionalRoles.includes(r.name)}
                       onChange={e => {
                         setForm(prev => ({
                           ...prev,
                           additionalRoles: e.target.checked
-                            ? [...prev.additionalRoles, r]
-                            : prev.additionalRoles.filter(x => x !== r)
+                            ? [...prev.additionalRoles, r.name]
+                            : prev.additionalRoles.filter(x => x !== r.name)
                         }));
                       }}
                       className="w-4 h-4 accent-blue-600"
                     />
-                    {r.replace(/_/g, ' ')}
+                    {r.label}
                   </label>
                 ))}
               </div>
