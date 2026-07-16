@@ -211,10 +211,10 @@ export default function PurchaseOrdersPage() {
                   <tbody className="divide-y">
                     {(selected.items||[]).map((item,i)=>(
                       <tr key={i}>
-                        <td className="px-3 py-2">{item.rawMaterial?.name||item.rawMaterialId}</td>
-                        <td className="px-3 py-2">{item.quantity} {item.uom}</td>
+                        <td className="px-3 py-2">{item.itemName || item.itemCode}</td>
+                        <td className="px-3 py-2">{item.orderedQty} {item.uom}</td>
                         <td className="px-3 py-2">{fmt(item.unitPrice)}</td>
-                        <td className="px-3 py-2 font-bold">{fmt(item.quantity*item.unitPrice)}</td>
+                        <td className="px-3 py-2 font-bold">{fmt(item.orderedQty*item.unitPrice)}</td>
                       </tr>
                     ))}
                   </tbody>
