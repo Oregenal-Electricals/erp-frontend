@@ -80,6 +80,7 @@ export default function PurchaseOrdersPage() {
   }
 
   const [itemEdits, setItemEdits] = useState({});
+  const [editingItemId, setEditingItemId] = useState(null);
   const [newItem, setNewItem] = useState({ rawMaterialId:'', quantity:'', unitPrice:'' });
 
   async function refreshSelected(id) {
@@ -105,6 +106,7 @@ export default function PurchaseOrdersPage() {
     });
     if (!res.ok) { const d = await res.json().catch(()=>({})); alert(d.message || 'Failed to update item'); return; }
     setItemEdits(prev => { const n = { ...prev }; delete n[item.id]; return n; });
+    setEditingItemId(null);
     await refreshSelected(selected.id);
     fetchAll();
   }
@@ -269,7 +271,7 @@ export default function PurchaseOrdersPage() {
                     {(selected.items||[]).map((item)=>(
                       <tr key={item.id}>
                         <td className="px-3 py-2">{item.itemName || item.itemCode}</td>
-                        {selected.status==='DRAFT' ? (
+                        {selected.status==='DRAFT' && editingItemId===item.id ? (
                           <>
                             <td className="px-3 py-2"><input type="number" className="w-20 border rounded px-2 py-1 text-xs" value={itemEditValue(item,'orderedQty')} onChange={e=>setItemEdit(item.id,'orderedQty',e.target.value)} /> {item.uom}</td>
                             <td className="px-3 py-2"><input type="number" className="w-20 border rounded px-2 py-1 text-xs" value={itemEditValue(item,'unitPrice')} onChange={e=>setItemEdit(item.id,'unitPrice',e.target.value)} /></td>
@@ -284,6 +286,11 @@ export default function PurchaseOrdersPage() {
                             <td className="px-3 py-2">{item.orderedQty} {item.uom}</td>
                             <td className="px-3 py-2">{fmt(item.unitPrice)}</td>
                             <td className="px-3 py-2 font-bold">{fmt(item.orderedQty*item.unitPrice)}</td>
+                            {selected.status==='DRAFT' && (
+                              <td className="px-3 py-2">
+                                <button onClick={()=>setEditingItemId(item.id)} className="text-xs px-2 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100">Edit</button>
+                              </td>
+                            )}
                           </>
                         )}
                       </tr>
