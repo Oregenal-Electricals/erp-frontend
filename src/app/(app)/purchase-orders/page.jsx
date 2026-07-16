@@ -79,6 +79,63 @@ export default function PurchaseOrdersPage() {
     fetchAll();
   }
 
+  const [itemEdits, setItemEdits] = useState({});
+  const [newItem, setNewItem] = useState({ rawMaterialId:'', quantity:'', unitPrice:'' });
+
+  async function refreshSelected(id) {
+    const res = await fetch(`${API}/purchase-orders/${id}`,{headers:{Authorization:`Bearer ${getToken()}`}});
+    if (res.ok) { const d = await res.json(); setSelected(d); return d; }
+  }
+
+  function itemEditValue(item, field) {
+    return itemEdits[item.id]?.[field] ?? item[field];
+  }
+
+  function setItemEdit(itemId, field, value) {
+    setItemEdits(prev => ({ ...prev, [itemId]: { ...prev[itemId], [field]: value } }));
+  }
+
+  async function handleSaveItem(item) {
+    const orderedQty = parseFloat(itemEditValue(item, 'orderedQty'));
+    const unitPrice = parseFloat(itemEditValue(item, 'unitPrice'));
+    const res = await fetch(`${API}/purchase-orders/${selected.id}/items/${item.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ orderedQty, unitPrice }),
+    });
+    if (!res.ok) { const d = await res.json().catch(()=>({})); alert(d.message || 'Failed to update item'); return; }
+    setItemEdits(prev => { const n = { ...prev }; delete n[item.id]; return n; });
+    await refreshSelected(selected.id);
+    fetchAll();
+  }
+
+  async function handleRemoveItem(item) {
+    if (!confirm(`Remove ${item.itemName || item.itemCode} from this PO?`)) return;
+    const res = await fetch(`${API}/purchase-orders/${selected.id}/items/${item.id}`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) { const d = await res.json().catch(()=>({})); alert(d.message || 'Failed to remove item'); return; }
+    await refreshSelected(selected.id);
+    fetchAll();
+  }
+
+  async function handleAddItemToSelected() {
+    const rm = rawMaterials.find(r => r.id === newItem.rawMaterialId);
+    if (!rm || !newItem.quantity || !newItem.unitPrice) { alert('Pick a material and enter qty/price'); return; }
+    const res = await fetch(`${API}/purchase-orders/${selected.id}/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({
+        itemCode: rm.code, itemName: rm.name, uom: rm.uom?.code || 'NOS',
+        orderedQty: parseFloat(newItem.quantity), unitPrice: parseFloat(newItem.unitPrice),
+      }),
+    });
+    if (!res.ok) { const d = await res.json().catch(()=>({})); alert(d.message || 'Failed to add item'); return; }
+    setNewItem({ rawMaterialId:'', quantity:'', unitPrice:'' });
+    await refreshSelected(selected.id);
+    fetchAll();
+  }
+
   return (
     <AppLayout>
       <div className="p-6 max-w-7xl mx-auto">
@@ -207,18 +264,52 @@ export default function PurchaseOrdersPage() {
                   <div><span className="text-gray-400 text-xs">Delivery Date</span><div>{fmtDate(selected.deliveryDate)}</div></div>
                 </div>
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-xs text-gray-500 uppercase"><tr><th className="px-3 py-2 text-left">Material</th><th className="px-3 py-2 text-left">Qty</th><th className="px-3 py-2 text-left">Price</th><th className="px-3 py-2 text-left">Total</th></tr></thead>
+                  <thead className="bg-gray-50 text-xs text-gray-500 uppercase"><tr><th className="px-3 py-2 text-left">Material</th><th className="px-3 py-2 text-left">Qty</th><th className="px-3 py-2 text-left">Price</th><th className="px-3 py-2 text-left">Total</th>{selected.status==='DRAFT'&&<th className="px-3 py-2"></th>}</tr></thead>
                   <tbody className="divide-y">
-                    {(selected.items||[]).map((item,i)=>(
-                      <tr key={i}>
+                    {(selected.items||[]).map((item)=>(
+                      <tr key={item.id}>
                         <td className="px-3 py-2">{item.itemName || item.itemCode}</td>
-                        <td className="px-3 py-2">{item.orderedQty} {item.uom}</td>
-                        <td className="px-3 py-2">{fmt(item.unitPrice)}</td>
-                        <td className="px-3 py-2 font-bold">{fmt(item.orderedQty*item.unitPrice)}</td>
+                        {selected.status==='DRAFT' ? (
+                          <>
+                            <td className="px-3 py-2"><input type="number" className="w-20 border rounded px-2 py-1 text-xs" value={itemEditValue(item,'orderedQty')} onChange={e=>setItemEdit(item.id,'orderedQty',e.target.value)} /> {item.uom}</td>
+                            <td className="px-3 py-2"><input type="number" className="w-20 border rounded px-2 py-1 text-xs" value={itemEditValue(item,'unitPrice')} onChange={e=>setItemEdit(item.id,'unitPrice',e.target.value)} /></td>
+                            <td className="px-3 py-2 font-bold">{fmt(itemEditValue(item,'orderedQty')*itemEditValue(item,'unitPrice'))}</td>
+                            <td className="px-3 py-2 flex gap-1">
+                              <button onClick={()=>handleSaveItem(item)} className="text-xs px-2 py-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100">Save</button>
+                              <button onClick={()=>handleRemoveItem(item)} className="text-xs px-2 py-1 bg-red-50 text-red-500 rounded hover:bg-red-100">Remove</button>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-3 py-2">{item.orderedQty} {item.uom}</td>
+                            <td className="px-3 py-2">{fmt(item.unitPrice)}</td>
+                            <td className="px-3 py-2 font-bold">{fmt(item.orderedQty*item.unitPrice)}</td>
+                          </>
+                        )}
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                {selected.status==='DRAFT' && (
+                  <div className="border-2 border-dashed rounded-lg p-3 flex gap-2 items-end">
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-500 mb-1">Add Material</label>
+                      <select className="w-full border rounded px-2 py-1.5 text-sm" value={newItem.rawMaterialId} onChange={e=>setNewItem(f=>({...f,rawMaterialId:e.target.value}))}>
+                        <option value="">— Select —</option>
+                        {rawMaterials.map(r=><option key={r.id} value={r.id}>{r.name} ({r.code})</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Qty</label>
+                      <input type="number" className="w-20 border rounded px-2 py-1.5 text-sm" value={newItem.quantity} onChange={e=>setNewItem(f=>({...f,quantity:e.target.value}))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Price</label>
+                      <input type="number" className="w-24 border rounded px-2 py-1.5 text-sm" value={newItem.unitPrice} onChange={e=>setNewItem(f=>({...f,unitPrice:e.target.value}))} />
+                    </div>
+                    <button onClick={handleAddItemToSelected} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm">+ Add</button>
+                  </div>
+                )}
               </div>
               <div className="p-5 border-t flex justify-end gap-3">
                 {selected.status==='DRAFT'&&<button onClick={()=>{handleApprove(selected.id);setSelected(null);}} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">Approve PO</button>}
