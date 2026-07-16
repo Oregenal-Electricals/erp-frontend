@@ -79,6 +79,12 @@ export default function PurchaseOrdersPage() {
     fetchAll();
   }
 
+  async function handleSend(id) {
+    const res = await fetch(`${API}/purchase-orders/${id}/send`,{method:'POST',headers:{Authorization:`Bearer ${getToken()}`}});
+    if (!res.ok) { const d = await res.json().catch(()=>({})); alert(d.message || 'Failed to send PO to vendor'); return; }
+    fetchAll();
+  }
+
   const [itemEdits, setItemEdits] = useState({});
   const [editingItemId, setEditingItemId] = useState(null);
   const [newItem, setNewItem] = useState({ rawMaterialId:'', quantity:'', unitPrice:'' });
@@ -170,6 +176,7 @@ export default function PurchaseOrdersPage() {
                           else setSelected(po);
                         }} className="px-2 py-1 text-xs border rounded hover:bg-gray-50">View</button>
                         {po.status==='DRAFT'&&<button onClick={()=>handleApprove(po.id)} className="px-2 py-1 text-xs bg-green-600 text-white rounded">Approve</button>}
+                        {po.status==='APPROVED'&&<button onClick={()=>handleSend(po.id)} className="px-2 py-1 text-xs bg-blue-600 text-white rounded">Send</button>}
                       </div>
                     </td>
                   </tr>
@@ -321,6 +328,7 @@ export default function PurchaseOrdersPage() {
               </div>
               <div className="p-5 border-t flex justify-end gap-3">
                 {selected.status==='DRAFT'&&<button onClick={()=>{handleApprove(selected.id);setSelected(null);}} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">Approve PO</button>}
+                {selected.status==='APPROVED'&&<button onClick={()=>{handleSend(selected.id);setSelected(null);}} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Send to Vendor</button>}
                 <button onClick={()=>setSelected(null)} className="px-4 py-2 border rounded-lg text-sm">Close</button>
               </div>
             </div>
