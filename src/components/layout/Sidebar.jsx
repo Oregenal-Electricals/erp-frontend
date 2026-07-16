@@ -331,13 +331,9 @@ export default function Sidebar() {
   const isSuperAdmin = role === 'SUPER_ADMIN' || (Array.isArray(user.allRoles) && user.allRoles.includes('SUPER_ADMIN'));
   const isGateOperator = role === 'OPERATOR' && user.email?.includes('gate');
 
-  const allowedSections = isGateOperator ? GATE_SECTIONS
+  const knownRoleSections = isGateOperator ? GATE_SECTIONS
     : (ROLE_SECTIONS[role] === 'ALL' || isSuperAdmin) ? 'ALL'
-    : (ROLE_SECTIONS[role] || ['Dashboard']);
-
-  function sectionVisible(label) {
-    return allowedSections === 'ALL' || allowedSections.includes(label);
-  }
+    : ROLE_SECTIONS[role];
 
   function itemVisible(href) {
     if (isSuperAdmin) return true;
@@ -345,6 +341,13 @@ export default function Sidebar() {
     if (!required) return true;
     if (!myPermissions) return true;
     return myPermissions.has(required);
+  }
+
+  function sectionVisible(label, children) {
+    if (knownRoleSections === 'ALL') return true;
+    if (Array.isArray(knownRoleSections)) return knownRoleSections.includes(label);
+    if (!children || children.length === 0) return true;
+    return children.some(c => itemVisible(c.href));
   }
 
   function toggleSection(label) {
@@ -359,7 +362,7 @@ export default function Sidebar() {
     <nav className="w-64 bg-white border-r h-screen overflow-y-auto flex-shrink-0">
       <div className="p-4">
         {NAV.map(item => {
-          if (!sectionVisible(item.label)) return null;
+          if (!sectionVisible(item.label, item.children)) return null;
 
           if (!item.children) {
             if (!itemVisible(item.href)) return null;

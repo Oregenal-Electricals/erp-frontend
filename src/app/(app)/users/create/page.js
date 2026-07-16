@@ -40,7 +40,9 @@ export default function CreateUserPage() {
       router.push('/users');
     } catch (err) {
       const msg = err.response?.data?.message;
-      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed to create user');
+      const detail = err.response?.data?.errors;
+      const summary = Array.isArray(msg) ? msg.join(', ') : msg || 'Failed to create user';
+      setError(Array.isArray(detail) && detail.length ? `${summary}: ${detail.join(' | ')}` : summary);
     } finally {
       setSaving(false);
     }
