@@ -110,15 +110,15 @@ function getRequiredPermission(href) {
 const ROLE_SECTIONS = {
   SUPER_ADMIN:      'ALL',
   CORPORATE_ADMIN:  'ALL',
-  PLANT_HEAD:       ['Dashboard','Master Setup','User Management','Purchase','Import','Inventory','Production','Quality','HR','Finance','Industry 4.0','Analytics','Settings'],
-  PLANNING_MANAGER: ['Dashboard','Master Setup','Purchase','Inventory','Production','Quality','Analytics'],
-  PURCHASE_MANAGER: ['Dashboard','Master Setup','Purchase','Import','Inventory'],
+  PLANT_HEAD:       ['Dashboard','Purchase','Import','Inventory','Production','Quality','HR','Finance','Industry 4.0','Analytics','Settings'],
+  PLANNING_MANAGER: ['Dashboard','Purchase','Inventory','Production','Quality','Analytics','Settings'],
+  PURCHASE_MANAGER: ['Dashboard','Purchase','Import','Inventory','Settings'],
   STORE_MANAGER:    ['Dashboard','Inventory','Purchase'],
-  PRODUCTION_HEAD:  ['Dashboard','Master Setup','Production','Inventory','Quality'],
+  PRODUCTION_HEAD:  ['Dashboard','Production','Inventory','Quality','Settings'],
   QC_MANAGER:       ['Dashboard','Quality','Inventory'],
   FINANCE_MANAGER:  ['Dashboard','Finance','Analytics','Settings'],
   HR_MANAGER:       ['Dashboard','HR','Settings'],
-  UNIT_HEAD:        ['Dashboard','Sales','Master Setup','Inventory','Analytics'],
+  UNIT_HEAD:        ['Dashboard','Sales','Inventory','Analytics','Settings'],
   SUPERVISOR:       ['Dashboard','Purchase','Sales','Inventory','Production','Quality','HR','Finance'],
   OPERATOR:         ['Dashboard','Inventory','Production'],
   VIEWER:           ['Dashboard'],
@@ -127,23 +127,6 @@ const GATE_SECTIONS = ['Dashboard','Gate Management'];
 
 const NAV = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  {
-    label: 'Master Setup', icon: Settings,
-    children: [
-      { label: 'Companies', href: '/masters/company', icon: Building2 },
-      { label: 'Plants', href: '/masters/plant', icon: Factory },
-      { label: 'Units', href: '/masters/unit', icon: Layers },
-      { label: 'Departments', href: '/masters/department', icon: Users2 },
-      { label: 'Branches', href: '/masters/branch', icon: GitBranch },
-      { label: 'Financial Year', href: '/masters/financial-year', icon: Calendar },
-    ],
-  },
-  {
-    label: 'User Management', icon: Users,
-    children: [
-      { label: 'Users', href: '/users', icon: Users },
-    ],
-  },
   {
     label: 'Change Requests', icon: ClipboardList,
     children: [
@@ -298,6 +281,13 @@ const NAV = [
   {
     label: 'Settings', icon: Settings,
     children: [
+      { label: 'Companies', href: '/masters/company', icon: Building2 },
+      { label: 'Plants', href: '/masters/plant', icon: Factory },
+      { label: 'Units', href: '/masters/unit', icon: Layers },
+      { label: 'Departments', href: '/masters/department', icon: Users2 },
+      { label: 'Branches', href: '/masters/branch', icon: GitBranch },
+      { label: 'Financial Year', href: '/masters/financial-year', icon: Calendar },
+      { label: 'Users', href: '/users', icon: Users },
       { label: 'System Settings', href: '/settings/system', icon: Settings },
       { label: 'Roles & Permissions', href: '/settings/roles-permissions', icon: Shield },
       { label: 'Numbering Series', href: '/settings/numbering', icon: Hash },
