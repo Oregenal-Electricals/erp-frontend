@@ -151,7 +151,7 @@ export default function GrnPage() {
 
   async function handleCreate() {
     setSaving(true); setError('');
-    const body = { ...form, items: items.map(i => ({ ...i })) };
+    const body = { ...form, items: items.map(({ totalValue, ...i }) => ({ ...i })) };
     if (!body.poId) delete body.poId;
     if (!body.ipoId) delete body.ipoId;
     if (!body.gateInwardEntryId) delete body.gateInwardEntryId;
