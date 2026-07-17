@@ -54,14 +54,14 @@ export default function GrnPage() {
       fetch(`${API}/warehouses?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/purchase-orders?status=APPROVED&limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/import-orders?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/gate-inward?limit=100&status=PENDING`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/gate-inward?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (grnRes.ok) { const d = await grnRes.json(); setGrns(d.data); setTotalPages(d.totalPages); setTotal(d.total); }
     if (statsRes.ok) setStats(await statsRes.json());
     if (whRes.ok) { const d = await whRes.json(); setWarehouses(d.data || d); }
     if (poRes.ok) { const d = await poRes.json(); setPos(d.data || []); }
     if (ipoRes.ok) { const d = await ipoRes.json(); setIpos(d.data?.filter(i => ['CUSTOMS_CLEARED','SHIPPED'].includes(i.status)) || []); }
-    if (ginRes.ok) { const d = await ginRes.json(); setGateEntries(d.data || []); }
+    if (ginRes.ok) { const d = await ginRes.json(); setGateEntries((d.data || []).filter(g => ['VERIFIED','SENT_TO_STORES'].includes(g.status))); }
     setLoading(false);
   }, [page, search, status, grnType]);
 
