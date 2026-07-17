@@ -47,7 +47,13 @@ export default function ApPage() {
   const [error, setError] = useState('');
 
   async function handlePoSelect(poId) {
-    setForm(f => ({ ...f, poId }));
+    const po = pos.find(p => p.id === poId);
+    setForm(f => ({
+      ...f,
+      poId,
+      vendorId: po?.vendorId || f.vendorId,
+      vendorName: po?.vendor?.name || f.vendorName,
+    }));
     setBillable(null);
     if (!poId) return;
     const res = await fetch(`${API}/ap/billable/${poId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
