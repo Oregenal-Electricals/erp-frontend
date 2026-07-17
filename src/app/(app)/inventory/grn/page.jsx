@@ -169,7 +169,11 @@ export default function GrnPage() {
     });
     const data = await res.json();
     if (res.ok) { setShowModal(false); fetchAll(); }
-    else setError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed');
+    else {
+      const detail = Array.isArray(data.errors) ? data.errors.join(' | ') : '';
+      const summary = Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed';
+      setError(detail ? `${summary}: ${detail}` : summary);
+    }
     setSaving(false);
   }
 
