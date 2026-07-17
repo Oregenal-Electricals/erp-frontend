@@ -37,6 +37,19 @@ export default function GrnPage() {
   const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
+  const [grnDetails, setGrnDetails] = useState({});
+
+  async function toggleExpand(grn) {
+    const willOpen = expandedId !== grn.id;
+    setExpandedId(willOpen ? grn.id : null);
+    if (willOpen && !grnDetails[grn.id]) {
+      const res = await fetch(`${API}/grn/${grn.id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (res.ok) {
+        const full = await res.json();
+        setGrnDetails(prev => ({ ...prev, [grn.id]: full }));
+      }
+    }
+  }
   const [form, setForm] = useState({ grnType: 'IMPORT', poId: '', ipoId: '', gateInwardEntryId: '', landedCostId: '', warehouseId: '', vehicleNumber: '', dcNumber: '', invoiceNumber: '', invoiceDate: '', remarks: '' });
   const [items, setItems] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -233,7 +246,7 @@ export default function GrnPage() {
               <div className="text-center py-10 text-gray-400">No GRNs found</div>
             ) : grns.map(grn => (
               <div key={grn.id} className="border-b last:border-b-0">
-                <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50" onClick={() => setExpandedId(expandedId === grn.id ? null : grn.id)}>
+                <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50" onClick={() => toggleExpand(grn)}>
                   <div className="flex items-center gap-4">
                     <span className="font-mono font-bold text-blue-600">{grn.grnNumber}</span>
                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${TYPE_COLORS[grn.grnType]}`}>{grn.grnType}</span>
@@ -266,7 +279,7 @@ export default function GrnPage() {
                         <tr>{['Item Code','Item Name','UOM','Ordered','Received','Accepted','Rejected','Unit Price','LC/Unit','Total Value'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {grn.items?.map(item => (
+                        {(grnDetails[grn.id]?.items || []).map(item => (
                           <tr key={item.id} className="bg-white">
                             <td className="px-3 py-2 font-mono text-blue-600">{item.itemCode}</td>
                             <td className="px-3 py-2">{item.itemName}</td>
