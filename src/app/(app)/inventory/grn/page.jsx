@@ -61,7 +61,11 @@ export default function GrnPage() {
     if (whRes.ok) { const d = await whRes.json(); setWarehouses(d.data || d); }
     if (poRes.ok) { const d = await poRes.json(); setPos(d.data || []); }
     if (ipoRes.ok) { const d = await ipoRes.json(); setIpos(d.data?.filter(i => ['CUSTOMS_CLEARED','SHIPPED'].includes(i.status)) || []); }
-    if (ginRes.ok) { const d = await ginRes.json(); setGateEntries((d.data || []).filter(g => ['VERIFIED','SENT_TO_STORES','COMPLETED'].includes(g.status))); }
+    if (ginRes.ok) {
+      const raw = await ginRes.json();
+      const ginList = Array.isArray(raw) ? raw : (raw.data || []);
+      setGateEntries(ginList.filter(g => ['VERIFIED','SENT_TO_STORES','COMPLETED'].includes(g.status)));
+    }
     setLoading(false);
   }, [page, search, status, grnType]);
 
