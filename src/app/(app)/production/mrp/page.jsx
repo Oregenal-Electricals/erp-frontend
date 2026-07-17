@@ -11,7 +11,7 @@ const STATUS_COLORS = {
   NO_STOCK: 'bg-gray-100 text-gray-500',
 };
 
-const TABS = ['MRP Calculator','Shortage Report','Material Plan'];
+const TABS = ['MRP Calculator','Shortage Report','Material Plan','Production Planning'];
 
 export default function MrpPage() {
   const [activeTab, setActiveTab] = useState('MRP Calculator');
@@ -23,6 +23,14 @@ export default function MrpPage() {
   const [loading, setLoading] = useState(false);
   const [planStatus, setPlanStatus] = useState('RELEASED,IN_PROGRESS');
 
+  const [warehouses, setWarehouses] = useState([]);
+  const [planWarehouseId, setPlanWarehouseId] = useState('');
+  const [planningBoard, setPlanningBoard] = useState(null);
+  const [orderRanking, setOrderRanking] = useState([]);
+  const [buildQtys, setBuildQtys] = useState({});
+  const [allocResult, setAllocResult] = useState(null);
+  const [allocRunning, setAllocRunning] = useState(false);
+
   useEffect(() => {
     if (!getToken()) return;
     fetch(`${API}/work-orders?status=RELEASED&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } })
@@ -31,6 +39,9 @@ export default function MrpPage() {
         const list = (d.data || []).filter(w => w.bomId);
         setWos(list);
       });
+    fetch(`${API}/warehouses?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } })
+      .then(r => r.ok ? r.json() : { data: [] })
+      .then(d => setWarehouses(d.data || d || []));
   }, []);
 
   async function handleCalculate() {
@@ -55,10 +66,59 @@ export default function MrpPage() {
     setLoading(false);
   }
 
+  async function loadPlanningBoard(warehouseId) {
+    if (!warehouseId) { setPlanningBoard(null); return; }
+    setLoading(true); setAllocResult(null);
+    const res = await fetch(`${API}/mrp/planning-board?warehouseId=${warehouseId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) {
+      const board = await res.json();
+      setPlanningBoard(board);
+      setOrderRanking(board.map(so => so.soId));
+      setBuildQtys({});
+    }
+    setLoading(false);
+  }
+
+  function moveOrder(soId, direction) {
+    setOrderRanking(prev => {
+      const idx = prev.indexOf(soId);
+      const next = [...prev];
+      const swapWith = direction === 'up' ? idx - 1 : idx + 1;
+      if (swapWith < 0 || swapWith >= next.length) return prev;
+      [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
+      return next;
+    });
+  }
+
+  async function handleRunAllocation() {
+    const allocations = Object.entries(buildQtys)
+      .map(([soItemId, qty]) => ({ soItemId, buildQty: parseFloat(qty) }))
+      .filter(a => a.buildQty > 0);
+    if (allocations.length === 0) { alert('Enter a build quantity for at least one item'); return; }
+    setAllocRunning(true); setAllocResult(null);
+    const res = await fetch(`${API}/mrp/run-allocation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ warehouseId: planWarehouseId, allocations }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setAllocResult(data);
+      if (data.feasible) { setBuildQtys({}); loadPlanningBoard(planWarehouseId); }
+    } else {
+      alert(data.message || 'Failed to run allocation');
+    }
+    setAllocRunning(false);
+  }
+
   useEffect(() => {
     if (activeTab === 'Shortage Report') handleShortageReport();
     else if (activeTab === 'Material Plan') handleMaterialPlan();
   }, [activeTab]);
+
+  const rankedBoard = planningBoard
+    ? orderRanking.map(id => planningBoard.find(so => so.soId === id)).filter(Boolean)
+    : [];
 
   return (
     <AppLayout>
@@ -240,6 +300,124 @@ export default function MrpPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'Production Planning' && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
+              Rank open Sales Orders by priority using the ↑↓ arrows, then type a build quantity for whichever items you want to produce. Real available stock for each item's raw materials is shown alongside — Run Allocation checks everything at once and creates Work Orders only if the combined material need is actually covered.
+            </div>
+            <div className="bg-white rounded-xl border p-4 flex gap-3 items-end">
+              <div className="flex-1">
+                <label className="block text-sm text-gray-600 mb-1">Warehouse (raw material availability checked here)</label>
+                <select className="w-full border rounded-lg px-3 py-2 text-sm" value={planWarehouseId} onChange={e => { setPlanWarehouseId(e.target.value); loadPlanningBoard(e.target.value); }}>
+                  <option value="">— Select Warehouse —</option>
+                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+              </div>
+              {planningBoard && (
+                <button onClick={handleRunAllocation} disabled={allocRunning} className="px-6 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50">
+                  {allocRunning ? 'Checking...' : 'Run Allocation'}
+                </button>
+              )}
+            </div>
+
+            {allocResult && (
+              <div className={`rounded-xl p-4 ${allocResult.feasible ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                {allocResult.feasible ? (
+                  <div>
+                    <div className="font-bold text-green-700 mb-2">✅ Work Orders created and released</div>
+                    <table className="w-full text-xs">
+                      <thead className="text-green-600 uppercase"><tr>{['WO Number','Sales Order','Product','Build Qty'].map(h=><th key={h} className="text-left px-2 py-1">{h}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-green-100">
+                        {allocResult.createdWorkOrders.map(w => (
+                          <tr key={w.woId} className="bg-white">
+                            <td className="px-2 py-1 font-mono font-bold">{w.woNumber}</td>
+                            <td className="px-2 py-1">{w.soNumber}</td>
+                            <td className="px-2 py-1">{w.productCode}</td>
+                            <td className="px-2 py-1 font-bold">{w.buildQty}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="font-bold text-red-700 mb-2">❌ Not enough raw material for these quantities combined — nothing was created</div>
+                    <table className="w-full text-xs">
+                      <thead className="text-red-500 uppercase"><tr>{['Item','Total Needed','Available','Shortfall'].map(h=><th key={h} className="text-left px-2 py-1">{h}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-red-100">
+                        {allocResult.shortages.map((s,i) => (
+                          <tr key={i} className="bg-white">
+                            <td className="px-2 py-1 font-mono">{s.itemCode} — {s.itemName}</td>
+                            <td className="px-2 py-1">{s.totalNeeded} {s.uom}</td>
+                            <td className="px-2 py-1">{s.available} {s.uom}</td>
+                            <td className="px-2 py-1 font-bold text-red-600">{s.shortfall} {s.uom}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div className="text-xs text-red-500 mt-2">Reduce the build quantities above so the totals fit, then run allocation again.</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {loading && <div className="text-center py-12 text-gray-400">Loading open Sales Orders...</div>}
+
+            {!loading && planWarehouseId && rankedBoard.length === 0 && (
+              <div className="bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 p-16 text-center text-gray-400">
+                <div className="text-sm">No open Sales Orders need production right now</div>
+              </div>
+            )}
+
+            {rankedBoard.map((so, rank) => (
+              <div key={so.soId} className="bg-white rounded-xl border shadow-sm">
+                <div className="p-4 border-b flex items-center gap-3">
+                  <div className="flex flex-col gap-0.5">
+                    <button onClick={()=>moveOrder(so.soId,'up')} disabled={rank===0} className="text-gray-400 hover:text-blue-600 disabled:opacity-20 text-xs">▲</button>
+                    <button onClick={()=>moveOrder(so.soId,'down')} disabled={rank===rankedBoard.length-1} className="text-gray-400 hover:text-blue-600 disabled:opacity-20 text-xs">▼</button>
+                  </div>
+                  <span className="w-6 h-6 flex items-center justify-center bg-blue-600 text-white rounded-full text-xs font-bold">{rank+1}</span>
+                  <span className="font-mono font-bold text-blue-600">{so.soNumber}</span>
+                  <span className="text-gray-700">{so.customerName}</span>
+                  <span className="text-xs text-gray-400">Due {new Date(so.deliveryDate).toLocaleDateString('en-IN')}</span>
+                </div>
+                {so.items.map(item => (
+                  <div key={item.soItemId} className="p-4 border-b last:border-b-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="font-mono text-sm text-gray-700">{item.itemCode}</span>
+                      <span className="text-sm text-gray-500">{item.itemName}</span>
+                      <span className="text-xs text-gray-400">pending {item.pendingQty}{item.alreadyPlannedQty > 0 && ` (already planned ${item.alreadyPlannedQty})`}</span>
+                      {!item.hasBom && <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded text-xs">No approved BOM</span>}
+                      {item.hasBom && (
+                        <div className="ml-auto flex items-center gap-2">
+                          <label className="text-xs text-gray-500">Build Qty</label>
+                          <input type="number" max={item.remainingToPlan} className="w-24 border rounded px-2 py-1 text-sm"
+                            value={buildQtys[item.soItemId] || ''}
+                            onChange={e=>setBuildQtys(prev=>({...prev, [item.soItemId]: e.target.value}))} />
+                        </div>
+                      )}
+                    </div>
+                    {item.hasBom && item.rmRequirements.length > 0 && (
+                      <table className="w-full text-xs bg-gray-50 rounded">
+                        <thead className="text-gray-400 uppercase"><tr>{['RM Item','Qty per Unit','Available Now'].map(h=><th key={h} className="text-left px-2 py-1">{h}</th>)}</tr></thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {item.rmRequirements.map(rm => (
+                            <tr key={rm.itemCode}>
+                              <td className="px-2 py-1 font-mono">{rm.itemCode} — {rm.itemName}</td>
+                              <td className="px-2 py-1">{rm.qtyPerUnit} {rm.uom}</td>
+                              <td className={`px-2 py-1 font-bold ${rm.availableQty > 0 ? 'text-green-600' : 'text-red-500'}`}>{rm.availableQty} {rm.uom}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
         )}
       </div>
