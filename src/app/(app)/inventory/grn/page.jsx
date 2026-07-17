@@ -52,7 +52,7 @@ export default function GrnPage() {
       fetch(`${API}/grn?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/grn/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/warehouses?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/purchase-orders?status=APPROVED&limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/purchase-orders?limit=200`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/import-orders?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/gate-inward?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
@@ -137,6 +137,15 @@ export default function GrnPage() {
     }));
     if (gin.poId) {
       await handleSourceSelect('DOMESTIC', gin.poId);
+      if (Array.isArray(gin.items) && gin.items.length > 0) {
+        const ginQtyByCode = {};
+        gin.items.forEach(gi => { ginQtyByCode[gi.itemCode] = gi.quantity; });
+        setItems(prev => prev.map(it => (
+          ginQtyByCode[it.itemCode] != null
+            ? { ...it, receivedQty: ginQtyByCode[it.itemCode], totalValue: ginQtyByCode[it.itemCode] * it.unitPrice }
+            : it
+        )));
+      }
     }
   }
 
