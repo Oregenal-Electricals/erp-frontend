@@ -215,6 +215,7 @@ const NAV = [
     children: [
       { label: 'Production Dashboard', href: '/production-dashboard', icon: BarChart3 },
       { label: 'Work Orders', href: '/production/work-orders', icon: ClipboardList },
+      { label: 'Routing', href: '/production/routing', icon: ClipboardList },
       { label: 'MRP', href: '/production/mrp', icon: BarChart3 },
       { label: 'Production Entries', href: '/production-entries', icon: FileText },
       { label: 'FG Receipts', href: '/fg-receipts', icon: PackageCheck },
