@@ -38,7 +38,7 @@ export default function DispatchPlanningPage() {
     const [pRes, sRes, soRes] = await Promise.all([
       fetch(`${API}/dispatch-plans?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/dispatch-plans/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/sales-orders?status=CONFIRMED&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/sales-orders?status=CONFIRMED,IN_PRODUCTION&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (pRes.ok) { const d = await pRes.json(); setPlans(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
     if (sRes.ok) setStats(await sRes.json());
