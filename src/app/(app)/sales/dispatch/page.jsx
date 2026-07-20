@@ -115,6 +115,15 @@ export default function DispatchPage() {
     if (res.ok) setViewDetail(await res.json());
   }
 
+  async function handleMarkDelivered(id) {
+    const res = await fetch(`${API}/dispatches/${id}/deliver`, {
+      method: 'POST', headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    const data = await res.json();
+    if (res.ok) { setViewDetail(data); fetchAll(); }
+    else alert(data.message || 'Failed to mark delivered');
+  }
+
   return (
     <AppLayout>
       <div className="p-6 max-w-7xl mx-auto">
@@ -236,6 +245,7 @@ export default function DispatchPage() {
               <DocumentAttachments referenceType="DISPATCH" referenceId={viewDetail?.id} referenceNumber={viewDetail?.dispatchNumber} title="Dispatch Attachments" />
               </div>
               <div className="p-6 border-t flex justify-end sticky bottom-0 bg-white">
+                {viewDetail?.status==='DISPATCHED' && <button onClick={()=>handleMarkDelivered(viewDetail.id)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">Mark Delivered</button>}
                 <button onClick={()=>setViewDetail(null)} className="px-4 py-2 border rounded-lg text-sm">Close</button>
                 <button onClick={()=>downloadPdf(viewDetail?.id)} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">⬇ PDF</button>
               </div>
