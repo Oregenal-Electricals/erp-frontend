@@ -218,7 +218,7 @@ const NAV = [
       { label: 'Routing', href: '/production/routing', icon: ClipboardList },
       { label: 'MRP', href: '/production/mrp', icon: BarChart3 },
       { label: 'Production Entries', href: '/production-entries', icon: FileText },
-      { label: 'FG Receipts', href: '/fg-receipts', icon: PackageCheck },
+      { label: 'FG Receipts', href: '/production/fg-receipt', icon: PackageCheck },
       { label: 'Production Issues', href: '/production-issues', icon: Activity },
       { label: 'Cost Sheets', href: '/production-cost-sheets', icon: Calculator },
       { label: 'Production Reports', href: '/production-reports', icon: FileText },
