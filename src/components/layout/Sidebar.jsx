@@ -193,6 +193,7 @@ const NAV = [
     children: [
       { label: 'Inv. Dashboard', href: '/inventory-dashboard', icon: BarChart3 },
       { label: 'Warehouses', href: '/warehouse', icon: Building2 },
+      { label: 'UOM', href: '/inventory/uom', icon: Layers },
       { label: 'BOM', href: '/inventory/bom', icon: ClipboardList },
       { label: 'BOM Revisions', href: '/inventory/bom-revisions', icon: GitBranch },
       { label: 'GRN', href: '/inventory/grn', icon: PackageCheck },
