@@ -164,7 +164,7 @@ export default function PurchaseOrdersPage() {
                   <tr key={po.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono font-bold text-indigo-600">{po.poNumber}</td>
                     <td className="px-4 py-3"><div className="font-medium">{po.vendor?.name}</div><div className="text-xs text-gray-400">{po.vendor?.code}</div></td>
-                    <td className="px-4 py-3">{po.items?.length||0} items</td>
+                    <td className="px-4 py-3">{po._count?.items ?? po.items?.length ?? 0} items</td>
                     <td className="px-4 py-3 font-bold text-green-600">{fmt(po.totalAmount)}</td>
                     <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[po.status]||'bg-gray-100'}`}>{po.status}</span></td>
                     <td className="px-4 py-3 text-xs text-gray-400">{fmtDate(po.createdAt)}</td>
