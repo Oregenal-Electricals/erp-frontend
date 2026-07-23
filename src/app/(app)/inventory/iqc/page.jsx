@@ -28,6 +28,11 @@ export default function IqcPage() {
   const [inspectItems, setInspectItems] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [viewDetail, setViewDetail] = useState(null);
+  async function handleView(id) {
+    const res = await fetch(`${API}/iqc/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) setViewDetail(await res.json());
+  }
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -170,9 +175,12 @@ export default function IqcPage() {
                     <td className="px-4 py-3 text-center text-xs">{insp._count?.items}</td>
                     <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[insp.status]}`}>{insp.status?.replace(/_/g,' ')}</span></td>
                     <td className="px-4 py-3">
-                      {insp.status !== 'APPROVED' && (
-                        <button onClick={() => handleOpenInspect(insp.id)} className="text-blue-600 hover:underline text-xs">Inspect</button>
-                      )}
+                      <div className="flex gap-2">
+                        <button onClick={() => handleView(insp.id)} className="text-gray-600 hover:underline text-xs">View</button>
+                        {insp.status !== 'APPROVED' && (
+                          <button onClick={() => handleOpenInspect(insp.id)} className="text-blue-600 hover:underline text-xs">Inspect</button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -267,6 +275,54 @@ export default function IqcPage() {
                 <button onClick={() => setShowInspectModal(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
                 <button onClick={handleUpdateItems} disabled={saving} className="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm disabled:opacity-50">Save Draft</button>
                 <button onClick={handleApprove} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm disabled:opacity-50">{saving ? 'Approving...' : 'Approve & Close IQC'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {viewDetail && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-screen overflow-y-auto">
+              <div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white">
+                <div>
+                  <h2 className="text-lg font-bold">{viewDetail.iqcNumber}</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">GRN {viewDetail.grn?.grnNumber} · {viewDetail.grn?.warehouse?.name}</p>
+                </div>
+                <button onClick={() => setViewDetail(null)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="flex gap-6 text-sm">
+                  <div><span className="text-gray-500">Status:</span> <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[viewDetail.status]}`}>{viewDetail.status?.replace(/_/g,' ')}</span></div>
+                  <div><span className="text-gray-500">Inspected By:</span> {viewDetail.inspectedBy || '—'}</div>
+                  <div><span className="text-gray-500">Date:</span> {new Date(viewDetail.inspectionDate || viewDetail.createdAt).toLocaleDateString()}</div>
+                </div>
+                {viewDetail.remarks && <div className="text-sm"><span className="text-gray-500">Remarks:</span> {viewDetail.remarks}</div>}
+                <table className="w-full text-sm border rounded-lg overflow-hidden">
+                  <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+                    <tr>{['Item Code','Item Name','UOM','Received','Accepted','Rejected','Reason'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {(viewDetail.items || []).map(item => (
+                      <tr key={item.id}>
+                        <td className="px-3 py-2 font-mono text-xs text-blue-600">{item.itemCode}</td>
+                        <td className="px-3 py-2 text-xs">{item.itemName}</td>
+                        <td className="px-3 py-2 text-xs text-gray-500">{item.uom}</td>
+                        <td className="px-3 py-2 text-xs">{item.receivedQty}</td>
+                        <td className="px-3 py-2 text-xs text-green-600 font-medium">{item.acceptedQty}</td>
+                        <td className="px-3 py-2 text-xs text-red-500 font-medium">{item.rejectedQty}</td>
+                        <td className="px-3 py-2 text-xs text-gray-500">{item.rejectionReason || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="p-3 bg-gray-50 rounded-lg text-sm flex gap-6">
+                  <div>Total Received: <strong>{(viewDetail.items || []).reduce((s,i) => s+(i.receivedQty||0),0)}</strong></div>
+                  <div className="text-green-600">Total Accepted: <strong>{(viewDetail.items || []).reduce((s,i) => s+(i.acceptedQty||0),0)}</strong></div>
+                  <div className="text-red-500">Total Rejected: <strong>{(viewDetail.items || []).reduce((s,i) => s+(i.rejectedQty||0),0)}</strong></div>
+                </div>
+              </div>
+              <div className="p-6 border-t flex justify-end sticky bottom-0 bg-white">
+                <button onClick={() => setViewDetail(null)} className="px-4 py-2 border rounded-lg text-sm">Close</button>
               </div>
             </div>
           </div>

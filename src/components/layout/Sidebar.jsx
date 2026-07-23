@@ -307,7 +307,15 @@ export default function Sidebar() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-      if (saved) setOpenSections(JSON.parse(saved));
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const openKeys = Object.keys(parsed).filter(k => parsed[k]);
+        const sanitized = openKeys.length > 1 ? { [openKeys[0]]: true } : parsed;
+        setOpenSections(sanitized);
+        if (openKeys.length > 1) {
+          try { localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(sanitized)); } catch {}
+        }
+      }
     } catch {}
     setHydrated(true);
   }, []);
