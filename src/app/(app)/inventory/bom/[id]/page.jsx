@@ -147,11 +147,11 @@ export default function BomDetailPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
-                <tr>{['Seq', 'Type', 'Code', 'Name', 'UOM', 'Qty', 'Wastage%', 'Eff. Qty', 'Unit Cost', 'Total Cost', 'Critical', 'Actions'].map(h => <th key={h} className="px-3 py-3 text-left">{h}</th>)}</tr>
+                <tr>{['Seq', 'Type', 'Code', 'Name', 'UOM', 'Qty', 'Eff. Qty', 'Unit Cost', 'Total Cost', 'Actions'].map(h => <th key={h} className="px-3 py-3 text-left">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {!bom.items || bom.items.length === 0 ? (
-                  <tr><td colSpan={12} className="text-center py-10 text-gray-400">No items yet. Click "+ Add Item" to start.</td></tr>
+                  <tr><td colSpan={10} className="text-center py-10 text-gray-400">No items yet. Click "+ Add Item" to start.</td></tr>
                 ) : bom.items.map(item => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-3 py-3 text-gray-500">{item.sequence}</td>
@@ -160,11 +160,9 @@ export default function BomDetailPage() {
                     <td className="px-3 py-3 font-medium text-gray-900">{item.itemName}</td>
                     <td className="px-3 py-3 text-gray-600">{item.uom}</td>
                     <td className="px-3 py-3 text-gray-800">{item.quantity}</td>
-                    <td className="px-3 py-3 text-gray-600">{item.wastagePercent || 0}%</td>
                     <td className="px-3 py-3 text-gray-800 font-medium">{item.effectiveQty?.toFixed(3)}</td>
                     <td className="px-3 py-3 text-gray-600">{item.unitCost ? `₹${item.unitCost}` : '—'}</td>
                     <td className="px-3 py-3 font-medium text-gray-800">{item.totalCost ? `₹${item.totalCost.toFixed(2)}` : '—'}</td>
-                    <td className="px-3 py-3">{item.isCritical ? <span className="text-red-500 font-bold">●</span> : <span className="text-gray-300">○</span>}</td>
                     <td className="px-3 py-3">
                       {bom.status === 'DRAFT' && (
                         <div className="flex gap-2">
