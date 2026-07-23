@@ -78,6 +78,12 @@ export default function BomListPage() {
     await fetch(`${API}/boms/${id}/clone`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
     fetchBoms(); fetchStats();
   }
+  async function handleDelete(id) {
+    if (!confirm('Delete this BOM? This cannot be undone.')) return;
+    const res = await fetch(`${API}/boms/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) { fetchBoms(); fetchStats(); }
+    else { const d = await res.json(); alert(d.message || 'Failed to delete'); }
+  }
 
   return (
     <AppLayout>
@@ -148,6 +154,7 @@ export default function BomListPage() {
                         <Link href={`/inventory/bom/${b.id}`} className="text-blue-600 hover:underline text-xs">View</Link>
                         <button onClick={() => handleClone(b.id)} className="text-purple-600 hover:underline text-xs">Clone</button>
                         {b.status === 'APPROVED' && <button onClick={() => handleObsolete(b.id)} className="text-gray-500 hover:underline text-xs">Obsolete</button>}
+                        {b.status !== 'APPROVED' && <button onClick={() => handleDelete(b.id)} className="text-red-500 hover:underline text-xs">Delete</button>}
                       </div>
                     </td>
                   </tr>
