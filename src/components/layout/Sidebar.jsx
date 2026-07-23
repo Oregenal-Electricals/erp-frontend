@@ -353,7 +353,8 @@ export default function Sidebar() {
 
   function toggleSection(label) {
     setOpenSections(prev => {
-      const next = { ...prev, [label]: !prev[label] };
+      const wasOpen = !!prev[label];
+      const next = wasOpen ? {} : { [label]: true };
       try { localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(next)); } catch {}
       return next;
     });
