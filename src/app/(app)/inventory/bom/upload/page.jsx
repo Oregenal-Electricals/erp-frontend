@@ -188,7 +188,7 @@ export default function BomUploadPage() {
                 <table className="w-full text-xs">
                   <thead className="bg-gray-50 text-gray-500">
                     <tr>
-                      {['Part Code', 'Item Name', 'Qty', 'UOM', 'Preferred Make', 'Alternate Makes', ''].map(h => (
+                      {['Sr. No.', 'Part Code', 'Item Name', 'Qty', 'UOM', 'Preferred Make', 'Alternate Makes', ''].map(h => (
                         <th key={h} className="px-2 py-2 text-left font-medium">{h}</th>
                       ))}
                     </tr>
@@ -196,6 +196,7 @@ export default function BomUploadPage() {
                   <tbody>
                     {section.items.map((item, iIdx) => (
                       <tr key={iIdx} className={`border-b ${item.existsAsRawMaterial ? 'bg-gray-50' : ''}`}>
+                        <td className="px-2 py-1.5 text-gray-400">{iIdx + 1}</td>
                         <td className="px-2 py-1.5">
                           <span className="font-mono text-gray-700">{item.partCode}</span>
                           {item.existsAsRawMaterial && <span className="ml-1 text-[10px] bg-gray-200 text-gray-600 px-1 rounded">existing</span>}
