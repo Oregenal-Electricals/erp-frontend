@@ -70,24 +70,31 @@ export default function CustomerPoPage() {
     if (search) params.set('search', search);
     if (status) params.set('status', status);
     if (poType) params.set('poType', poType);
-    const [cRes, sRes, pRes, cuRes] = await Promise.all([
+    const [cRes, sRes, pRes, cuRes, rmRes] = await Promise.all([
       fetch(`${API}/customer-po?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/customer-po/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/products?limit=500`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/customers?limit=500`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/raw-materials?limit=500`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (cRes.ok) { const d = await cRes.json(); setCpos(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
     if (sRes.ok) setStats(await sRes.json());
     if (pRes.ok) { const d = await pRes.json(); setProducts(d.data || d || []); }
     if (cuRes.ok) { const d = await cuRes.json(); setCustomerList(d.data || d || []); }
+    if (rmRes.ok) { const d = await rmRes.json(); setRawMaterials(d.data || d || []); }
     setLoading(false);
   }
 
   useEffect(() => { fetchAll(); }, [page, search, status, poType]);
+  const [rawMaterials, setRawMaterials] = useState([]);
   function matchingProducts(text) {
-    if (!text) return products;
+    const tagged = [
+      ...products.map(p => ({ ...p, _source: 'Product' })),
+      ...rawMaterials.map(r => ({ ...r, _source: 'Raw Material' })),
+    ];
+    if (!text) return tagged;
     const q = text.toLowerCase();
-    return products.filter(p => p.code?.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q));
+    return tagged.filter(p => p.code?.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q));
   }
   const [customerList, setCustomerList] = useState([]);
   const [customerSuggestOpen, setCustomerSuggestOpen] = useState(false);
@@ -769,6 +776,7 @@ export default function CustomerPoPage() {
                   className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 border-b last:border-b-0">
                   <span className="font-mono text-blue-600 font-medium">{p.code}</span>
                   <span className="text-gray-500 ml-2">{p.name}</span>
+                  {p._source && <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${p._source==='Product' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-700'}`}>{p._source}</span>}
                 </button>
               ))}
             </div>
