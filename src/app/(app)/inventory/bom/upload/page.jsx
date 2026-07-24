@@ -58,6 +58,17 @@ export default function BomUploadPage() {
       return { ...p, sections };
     });
   }
+  function mergeSectionInto(sourceIdx, targetIdx) {
+    if (sourceIdx === targetIdx) return;
+    setPreview(p => {
+      const sections = [...p.sections];
+      const source = sections[sourceIdx];
+      const target = { ...sections[targetIdx], items: [...sections[targetIdx].items, ...source.items] };
+      sections[targetIdx] = target;
+      sections.splice(sourceIdx, 1);
+      return { ...p, sections };
+    });
+  }
 
   async function handleConfirm() {
     setConfirming(true); setError('');
@@ -181,8 +192,20 @@ export default function BomUploadPage() {
           {/* Sections */}
           {preview.sections.map((section, sIdx) => (
             <div key={sIdx} className="bg-white rounded-xl border shadow-sm overflow-hidden">
-              <div className="px-5 py-3 border-b bg-gray-50">
+              <div className="px-5 py-3 border-b bg-gray-50 flex items-center justify-between">
                 <h3 className="font-semibold text-gray-800 text-sm">{section.name} <span className="text-gray-400 font-normal">({section.items.length} items)</span></h3>
+                {preview.sections.length > 1 && (
+                  <select
+                    className="text-xs border rounded px-2 py-1 text-gray-500 bg-white"
+                    value=""
+                    onChange={e => { if (e.target.value !== '') mergeSectionInto(sIdx, parseInt(e.target.value, 10)); }}
+                  >
+                    <option value="">Merge into...</option>
+                    {preview.sections.map((s, i) => i !== sIdx && (
+                      <option key={i} value={i}>{s.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
