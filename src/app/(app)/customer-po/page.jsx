@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import AppLayout from '@/components/layout/AppLayout';
 import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
@@ -53,6 +54,14 @@ export default function CustomerPoPage() {
   const [error, setError] = useState('');
   const [products, setProducts] = useState([]);
   const [activeSuggestionRow, setActiveSuggestionRow] = useState(null);
+  const [activeSuggestionField, setActiveSuggestionField] = useState(null);
+  const [suggestionPos, setSuggestionPos] = useState({ top: 0, left: 0 });
+  function openSuggestions(e, i, field) {
+    const rect = e.target.getBoundingClientRect();
+    setSuggestionPos({ top: rect.bottom + window.scrollY + 4, left: rect.left + window.scrollX });
+    setActiveSuggestionRow(i);
+    setActiveSuggestionField(field);
+  }
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
@@ -532,41 +541,19 @@ export default function CustomerPoPage() {
                           const c = calcItem(item);
                           return (
                             <tr key={i} className="border-b">
-                              <td className="px-1 py-1 relative">
+                              <td className="px-1 py-1">
                                 <input className="border rounded px-2 py-1.5 text-xs w-32 font-mono" value={item.itemCode}
-                                  onChange={e=>{updateItem(i,'itemCode',e.target.value); setActiveSuggestionRow(i);}}
-                                  onFocus={()=>setActiveSuggestionRow(i)}
+                                  onChange={e=>{updateItem(i,'itemCode',e.target.value); openSuggestions(e,i,'code');}}
+                                  onFocus={e=>openSuggestions(e,i,'code')}
                                   onBlur={()=>setTimeout(()=>setActiveSuggestionRow(r=>r===i?null:r),150)}
                                   placeholder="FG-001" />
-                                {activeSuggestionRow===i && matchingProducts(item.itemCode).length>0 && (
-                                  <div className="absolute z-20 mt-1 w-80 bg-white border rounded-lg shadow-lg max-h-56 overflow-y-auto">
-                                    {matchingProducts(item.itemCode).map(p=>(
-                                      <button key={p.id} type="button" onClick={()=>selectProduct(i,p)}
-                                        className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 border-b last:border-b-0">
-                                        <span className="font-mono text-blue-600 font-medium">{p.code}</span>
-                                        <span className="text-gray-500 ml-2">{p.name}</span>
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
                               </td>
-                              <td className="px-1 py-1 relative">
+                              <td className="px-1 py-1">
                                 <input className="border rounded px-2 py-1.5 text-xs w-64" value={item.itemName}
-                                  onChange={e=>{updateItem(i,'itemName',e.target.value); setActiveSuggestionRow(i);}}
-                                  onFocus={()=>setActiveSuggestionRow(i)}
+                                  onChange={e=>{updateItem(i,'itemName',e.target.value); openSuggestions(e,i,'name');}}
+                                  onFocus={e=>openSuggestions(e,i,'name')}
                                   onBlur={()=>setTimeout(()=>setActiveSuggestionRow(r=>r===i?null:r),150)}
                                   placeholder="Item name" />
-                                {activeSuggestionRow===i && matchingProducts(item.itemName).length>0 && (
-                                  <div className="absolute z-20 mt-1 w-80 bg-white border rounded-lg shadow-lg max-h-56 overflow-y-auto">
-                                    {matchingProducts(item.itemName).map(p=>(
-                                      <button key={p.id} type="button" onClick={()=>selectProduct(i,p)}
-                                        className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 border-b last:border-b-0">
-                                        <span className="font-mono text-blue-600 font-medium">{p.code}</span>
-                                        <span className="text-gray-500 ml-2">{p.name}</span>
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
                               </td>
                               <td className="px-1 py-1"><input type="number" className="border rounded px-2 py-1 text-xs w-16" value={item.qty} onChange={e=>updateItem(i,'qty',e.target.value)} /></td>
                               <td className="px-1 py-1"><input className="border rounded px-2 py-1 text-xs w-16" value={item.uom} onChange={e=>updateItem(i,'uom',e.target.value)} /></td>
@@ -692,6 +679,33 @@ export default function CustomerPoPage() {
           </div>
         )}
       </div>
+
+      {activeSuggestionRow !== null && typeof document !== 'undefined' && createPortal(
+        (() => {
+          const item = form.items[activeSuggestionRow];
+          if (!item) return null;
+          const searchText = activeSuggestionField === 'code' ? item.itemCode : item.itemName;
+          const matches = matchingProducts(searchText);
+          if (matches.length === 0) return null;
+          return (
+            <div
+              className="fixed z-50 w-80 bg-white border rounded-lg shadow-lg max-h-56 overflow-y-auto"
+              style={{ top: suggestionPos.top, left: suggestionPos.left }}
+            >
+              {matches.map(p => (
+                <button key={p.id} type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => selectProduct(activeSuggestionRow, p)}
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 border-b last:border-b-0">
+                  <span className="font-mono text-blue-600 font-medium">{p.code}</span>
+                  <span className="text-gray-500 ml-2">{p.name}</span>
+                </button>
+              ))}
+            </div>
+          );
+        })(),
+        document.body
+      )}
     </AppLayout>
   );
 }
