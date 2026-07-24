@@ -85,9 +85,9 @@ export default function CustomerPoPage() {
 
   useEffect(() => { fetchAll(); }, [page, search, status, poType]);
   function matchingProducts(text) {
-    if (!text) return [];
+    if (!text) return products;
     const q = text.toLowerCase();
-    return products.filter(p => p.code?.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q)).slice(0, 8);
+    return products.filter(p => p.code?.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q));
   }
   const [customerList, setCustomerList] = useState([]);
   const [customerSuggestOpen, setCustomerSuggestOpen] = useState(false);
@@ -99,9 +99,9 @@ export default function CustomerPoPage() {
     setCustomerSuggestOpen(true);
   }
   function matchingCustomers(text) {
-    if (!text) return [];
+    if (!text) return customerList;
     const q = text.toLowerCase();
-    return customerList.filter(c => c.name?.toLowerCase().includes(q) || c.code?.toLowerCase().includes(q)).slice(0, 8);
+    return customerList.filter(c => c.name?.toLowerCase().includes(q) || c.code?.toLowerCase().includes(q));
   }
   async function selectCustomer(customer) {
     const res = await fetch(`${API}/customers/${customer.id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
