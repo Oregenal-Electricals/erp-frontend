@@ -70,14 +70,16 @@ export default function CustomerPoPage() {
     if (search) params.set('search', search);
     if (status) params.set('status', status);
     if (poType) params.set('poType', poType);
-    const [cRes, sRes, pRes] = await Promise.all([
+    const [cRes, sRes, pRes, cuRes] = await Promise.all([
       fetch(`${API}/customer-po?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/customer-po/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/products?limit=500`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/customers?limit=500`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (cRes.ok) { const d = await cRes.json(); setCpos(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
     if (sRes.ok) setStats(await sRes.json());
     if (pRes.ok) { const d = await pRes.json(); setProducts(d.data || d || []); }
+    if (cuRes.ok) { const d = await cuRes.json(); setCustomerList(d.data || d || []); }
     setLoading(false);
   }
 
@@ -86,6 +88,38 @@ export default function CustomerPoPage() {
     if (!text) return [];
     const q = text.toLowerCase();
     return products.filter(p => p.code?.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q)).slice(0, 8);
+  }
+  const [customerList, setCustomerList] = useState([]);
+  const [customerSuggestOpen, setCustomerSuggestOpen] = useState(false);
+  const [customerSuggestPos, setCustomerSuggestPos] = useState({ top: 0, left: 0 });
+  const [customerAddresses, setCustomerAddresses] = useState([]);
+  function openCustomerSuggestions(e) {
+    const rect = e.target.getBoundingClientRect();
+    setCustomerSuggestPos({ top: rect.bottom + window.scrollY + 4, left: rect.left + window.scrollX });
+    setCustomerSuggestOpen(true);
+  }
+  function matchingCustomers(text) {
+    if (!text) return [];
+    const q = text.toLowerCase();
+    return customerList.filter(c => c.name?.toLowerCase().includes(q) || c.code?.toLowerCase().includes(q)).slice(0, 8);
+  }
+  async function selectCustomer(customer) {
+    const res = await fetch(`${API}/customers/${customer.id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    const full = res.ok ? await res.json() : customer;
+    const addresses = full.addresses || [];
+    const defaultAddr = addresses.find(a => a.isDefault) || addresses[0];
+    setForm(f => ({
+      ...f,
+      customerName: full.name,
+      customerEmail: full.email || '',
+      customerPhone: full.phone || '',
+      deliveryAddress: defaultAddr ? `${defaultAddr.addressLine}, ${defaultAddr.city || ''}, ${defaultAddr.state || ''} ${defaultAddr.pincode || ''}`.replace(/\s+,/g,',').trim() : f.deliveryAddress,
+    }));
+    setCustomerAddresses(addresses);
+    setCustomerSuggestOpen(false);
+  }
+  function selectAddress(addr) {
+    setForm(f => ({ ...f, deliveryAddress: `${addr.addressLine}, ${addr.city || ''}, ${addr.state || ''} ${addr.pincode || ''}`.replace(/\s+,/g,',').trim() }));
   }
   function selectProduct(i, product) {
     setForm(f => {
@@ -520,12 +554,30 @@ export default function CustomerPoPage() {
                       <div><label className="block text-sm text-gray-600 mb-1">Confirmed Date</label><input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.verbalConfirmedDate} onChange={e=>setForm(f=>({...f,verbalConfirmedDate:e.target.value}))} /></div>
                     </>
                   )}
-                  <div><label className="block text-sm text-gray-600 mb-1">Customer Name *</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.customerName} onChange={e=>setForm(f=>({...f,customerName:e.target.value}))} /></div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Customer Name *</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.customerName}
+                      onChange={e=>{setForm(f=>({...f,customerName:e.target.value})); openCustomerSuggestions(e);}}
+                      onFocus={e=>openCustomerSuggestions(e)}
+                      onBlur={()=>setTimeout(()=>setCustomerSuggestOpen(false),150)}
+                      placeholder="Type to search existing customers, or type a new name" />
+                  </div>
                   <div><label className="block text-sm text-gray-600 mb-1">Customer Email</label><input type="email" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.customerEmail} onChange={e=>setForm(f=>({...f,customerEmail:e.target.value}))} /></div>
                   <div><label className="block text-sm text-gray-600 mb-1">Phone</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.customerPhone} onChange={e=>setForm(f=>({...f,customerPhone:e.target.value}))} /></div>
                   <div><label className="block text-sm text-gray-600 mb-1">PO Date *</label><input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.poDate} onChange={e=>setForm(f=>({...f,poDate:e.target.value}))} /></div>
                   <div><label className="block text-sm text-gray-600 mb-1">Delivery Date *</label><input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.deliveryDate} onChange={e=>setForm(f=>({...f,deliveryDate:e.target.value}))} /></div>
-                  <div className="col-span-2"><label className="block text-sm text-gray-600 mb-1">Delivery Address</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.deliveryAddress} onChange={e=>setForm(f=>({...f,deliveryAddress:e.target.value}))} /></div>
+                  <div className="col-span-2">
+                    <label className="block text-sm text-gray-600 mb-1">Delivery Address</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.deliveryAddress} onChange={e=>setForm(f=>({...f,deliveryAddress:e.target.value}))} />
+                    {customerAddresses.length > 1 && (
+                      <select className="w-full border rounded-lg px-3 py-2 text-sm mt-1" onChange={e=>{ const a = customerAddresses.find(x=>x.id===e.target.value); if (a) selectAddress(a); }}>
+                        <option value="">— Pick a different saved address ({customerAddresses.length} on file) —</option>
+                        {customerAddresses.map(a=>(
+                          <option key={a.id} value={a.id}>{a.addressType}: {a.addressLine}, {a.city}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -679,6 +731,24 @@ export default function CustomerPoPage() {
           </div>
         )}
       </div>
+
+      {customerSuggestOpen && typeof document !== 'undefined' && matchingCustomers(form.customerName).length > 0 && createPortal(
+        <div
+          className="fixed z-50 w-80 bg-white border rounded-lg shadow-lg max-h-56 overflow-y-auto"
+          style={{ top: customerSuggestPos.top, left: customerSuggestPos.left }}
+        >
+          {matchingCustomers(form.customerName).map(c => (
+            <button key={c.id} type="button"
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => selectCustomer(c)}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 border-b last:border-b-0">
+              <span className="font-mono text-blue-600 font-medium">{c.code}</span>
+              <span className="text-gray-500 ml-2">{c.name}</span>
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
 
       {activeSuggestionRow !== null && typeof document !== 'undefined' && createPortal(
         (() => {
