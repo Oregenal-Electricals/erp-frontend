@@ -51,6 +51,8 @@ export default function CustomerPoPage() {
   const [form, setForm] = useState({...BLANK_FORM});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [products, setProducts] = useState([]);
+  const [activeSuggestionRow, setActiveSuggestionRow] = useState(null);
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
@@ -59,16 +61,31 @@ export default function CustomerPoPage() {
     if (search) params.set('search', search);
     if (status) params.set('status', status);
     if (poType) params.set('poType', poType);
-    const [cRes, sRes] = await Promise.all([
+    const [cRes, sRes, pRes] = await Promise.all([
       fetch(`${API}/customer-po?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/customer-po/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/products?limit=500`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (cRes.ok) { const d = await cRes.json(); setCpos(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
     if (sRes.ok) setStats(await sRes.json());
+    if (pRes.ok) { const d = await pRes.json(); setProducts(d.data || d || []); }
     setLoading(false);
   }
 
   useEffect(() => { fetchAll(); }, [page, search, status, poType]);
+  function matchingProducts(text) {
+    if (!text) return [];
+    const q = text.toLowerCase();
+    return products.filter(p => p.code?.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q)).slice(0, 8);
+  }
+  function selectProduct(i, product) {
+    setForm(f => {
+      const items = [...f.items];
+      items[i] = { ...items[i], itemCode: product.code, itemName: product.name };
+      return { ...f, items };
+    });
+    setActiveSuggestionRow(null);
+  }
 
   function addItem() { setForm(f => ({ ...f, items: [...f.items, {...BLANK_ITEM}] })); }
   function removeItem(i) { setForm(f => ({ ...f, items: f.items.filter((_,idx) => idx !== i) })); }
@@ -515,8 +532,42 @@ export default function CustomerPoPage() {
                           const c = calcItem(item);
                           return (
                             <tr key={i} className="border-b">
-                              <td className="px-1 py-1"><input className="border rounded px-2 py-1 text-xs w-24 font-mono" value={item.itemCode} onChange={e=>updateItem(i,'itemCode',e.target.value)} placeholder="FG-001" /></td>
-                              <td className="px-1 py-1"><input className="border rounded px-2 py-1 text-xs w-36" value={item.itemName} onChange={e=>updateItem(i,'itemName',e.target.value)} placeholder="Item name" /></td>
+                              <td className="px-1 py-1 relative">
+                                <input className="border rounded px-2 py-1.5 text-xs w-32 font-mono" value={item.itemCode}
+                                  onChange={e=>{updateItem(i,'itemCode',e.target.value); setActiveSuggestionRow(i);}}
+                                  onFocus={()=>setActiveSuggestionRow(i)}
+                                  onBlur={()=>setTimeout(()=>setActiveSuggestionRow(r=>r===i?null:r),150)}
+                                  placeholder="FG-001" />
+                                {activeSuggestionRow===i && matchingProducts(item.itemCode).length>0 && (
+                                  <div className="absolute z-20 mt-1 w-80 bg-white border rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                                    {matchingProducts(item.itemCode).map(p=>(
+                                      <button key={p.id} type="button" onClick={()=>selectProduct(i,p)}
+                                        className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 border-b last:border-b-0">
+                                        <span className="font-mono text-blue-600 font-medium">{p.code}</span>
+                                        <span className="text-gray-500 ml-2">{p.name}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-1 py-1 relative">
+                                <input className="border rounded px-2 py-1.5 text-xs w-64" value={item.itemName}
+                                  onChange={e=>{updateItem(i,'itemName',e.target.value); setActiveSuggestionRow(i);}}
+                                  onFocus={()=>setActiveSuggestionRow(i)}
+                                  onBlur={()=>setTimeout(()=>setActiveSuggestionRow(r=>r===i?null:r),150)}
+                                  placeholder="Item name" />
+                                {activeSuggestionRow===i && matchingProducts(item.itemName).length>0 && (
+                                  <div className="absolute z-20 mt-1 w-80 bg-white border rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                                    {matchingProducts(item.itemName).map(p=>(
+                                      <button key={p.id} type="button" onClick={()=>selectProduct(i,p)}
+                                        className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 border-b last:border-b-0">
+                                        <span className="font-mono text-blue-600 font-medium">{p.code}</span>
+                                        <span className="text-gray-500 ml-2">{p.name}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
                               <td className="px-1 py-1"><input type="number" className="border rounded px-2 py-1 text-xs w-16" value={item.qty} onChange={e=>updateItem(i,'qty',e.target.value)} /></td>
                               <td className="px-1 py-1"><input className="border rounded px-2 py-1 text-xs w-16" value={item.uom} onChange={e=>updateItem(i,'uom',e.target.value)} /></td>
                               <td className="px-1 py-1"><input type="number" className="border rounded px-2 py-1 text-xs w-24" value={item.unitPrice} onChange={e=>updateItem(i,'unitPrice',e.target.value)} placeholder="0.00" /></td>
