@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import AppLayout from '@/components/layout/AppLayout';
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
@@ -31,6 +32,47 @@ export default function PurchaseOrdersPage() {
     setLoading(false);
   }
   useEffect(()=>{ fetchAll(); },[]);
+  useEffect(()=>{ if (showForm) fetchAll(); },[showForm]);
+
+  const [vendorSuggestOpen, setVendorSuggestOpen] = useState(false);
+  const [vendorSuggestPos, setVendorSuggestPos] = useState({ top: 0, left: 0 });
+  const [vendorSearchText, setVendorSearchText] = useState('');
+  function openVendorSuggestions(e) {
+    const rect = e.target.getBoundingClientRect();
+    setVendorSuggestPos({ top: rect.bottom + window.scrollY + 4, left: rect.left + window.scrollX });
+    setVendorSuggestOpen(true);
+  }
+  function matchingVendors(text) {
+    if (!text) return vendors;
+    const q = text.toLowerCase();
+    return vendors.filter(v => v.name?.toLowerCase().includes(q) || v.code?.toLowerCase().includes(q));
+  }
+  function selectVendor(v) {
+    setForm(f=>({...f,vendorId:v.id}));
+    setVendorSearchText(`${v.name} (${v.code})`);
+    setVendorSuggestOpen(false);
+  }
+
+  const [materialSuggestRow, setMaterialSuggestRow] = useState(null);
+  const [materialSuggestPos, setMaterialSuggestPos] = useState({ top: 0, left: 0 });
+  const [materialSearchText, setMaterialSearchText] = useState({});
+  function openMaterialSuggestions(e, i) {
+    const rect = e.target.getBoundingClientRect();
+    setMaterialSuggestPos({ top: rect.bottom + window.scrollY + 4, left: rect.left + window.scrollX });
+    setMaterialSuggestRow(i);
+  }
+  function matchingMaterials(text) {
+    if (!text) return rawMaterials;
+    const q = text.toLowerCase();
+    return rawMaterials.filter(r => r.name?.toLowerCase().includes(q) || r.code?.toLowerCase().includes(q));
+  }
+  function selectMaterial(i, rm) {
+    updateItem(i,'rawMaterialId',rm.id);
+    updateItem(i,'uom',rm?.uom?.code||'NOS');
+    updateItem(i,'unitPrice',rm?.standardRate||'');
+    setMaterialSearchText(s=>({...s, [i]: `${rm.name} (${rm.code})`}));
+    setMaterialSuggestRow(null);
+  }
 
   function addItem() { setForm(f=>({...f,items:[...f.items,{rawMaterialId:'',quantity:'',unitPrice:'',uom:'',remarks:''}]})); }
   function removeItem(i) { setForm(f=>({...f,items:f.items.filter((_,idx)=>idx!==i)})); }
@@ -197,11 +239,13 @@ export default function PurchaseOrdersPage() {
               <div className="p-5 space-y-4">
                 {error&&<div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2"><label className="block text-xs text-gray-500 mb-1">Vendor *</label>
-                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.vendorId} onChange={e=>setForm(f=>({...f,vendorId:e.target.value}))}>
-                      <option value="">— Select Vendor —</option>
-                      {vendors.map(v=><option key={v.id} value={v.id}>{v.name} ({v.code})</option>)}
-                    </select>
+                  <div className="col-span-2">
+                    <label className="block text-xs text-gray-500 mb-1">Vendor *</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={vendorSearchText}
+                      onChange={e=>{setVendorSearchText(e.target.value); setForm(f=>({...f,vendorId:''})); openVendorSuggestions(e);}}
+                      onFocus={e=>openVendorSuggestions(e)}
+                      onBlur={()=>setTimeout(()=>setVendorSuggestOpen(false),150)}
+                      placeholder="Search or select a vendor" />
                   </div>
                   <div><label className="block text-xs text-gray-500 mb-1">Delivery Date</label><input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.deliveryDate} onChange={e=>setForm(f=>({...f,deliveryDate:e.target.value}))} /></div>
                   <div><label className="block text-xs text-gray-500 mb-1">Payment Terms</label>
@@ -221,17 +265,13 @@ export default function PurchaseOrdersPage() {
                     {form.items.map((item,i)=>(
                       <div key={i} className="border rounded-lg p-3 bg-gray-50">
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                          <div className="col-span-2"><label className="block text-xs text-gray-500 mb-1">Material *</label>
-                            <select className="w-full border rounded-lg px-3 py-2 text-sm bg-white" value={item.rawMaterialId}
-                              onChange={e=>{
-                                const rm = rawMaterials.find(r=>r.id===e.target.value);
-                                updateItem(i,'rawMaterialId',e.target.value);
-                                updateItem(i,'uom',rm?.uom?.code||'NOS');
-                                updateItem(i,'unitPrice',rm?.standardRate||'');
-                              }}>
-                              <option value="">— Select —</option>
-                              {rawMaterials.map(r=><option key={r.id} value={r.id}>{r.name} ({r.code})</option>)}
-                            </select>
+                          <div className="col-span-2">
+                            <label className="block text-xs text-gray-500 mb-1">Material *</label>
+                            <input className="w-full border rounded-lg px-3 py-2 text-sm bg-white" value={materialSearchText[i] || ''}
+                              onChange={e=>{setMaterialSearchText(s=>({...s,[i]:e.target.value})); updateItem(i,'rawMaterialId',''); openMaterialSuggestions(e,i);}}
+                              onFocus={e=>openMaterialSuggestions(e,i)}
+                              onBlur={()=>setTimeout(()=>setMaterialSuggestRow(r=>r===i?null:r),150)}
+                              placeholder="Search or select a material" />
                           </div>
                           <div><label className="block text-xs text-gray-500 mb-1">Qty *</label><input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={item.quantity} onChange={e=>updateItem(i,'quantity',e.target.value)} /></div>
                           <div><label className="block text-xs text-gray-500 mb-1">Unit Price *</label><input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={item.unitPrice} onChange={e=>updateItem(i,'unitPrice',e.target.value)} /></div>
@@ -335,6 +375,32 @@ export default function PurchaseOrdersPage() {
           </div>
         )}
       </div>
+
+      {vendorSuggestOpen && typeof document !== 'undefined' && matchingVendors(vendorSearchText).length > 0 && createPortal(
+        <div className="fixed z-50 w-80 bg-white border rounded-lg shadow-lg max-h-56 overflow-y-auto" style={{ top: vendorSuggestPos.top, left: vendorSuggestPos.left }}>
+          {matchingVendors(vendorSearchText).map(v => (
+            <button key={v.id} type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>selectVendor(v)}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 border-b last:border-b-0">
+              <span className="font-mono text-blue-600 font-medium">{v.code}</span>
+              <span className="text-gray-500 ml-2">{v.name}</span>
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+
+      {materialSuggestRow !== null && typeof document !== 'undefined' && matchingMaterials(materialSearchText[materialSuggestRow] || '').length > 0 && createPortal(
+        <div className="fixed z-50 w-80 bg-white border rounded-lg shadow-lg max-h-56 overflow-y-auto" style={{ top: materialSuggestPos.top, left: materialSuggestPos.left }}>
+          {matchingMaterials(materialSearchText[materialSuggestRow] || '').map(r => (
+            <button key={r.id} type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>selectMaterial(materialSuggestRow, r)}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 border-b last:border-b-0">
+              <span className="font-mono text-blue-600 font-medium">{r.code}</span>
+              <span className="text-gray-500 ml-2">{r.name}</span>
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
     </AppLayout>
   );
 }
