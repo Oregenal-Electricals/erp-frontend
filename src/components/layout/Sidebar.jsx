@@ -177,6 +177,7 @@ const NAV = [
     children: [
       { label: 'Leads', href: '/sales/leads', icon: Users2 },
       { label: 'Quotations', href: '/sales/quotations', icon: FileText },
+      { label: 'Customers', href: '/sales/customers', icon: Users2 },
       { label: 'Customer PO', href: '/customer-po', icon: ClipboardList },
       { label: 'Sales Orders', href: '/sales/sales-orders', icon: ShoppingCart },
       { label: 'Dispatch Plans', href: '/sales/dispatch-planning', icon: Truck },
