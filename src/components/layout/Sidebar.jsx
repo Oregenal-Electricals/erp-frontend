@@ -195,6 +195,7 @@ const NAV = [
       { label: 'Inv. Dashboard', href: '/inventory-dashboard', icon: BarChart3 },
       { label: 'Warehouses', href: '/warehouse', icon: Building2 },
       { label: 'UOM', href: '/inventory/uom', icon: Layers },
+      { label: 'Products', href: '/masters/products', icon: Box },
       { label: 'BOM', href: '/inventory/bom', icon: ClipboardList },
       { label: 'BOM Revisions', href: '/inventory/bom-revisions', icon: GitBranch },
       { label: 'GRN', href: '/inventory/grn', icon: PackageCheck },
