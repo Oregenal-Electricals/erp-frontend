@@ -26,15 +26,18 @@ export default function CreateGateInwardPage() {
   // row for anything not on the PO. Empty array means "no PO picked
   // yet" - falls back to the old single Material Description field.
   const [gateItems, setGateItems] = useState([]);
+  const [poSearch, setPoSearch] = useState('');
+  const [showPoDropdown, setShowPoDropdown] = useState(false);
+  const [selectedPoLabel, setSelectedPoLabel] = useState('');
   const [error, setError]   = useState('');
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     api.get('/masters/plants').then(({ data }) => setPlants(data));
     api.get('/vehicle-logs/active').then(({ data }) => setVehicleLogs(data));
-    api.get('/purchase-orders?limit=200&status=SENT').then((res) => setPurchaseOrders(res.data?.data || []));
+    api.get('/purchase-orders?limit=200&status=SENT,PARTIALLY_RECEIVED&excludeGateInwarded=true').then((res) => setPurchaseOrders(res.data?.data || []));
   }, []);
   const handleChange = (e) => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
-  const handlePoSelect = async (poId) => {
+  const handlePoSelect = async (poId, label) => {
     const po = purchaseOrders.find(p => p.id === poId);
     setForm(p => ({
       ...p,
@@ -42,6 +45,9 @@ export default function CreateGateInwardPage() {
       supplierName: po?.vendor?.name || p.supplierName,
       supplierGstin: po?.vendor?.gstin || p.supplierGstin,
     }));
+    setSelectedPoLabel(label || '');
+    setPoSearch('');
+    setShowPoDropdown(false);
     if (!poId) { setGateItems([]); return; }
     const { data: fullPo } = await api.get(`/purchase-orders/${poId}`);
     setGateItems((fullPo.items || []).map(item => ({
@@ -53,6 +59,10 @@ export default function CreateGateInwardPage() {
       packageCount: '',
     })));
   };
+  const filteredPos = purchaseOrders.filter(po => {
+    const label = `${po.poNumber} ${po.vendor?.name || ''} ${po.vendor?.code || ''}`.toLowerCase();
+    return label.includes(poSearch.toLowerCase());
+  });
   function updateGateItem(i, field, value) {
     setGateItems(items => items.map((it, idx) => idx === i ? { ...it, [field]: value } : it));
   }
@@ -122,6 +132,41 @@ export default function CreateGateInwardPage() {
       <div className="max-w-3xl">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           {error && <div className="mb-4 p-3 bg-red-50 border-2 border-red-300 rounded-lg text-red-700 text-sm font-medium">{error}</div>}
+          {/* Purchase Order - select first so everything else auto-fills */}
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Purchase Order</h3>
+          <div className="mb-5 relative">
+            <label className={labelClass}>Select PO to auto-fill supplier &amp; items (optional)</label>
+            <input
+              type="text"
+              value={showPoDropdown ? poSearch : selectedPoLabel}
+              onFocus={() => { setShowPoDropdown(true); setPoSearch(''); }}
+              onChange={e => setPoSearch(e.target.value)}
+              onBlur={() => setTimeout(() => setShowPoDropdown(false), 150)}
+              placeholder="Click to see pending POs, or type to search..."
+              style={{ color: '#111827', backgroundColor: '#ffffff' }} className={inputClass}
+            />
+            {showPoDropdown && (
+              <div className="absolute z-20 mt-1 w-full bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
+                <div
+                  onMouseDown={() => handlePoSelect('', '')}
+                  className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 cursor-pointer border-b"
+                >
+                  No PO (non-purchase delivery)
+                </div>
+                {filteredPos.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-gray-400">No matching pending POs</div>
+                ) : filteredPos.map(po => (
+                  <div
+                    key={po.id}
+                    onMouseDown={() => handlePoSelect(po.id, `${po.poNumber} — ${po.vendor?.name} (${po.vendor?.code})`)}
+                    className="px-3 py-2 text-sm text-gray-800 hover:bg-blue-50 cursor-pointer"
+                  >
+                    {po.poNumber} — {po.vendor?.name} ({po.vendor?.code})
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           {/* Gate Info */}
           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Gate Information</h3>
           <div className="grid grid-cols-2 gap-4 mb-5">
@@ -167,18 +212,8 @@ export default function CreateGateInwardPage() {
             </div>
           </div>
           {/* Invoice Info */}
-          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Invoice / PO Details</h3>
-          <div className="grid grid-cols-4 gap-4 mb-5">
-            <div className="col-span-2">
-              <label className={labelClass}>Purchase Order</label>
-              <select value={form.poId} onChange={e=>handlePoSelect(e.target.value)}
-                style={{ color: '#111827', backgroundColor: '#ffffff' }} className={inputClass}>
-                <option value="">No PO (non-purchase delivery)</option>
-                {purchaseOrders.map(po => (
-                  <option key={po.id} value={po.id}>{po.poNumber} — {po.vendor?.name} ({po.vendor?.code})</option>
-                ))}
-              </select>
-            </div>
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Invoice Details</h3>
+          <div className="grid grid-cols-3 gap-4 mb-5">
             <div>
               <label className={labelClass}>Invoice Number</label>
               <input type="text" name="invoiceNumber" value={form.invoiceNumber} onChange={handleChange}
