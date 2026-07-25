@@ -59,7 +59,7 @@ export default function GateInwardDetailPage() {
       <PageHeader
         title={entry?.ginNumber || 'Gate Inward'}
         subtitle={entry?.supplierName}
-        action={<button onClick={() => router.push('/gate/inward')} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">← Back</button>}
+        action={<button onClick={() => router.push('/gate/inward')} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">← Back</button>}
       />
 
       {error && <div className="mb-4 p-3 bg-red-50 border-2 border-red-300 rounded-lg text-red-700 text-sm">{error}</div>}
@@ -77,6 +77,7 @@ export default function GateInwardDetailPage() {
                 <table className="w-full text-sm border rounded-lg overflow-hidden">
                   <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
                     <tr>
+                      <th className="px-3 py-2 text-left">Sr. No</th>
                       <th className="px-3 py-2 text-left">Item Code</th>
                       <th className="px-3 py-2 text-left">Material</th>
                       <th className="px-3 py-2 text-left">Qty</th>
@@ -85,8 +86,9 @@ export default function GateInwardDetailPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {entry.items.map((it) => (
+                    {entry.items.map((it, idx) => (
                       <tr key={it.id}>
+                        <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
                         <td className="px-3 py-2 font-mono text-xs text-gray-500">{it.itemCode}</td>
                         <td className="px-3 py-2">{it.itemName}</td>
                         <td className="px-3 py-2 font-medium">{formatNum(it.quantity)}</td>

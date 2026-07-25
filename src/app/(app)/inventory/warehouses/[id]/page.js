@@ -79,7 +79,7 @@ export default function WarehouseDetailPage() {
       <PageHeader
         title={wh?.code}
         subtitle={`${wh?.name} · ${wh?.type?.replace(/_/g, ' ')} · ${wh?.plant?.name}`}
-        action={<button onClick={() => router.push('/inventory/warehouses')} className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">← Back</button>}
+        action={<button onClick={() => router.push('/inventory/warehouses')} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">← Back</button>}
       />
 
       {error && <div className="mb-4 p-3 bg-red-50 border-2 border-red-300 rounded-lg text-red-700 text-sm">{error}</div>}
