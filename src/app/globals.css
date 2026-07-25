@@ -40,3 +40,14 @@ textarea:focus {
   border-color: #3b82f6 !important;
   box-shadow: 0 0 0 1px #3b82f6 !important;
 }
+
+/* Hide default browser up/down spinner buttons on number inputs (Qty fields etc.) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
