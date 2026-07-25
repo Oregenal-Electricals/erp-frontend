@@ -28,6 +28,17 @@ export default function BomDetailPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [stages, setStages] = useState([]);
+  const [versions, setVersions] = useState([]);
+
+  const fetchChain = useCallback(async () => {
+    const [sRes, vRes] = await Promise.all([
+      fetch(`${API}/boms/${id}/stages`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/boms/${id}/history`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+    ]);
+    if (sRes.ok) setStages(await sRes.json());
+    if (vRes.ok) setVersions(await vRes.json());
+  }, [id]);
 
   const fetchBom = useCallback(async () => {
     setLoading(true);
@@ -36,7 +47,7 @@ export default function BomDetailPage() {
     setLoading(false);
   }, [id]);
 
-  useEffect(() => { fetchBom(); }, [fetchBom]);
+  useEffect(() => { fetchBom(); fetchChain(); }, [fetchBom, fetchChain]);
 
   function openAdd() {
     setEditItem(null);
@@ -116,6 +127,39 @@ export default function BomDetailPage() {
             </div>
           ))}
         </div>
+
+        {(stages.length > 0 || versions.length > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {stages.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-3">Stage BOMs ({stages.length})</h3>
+                <div className="space-y-1">
+                  {stages.map(s => (
+                    <Link key={s.id} href={`/inventory/bom/${s.id}`} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2 border text-sm hover:border-blue-300">
+                      <span className="font-mono text-blue-600">{s.bomNumber}</span>
+                      <span className="text-gray-500 truncate mx-2">{s.product?.name}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[s.status] || 'bg-gray-100'}`}>{s.status}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+            {versions.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-3">Version History — {bom.bomNumber} ({versions.length})</h3>
+                <div className="space-y-1">
+                  {versions.map(v => (
+                    <Link key={v.id} href={`/inventory/bom/${v.id}`} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2 border text-sm hover:border-blue-300">
+                      <span className="font-mono">{v.version}</span>
+                      <span className="text-gray-500">{v._count?.items || 0} items</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[v.status] || 'bg-gray-100'}`}>{v.status}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="p-4 border-b flex justify-between items-center">
