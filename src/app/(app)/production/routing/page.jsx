@@ -37,7 +37,7 @@ export default function ProductionRoutingPage() {
     const [rRes, pRes, bRes, wRes] = await Promise.all([
       fetch(`${API}/routing`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/products?limit=200`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/bom?limit=200`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/boms?limit=200`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/warehouses?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (rRes.ok) setRoutings(await rRes.json());
