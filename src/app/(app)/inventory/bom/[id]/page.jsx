@@ -161,7 +161,7 @@ export default function BomDetailPage() {
                     <td className="px-3 py-3 text-gray-600">{item.uom}</td>
                     <td className="px-3 py-3 text-gray-800">{item.quantity}</td>
                     <td className="px-3 py-3 text-gray-800 font-medium">{item.effectiveQty?.toFixed(3)}</td>
-                    <td className="px-3 py-3 text-gray-600">{item.unitCost ? `₹${item.unitCost}` : '—'}</td>
+                    <td className="px-3 py-3 text-gray-600">{item.unitCost ? `₹${Number(item.unitCost).toFixed(2)}` : '—'}</td>
                     <td className="px-3 py-3 font-medium text-gray-800">{item.totalCost ? `₹${item.totalCost.toFixed(2)}` : '—'}</td>
                     <td className="px-3 py-3">
                       {bom.status === 'DRAFT' && (
