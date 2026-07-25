@@ -30,6 +30,7 @@ export default function BomDetailPage() {
   const [error, setError] = useState('');
   const [stages, setStages] = useState([]);
   const [versions, setVersions] = useState([]);
+  const [showVersions, setShowVersions] = useState(false);
 
   const fetchChain = useCallback(async () => {
     const [sRes, vRes] = await Promise.all([
@@ -146,16 +147,21 @@ export default function BomDetailPage() {
             )}
             {versions.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-3">Version History — {bom.bomNumber} ({versions.length})</h3>
-                <div className="space-y-1">
-                  {versions.map(v => (
-                    <Link key={v.id} href={`/inventory/bom/${v.id}`} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2 border text-sm hover:border-blue-300">
-                      <span className="font-mono">{v.version}</span>
-                      <span className="text-gray-500">{v._count?.items || 0} items</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[v.status] || 'bg-gray-100'}`}>{v.status}</span>
-                    </Link>
-                  ))}
-                </div>
+                <button onClick={() => setShowVersions(v => !v)} className="w-full flex items-center justify-between text-xs font-semibold text-gray-500 uppercase">
+                  <span>Previous Versions ({versions.length})</span>
+                  <span className="text-gray-400">{showVersions ? '▾' : '▸'}</span>
+                </button>
+                {showVersions && (
+                  <div className="space-y-1 mt-3">
+                    {versions.map(v => (
+                      <Link key={v.id} href={`/inventory/bom/${v.id}`} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2 border text-sm hover:border-blue-300">
+                        <span className="font-mono">{v.version}</span>
+                        <span className="text-gray-500">{v._count?.items || 0} items</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[v.status] || 'bg-gray-100'}`}>{v.status}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
