@@ -209,12 +209,9 @@ export default function GrnPage() {
   return (
     <AppLayout>
       <div className="p-6 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Goods Receipt Note (GRN)</h1>
-            <p className="text-gray-500 text-sm mt-1">Record physical receipt of goods against PO or Import PO</p>
-          </div>
-          <button onClick={() => { setForm({ grnType: 'DOMESTIC', poId: '', ipoId: '', gateInwardEntryId: '', landedCostId: '', warehouseId: '', vehicleNumber: '', dcNumber: '', invoiceNumber: '', invoiceDate: '', remarks: '' }); setItems([]); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New GRN</button>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Goods Receipt Note (GRN)</h1>
+          <p className="text-gray-500 text-sm mt-1">Record physical receipt of goods against PO or Import PO</p>
         </div>
 
         {stats && (
@@ -418,11 +415,12 @@ export default function GrnPage() {
                     <div className="overflow-x-auto border rounded-lg">
                       <table className="w-full text-xs">
                         <thead className="bg-gray-50 text-gray-500 uppercase">
-                          <tr>{['Item Code','Item Name','UOM','Ordered','Received Qty','Unit Price','LC/Unit','Total'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
+                          <tr>{['Sr. No','Item Code','Item Name','UOM','Ordered','Received Qty','Unit Price','LC/Unit','Total'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                           {items.map((item, idx) => (
                             <tr key={idx}>
+                              <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
                               <td className="px-3 py-2 font-mono text-blue-600">{item.itemCode}</td>
                               <td className="px-3 py-2">{item.itemName}</td>
                               <td className="px-3 py-2 text-gray-500">{item.uom}</td>
