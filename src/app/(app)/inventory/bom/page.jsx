@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
 
@@ -28,6 +28,22 @@ export default function BomListPage() {
   const [form, setForm] = useState({ productId: '', version: 'v1', description: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
+  const [drillDown, setDrillDown] = useState({}); // { [bomId]: { stages: [], history: [], loading: bool } }
+
+  async function toggleExpand(id) {
+    if (expandedId === id) { setExpandedId(null); return; }
+    setExpandedId(id);
+    if (drillDown[id]) return; // already fetched
+    setDrillDown(prev => ({ ...prev, [id]: { loading: true } }));
+    const [sRes, hRes] = await Promise.all([
+      fetch(`${API}/boms/${id}/stages`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/boms/${id}/history`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+    ]);
+    const stages = sRes.ok ? await sRes.json() : [];
+    const history = hRes.ok ? await hRes.json() : [];
+    setDrillDown(prev => ({ ...prev, [id]: { stages, history, loading: false } }));
+  }
 
   const fetchStats = useCallback(async () => {
     const res = await fetch(`${API}/boms/stats`, { headers: { Authorization: `Bearer ${getToken()}` } });
@@ -41,7 +57,7 @@ export default function BomListPage() {
 
   const fetchBoms = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ page, limit: 20 });
+    const params = new URLSearchParams({ page, limit: 20, bomType: 'MASTER', hideObsolete: 'true' });
     if (search) params.set('search', search);
     if (status) params.set('status', status);
     const res = await fetch(`${API}/boms?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
@@ -137,8 +153,12 @@ export default function BomListPage() {
                 ) : boms.length === 0 ? (
                   <tr><td colSpan={9} className="text-center py-10 text-gray-400">No BOMs found</td></tr>
                 ) : boms.map(b => (
-                  <tr key={b.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-mono font-medium text-blue-600">{b.bomNumber}</td>
+                  <Fragment key={b.id}>
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-mono font-medium text-blue-600">
+                      <button onClick={() => toggleExpand(b.id)} className="mr-2 text-gray-400 hover:text-gray-700 inline-block w-3">{expandedId === b.id ? '▾' : '▸'}</button>
+                      {b.bomNumber}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900">{b.product?.name}</div>
                       <div className="text-xs text-gray-400">{b.product?.code}</div>
@@ -157,6 +177,51 @@ export default function BomListPage() {
                       </div>
                     </td>
                   </tr>
+                  {expandedId === b.id && (
+                    <tr>
+                      <td colSpan={9} className="bg-gray-50 px-8 py-4 border-t border-b">
+                        {drillDown[b.id]?.loading ? (
+                          <div className="text-sm text-gray-400">Loading stages & history...</div>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-6">
+                            <div>
+                              <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Stage BOMs ({drillDown[b.id]?.stages?.length || 0})</div>
+                              {(!drillDown[b.id]?.stages || drillDown[b.id].stages.length === 0) ? (
+                                <div className="text-sm text-gray-400">No routing-stage BOMs generated from this one.</div>
+                              ) : (
+                                <div className="space-y-1">
+                                  {drillDown[b.id].stages.map(s => (
+                                    <Link key={s.id} href={`/inventory/bom/${s.id}`} className="flex items-center justify-between bg-white rounded px-3 py-2 border text-sm hover:border-blue-300">
+                                      <span className="font-mono text-blue-600">{s.bomNumber}</span>
+                                      <span className="text-gray-500">{s.product?.name}</span>
+                                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[s.status] || 'bg-gray-100'}`}>{s.status}</span>
+                                    </Link>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Version History ({drillDown[b.id]?.history?.length || 0})</div>
+                              {(!drillDown[b.id]?.history || drillDown[b.id].history.length === 0) ? (
+                                <div className="text-sm text-gray-400">No obsolete prior versions.</div>
+                              ) : (
+                                <div className="space-y-1">
+                                  {drillDown[b.id].history.map(h => (
+                                    <Link key={h.id} href={`/inventory/bom/${h.id}`} className="flex items-center justify-between bg-white rounded px-3 py-2 border text-sm hover:border-blue-300 opacity-70">
+                                      <span className="font-mono">{h.bomNumber}</span>
+                                      <span className="text-gray-500">{h.version}</span>
+                                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">OBSOLETE</span>
+                                    </Link>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
