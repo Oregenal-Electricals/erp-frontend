@@ -44,6 +44,7 @@ export default function GateInwardPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Gate Inward" subtitle="Goods received at gate"
         action={
           <button onClick={() => router.push('/gate/inward/create')}
@@ -131,6 +132,7 @@ export default function GateInwardPage() {
           </table>
         )}
       </div>
+    </div>
     </AppLayout>
   );
 }

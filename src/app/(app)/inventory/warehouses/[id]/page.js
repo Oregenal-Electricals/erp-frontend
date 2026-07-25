@@ -69,10 +69,13 @@ export default function WarehouseDetailPage() {
 
   const inputSm = "border-2 border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-500";
 
-  if (loading) return <AppLayout><div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div></AppLayout>;
+  if (loading) return <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto"><div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div></div>
+    </AppLayout>;
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title={wh?.code}
         subtitle={`${wh?.name} · ${wh?.type?.replace(/_/g, ' ')} · ${wh?.plant?.name}`}
@@ -216,6 +219,7 @@ export default function WarehouseDetailPage() {
           </dl>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

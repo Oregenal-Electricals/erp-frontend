@@ -51,6 +51,7 @@ export default function ItemsPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Item Master" subtitle="All items, components and products"
         action={
           <button onClick={() => router.push('/inventory/items/create')}
@@ -146,6 +147,7 @@ export default function ItemsPage() {
           </table>
         )}
       </div>
+    </div>
     </AppLayout>
   );
 }

@@ -48,14 +48,17 @@ export default function EditDepartmentPage() {
   if (loading)
     return (
       <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
         <div className="flex items-center justify-center h-64">
           <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
         </div>
-      </AppLayout>
+      </div>
+    </AppLayout>
     );
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Edit Department"
         subtitle={`Editing: ${form.name || ''}`}
@@ -125,6 +128,7 @@ export default function EditDepartmentPage() {
           </form>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

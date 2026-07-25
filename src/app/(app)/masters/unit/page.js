@@ -57,6 +57,7 @@ export default function UnitListPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Unit Master" subtitle="Production units and lines"
         action={loaded && can(Permission.UNIT_CREATE) ? (
           <button onClick={() => router.push('/masters/unit/create')}
@@ -66,6 +67,7 @@ export default function UnitListPage() {
         ) : null}
       />
       <DataTable columns={columns} data={units} loading={loading} emptyMessage="No units found." />
+    </div>
     </AppLayout>
   );
 }

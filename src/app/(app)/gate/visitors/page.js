@@ -25,6 +25,7 @@ export default function VisitorsPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Visitor Master" subtitle="Registered visitors database"
         action={
           <button onClick={() => router.push('/gate/visitors/create')}
@@ -93,6 +94,7 @@ export default function VisitorsPage() {
           </table>
         )}
       </div>
+    </div>
     </AppLayout>
   );
 }

@@ -48,6 +48,7 @@ export default function CreateWarehousePage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="New Warehouse" subtitle="Create a new storage location" />
       <div className="max-w-2xl">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -113,6 +114,7 @@ export default function CreateWarehousePage() {
           </div>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

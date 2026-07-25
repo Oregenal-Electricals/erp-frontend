@@ -22,10 +22,13 @@ export default function ItemDetailPage() {
     api.get(`/items/${id}`).then(({ data }) => { setItem(data); setLoading(false); });
   }, [id]);
 
-  if (loading) return <AppLayout><div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div></AppLayout>;
+  if (loading) return <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto"><div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div></div>
+    </AppLayout>;
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title={item?.itemCode}
         subtitle={item?.itemName}
@@ -105,6 +108,7 @@ export default function ItemDetailPage() {
           </div>
         </div>
       )}
+    </div>
     </AppLayout>
   );
 }

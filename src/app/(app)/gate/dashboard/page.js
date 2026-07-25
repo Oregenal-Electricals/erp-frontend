@@ -134,6 +134,7 @@ export default function GateDashboardPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Gate Security Dashboard"
         subtitle={lastRefresh ? `Last updated ${formatTime(lastRefresh)} · Auto-refresh every 60s` : 'Loading...'}
@@ -360,6 +361,7 @@ export default function GateDashboardPage() {
           </div>
         </>
       )}
+    </div>
     </AppLayout>
   );
 }

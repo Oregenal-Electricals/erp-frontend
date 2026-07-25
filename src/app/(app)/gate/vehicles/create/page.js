@@ -35,6 +35,7 @@ export default function RegisterVehiclePage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Register Vehicle" subtitle="Add vehicle to the system" />
       <div className="max-w-lg">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -84,6 +85,7 @@ export default function RegisterVehiclePage() {
           </div>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

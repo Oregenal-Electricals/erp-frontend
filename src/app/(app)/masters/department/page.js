@@ -57,6 +57,7 @@ export default function DepartmentListPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Department Master" subtitle="Functional departments"
         action={loaded && can(Permission.DEPARTMENT_CREATE) ? (
           <button onClick={() => router.push('/masters/department/create')}
@@ -66,6 +67,7 @@ export default function DepartmentListPage() {
         ) : null}
       />
       <DataTable columns={columns} data={depts} loading={loading} emptyMessage="No departments found." />
+    </div>
     </AppLayout>
   );
 }

@@ -123,6 +123,7 @@ export default function CreateCompanyPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Create Company"
         subtitle="Add a new company to the system"
@@ -184,6 +185,7 @@ export default function CreateCompanyPage() {
           </form>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

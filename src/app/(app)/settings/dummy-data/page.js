@@ -79,6 +79,7 @@ export default function DummyDataPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Dummy Data Management"
         subtitle="Seed and purge test data for development and demonstration"
@@ -187,6 +188,7 @@ export default function DummyDataPage() {
         </div>
         <p className="text-xs text-blue-600 mt-2 font-medium">Replace {'{code}'} with company code in lowercase (e.g. acme001)</p>
       </div>
+    </div>
     </AppLayout>
   );
 }

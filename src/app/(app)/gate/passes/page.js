@@ -52,6 +52,7 @@ export default function GatePassesPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Gate Passes" subtitle="Material gate pass management"
         action={
           <button onClick={() => router.push('/gate/passes/create')}
@@ -149,6 +150,7 @@ export default function GatePassesPage() {
           </table>
         )}
       </div>
+    </div>
     </AppLayout>
   );
 }

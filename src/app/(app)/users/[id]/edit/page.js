@@ -52,14 +52,17 @@ export default function EditUserPage() {
 
   if (loading) return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-center h-64">
         <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
       </div>
+    </div>
     </AppLayout>
   );
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Edit User" subtitle={`Editing: ${form.firstName || ''} ${form.lastName || ''}`} />
       <div className="max-w-2xl">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -136,6 +139,7 @@ export default function EditUserPage() {
           </div>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

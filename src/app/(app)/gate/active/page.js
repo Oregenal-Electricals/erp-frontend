@@ -43,6 +43,7 @@ export default function ActiveVisitorsPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Active Visitors"
         subtitle={`${logs.length} visitors currently inside`}
@@ -112,6 +113,7 @@ export default function ActiveVisitorsPage() {
           </table>
         )}
       </div>
+    </div>
     </AppLayout>
   );
 }

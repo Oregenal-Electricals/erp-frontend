@@ -59,6 +59,7 @@ export default function CreateChangeRequestPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="New Change Request" subtitle="Raise a change request for approval" />
       <div className="max-w-2xl">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -136,6 +137,7 @@ export default function CreateChangeRequestPage() {
           </div>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

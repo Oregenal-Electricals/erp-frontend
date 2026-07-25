@@ -36,6 +36,7 @@ export default function CreateDepartmentPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Create Department" subtitle="Add a new department" />
       <div className="max-w-xl">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -104,6 +105,7 @@ export default function CreateDepartmentPage() {
           </form>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

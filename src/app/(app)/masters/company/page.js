@@ -76,6 +76,7 @@ export default function CompanyListPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Company Master"
         subtitle="Manage your company profile"
@@ -96,6 +97,7 @@ export default function CompanyListPage() {
         loading={loading}
         emptyMessage="No companies found."
       />
+    </div>
     </AppLayout>
   );
 }

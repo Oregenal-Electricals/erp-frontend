@@ -41,6 +41,7 @@ export default function CreatePlantPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Create Plant"
         subtitle="Add a new manufacturing plant"
@@ -199,6 +200,7 @@ export default function CreatePlantPage() {
           </form>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

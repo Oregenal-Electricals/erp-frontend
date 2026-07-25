@@ -76,6 +76,7 @@ export default function NumberingSeriesPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Numbering Series"
         subtitle="Configure document numbering for PO, GRN, Invoice etc."
@@ -232,6 +233,7 @@ export default function NumberingSeriesPage() {
           </div>
         </div>
       )}
+    </div>
     </AppLayout>
   );
 }

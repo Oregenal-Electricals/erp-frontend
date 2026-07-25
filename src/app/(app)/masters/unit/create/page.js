@@ -38,6 +38,7 @@ export default function CreateUnitPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Create Unit"
         subtitle="Add a new production unit or line"
@@ -124,6 +125,7 @@ export default function CreateUnitPage() {
           </form>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

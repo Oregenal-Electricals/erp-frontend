@@ -62,6 +62,7 @@ export default function ChangeRequestsPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Change Requests"
         subtitle="Track and manage change requests"
@@ -167,6 +168,7 @@ export default function ChangeRequestsPage() {
           </div>
         )}
       </div>
+    </div>
     </AppLayout>
   );
 }

@@ -53,6 +53,7 @@ export default function CreateUserPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Create User" subtitle="Add a new system user" />
       <div className="max-w-2xl">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -182,6 +183,7 @@ export default function CreateUserPage() {
           </div>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

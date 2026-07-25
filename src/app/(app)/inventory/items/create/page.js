@@ -65,6 +65,7 @@ export default function CreateItemPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="New Item" subtitle="Add item to master catalog" />
       <div className="max-w-4xl">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -240,6 +241,7 @@ export default function CreateItemPage() {
           </div>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

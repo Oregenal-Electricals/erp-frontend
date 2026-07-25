@@ -62,6 +62,7 @@ export default function CreateFinancialYearPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Create Financial Year"
         subtitle="Add a new accounting period"
@@ -180,6 +181,7 @@ export default function CreateFinancialYearPage() {
           </form>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

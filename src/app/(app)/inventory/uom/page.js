@@ -39,6 +39,7 @@ export default function UomPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Unit of Measure" subtitle="Manage measurement units" />
       <div className="grid grid-cols-3 gap-6">
         {/* Form */}
@@ -105,6 +106,7 @@ export default function UomPage() {
           )}
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

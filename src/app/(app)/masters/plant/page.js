@@ -58,6 +58,7 @@ export default function PlantListPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Plant Master" subtitle="Manufacturing plants and facilities"
         action={loaded && can(Permission.PLANT_CREATE) ? (
           <button onClick={() => router.push('/masters/plant/create')}
@@ -67,6 +68,7 @@ export default function PlantListPage() {
         ) : null}
       />
       <DataTable columns={columns} data={plants} loading={loading} emptyMessage="No plants found." />
+    </div>
     </AppLayout>
   );
 }

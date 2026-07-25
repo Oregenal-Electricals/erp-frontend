@@ -60,10 +60,13 @@ export default function GatePassDetailPage() {
     return 0;
   };
 
-  if (loading) return <AppLayout><div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div></AppLayout>;
+  if (loading) return <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto"><div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div></div>
+    </AppLayout>;
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title={pass?.passNumber || 'Gate Pass'}
         subtitle={`${pass?.type?.replace('_', '-')} · ${pass?.carrierName}`}
@@ -213,6 +216,7 @@ export default function GatePassDetailPage() {
           </div>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

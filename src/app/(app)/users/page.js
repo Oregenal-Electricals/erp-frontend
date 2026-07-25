@@ -126,6 +126,7 @@ export default function UsersPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="User Management" subtitle="Manage system users and their roles"
         action={loaded && can(Permission.USER_CREATE) ? (
           <button onClick={() => router.push('/users/create')}
@@ -162,6 +163,7 @@ export default function UsersPage() {
       </div>
 
       <DataTable columns={columns} data={users} loading={loading} emptyMessage="No users found." />
+    </div>
     </AppLayout>
   );
 }

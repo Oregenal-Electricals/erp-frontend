@@ -85,6 +85,7 @@ export default function FinancialYearPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Financial Years" subtitle="Manage accounting periods"
         action={loaded && can(Permission.FINANCIAL_YEAR_CREATE) ? (
           <button onClick={() => router.push('/masters/financial-year/create')}
@@ -94,6 +95,7 @@ export default function FinancialYearPage() {
         ) : null}
       />
       <DataTable columns={columns} data={fys} loading={loading} emptyMessage="No financial years found." />
+    </div>
     </AppLayout>
   );
 }

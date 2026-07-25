@@ -92,20 +92,25 @@ export default function ChangeRequestDetailPage() {
 
   if (loading) return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-center h-64">
         <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
       </div>
+    </div>
     </AppLayout>
   );
 
   if (error && !cr) return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <div className="p-8 text-center text-red-600">{error}</div>
+    </div>
     </AppLayout>
   );
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title={cr?.requestNumber || 'Change Request'}
         subtitle={cr?.title}
@@ -321,6 +326,7 @@ export default function ChangeRequestDetailPage() {
           </div>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

@@ -50,14 +50,17 @@ export default function EditPlantPage() {
   if (loading)
     return (
       <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
         <div className="flex items-center justify-center h-64">
           <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
         </div>
-      </AppLayout>
+      </div>
+    </AppLayout>
     );
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Edit Plant" subtitle={`Editing: ${form.name || ''}`} />
       <div className="max-w-3xl">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -133,6 +136,7 @@ export default function EditPlantPage() {
           </form>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

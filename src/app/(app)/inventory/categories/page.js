@@ -42,6 +42,7 @@ export default function CategoriesPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Item Categories" subtitle="Manage item classification tree" />
       <div className="grid grid-cols-3 gap-6">
         {/* Form */}
@@ -117,6 +118,7 @@ export default function CategoriesPage() {
           )}
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

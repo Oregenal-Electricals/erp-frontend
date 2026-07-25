@@ -49,6 +49,7 @@ export default function CheckInPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Visitor Check-in" subtitle="Register visitor entry at gate" />
 
       {error   && <div className="mb-4 p-3 bg-red-50 border-2 border-red-300 rounded-lg text-red-700 text-sm font-medium">{error}</div>}
@@ -145,6 +146,7 @@ export default function CheckInPage() {
           </button>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

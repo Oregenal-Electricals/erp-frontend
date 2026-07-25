@@ -37,6 +37,7 @@ export default function WarehousesPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Warehouse Management" subtitle="Multi-level storage locations"
         action={
           <button onClick={() => router.push('/inventory/warehouses/create')}
@@ -109,6 +110,7 @@ export default function WarehousesPage() {
           </table>
         )}
       </div>
+    </div>
     </AppLayout>
   );
 }

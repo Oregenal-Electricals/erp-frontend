@@ -32,6 +32,7 @@ export default function VehiclesPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Vehicle Master" subtitle="Registered vehicles"
         action={
           <button onClick={() => router.push('/gate/vehicles/create')}
@@ -91,6 +92,7 @@ export default function VehiclesPage() {
           </table>
         )}
       </div>
+    </div>
     </AppLayout>
   );
 }

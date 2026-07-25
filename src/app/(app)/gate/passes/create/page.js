@@ -77,6 +77,7 @@ export default function CreateGatePassPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="New Gate Pass" subtitle="Request authorization for exit" />
       <div className="max-w-2xl">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -247,6 +248,7 @@ export default function CreateGatePassPage() {
           </div>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

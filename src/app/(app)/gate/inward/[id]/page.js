@@ -49,10 +49,13 @@ export default function GateInwardDetailPage() {
   const formatDate = (d) => d ? new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
   const formatNum = (n) => n != null ? n.toLocaleString('en-IN') : '—';
 
-  if (loading) return <AppLayout><div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div></AppLayout>;
+  if (loading) return <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto"><div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div></div>
+    </AppLayout>;
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title={entry?.ginNumber || 'Gate Inward'}
         subtitle={entry?.supplierName}
@@ -175,6 +178,7 @@ export default function GateInwardDetailPage() {
           </div>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

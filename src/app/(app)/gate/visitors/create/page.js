@@ -39,6 +39,7 @@ export default function RegisterVisitorPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Register Visitor" subtitle="Add a new visitor to the system" />
       <div className="max-w-2xl">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -101,6 +102,7 @@ export default function RegisterVisitorPage() {
           </div>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

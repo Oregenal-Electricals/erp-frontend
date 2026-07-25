@@ -48,6 +48,7 @@ export default function ResetPasswordPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader
         title="Reset Password"
         subtitle={user ? `Reset password for ${user.firstName} ${user.lastName}` : 'Loading...'}
@@ -147,6 +148,7 @@ export default function ResetPasswordPage() {
           </div>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

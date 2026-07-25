@@ -58,6 +58,7 @@ export default function BranchListPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Branch Master" subtitle="Sales and office branches"
         action={loaded && can(Permission.BRANCH_CREATE) ? (
           <button onClick={() => router.push('/masters/branch/create')}
@@ -67,6 +68,7 @@ export default function BranchListPage() {
         ) : null}
       />
       <DataTable columns={columns} data={branches} loading={loading} emptyMessage="No branches found." />
+    </div>
     </AppLayout>
   );
 }

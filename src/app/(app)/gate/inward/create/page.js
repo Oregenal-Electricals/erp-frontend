@@ -128,6 +128,7 @@ export default function CreateGateInwardPage() {
   const labelClass = "block text-sm font-semibold text-gray-700 mb-1";
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="New Gate Inward Entry" subtitle="Record goods received at gate" />
       <div className="max-w-3xl">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -327,6 +328,7 @@ export default function CreateGateInwardPage() {
           </div>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }

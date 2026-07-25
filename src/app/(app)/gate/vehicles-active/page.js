@@ -42,6 +42,7 @@ export default function ActiveVehiclesPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Active Vehicles" subtitle={`${logs.length} vehicles inside`}
         action={<button onClick={fetchActive} className="flex items-center gap-2 border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"><RefreshCw size={14} /> Refresh</button>}
       />
@@ -98,6 +99,7 @@ export default function ActiveVehiclesPage() {
           </table>
         )}
       </div>
+    </div>
     </AppLayout>
   );
 }

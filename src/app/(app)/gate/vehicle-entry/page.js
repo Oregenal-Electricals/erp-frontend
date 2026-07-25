@@ -53,6 +53,7 @@ export default function VehicleEntryPage() {
 
   return (
     <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="Vehicle Entry" subtitle="Log vehicle entry at gate" />
       {error   && <div className="mb-4 p-3 bg-red-50 border-2 border-red-300 rounded-lg text-red-700 text-sm font-medium">{error}</div>}
       {success && <div className="mb-4 p-3 bg-green-50 border-2 border-green-300 rounded-lg text-green-700 text-sm font-medium">{success}</div>}
@@ -164,6 +165,7 @@ export default function VehicleEntryPage() {
           </button>
         </div>
       </div>
+    </div>
     </AppLayout>
   );
 }
