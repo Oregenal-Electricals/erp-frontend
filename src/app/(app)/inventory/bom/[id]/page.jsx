@@ -138,6 +138,7 @@ export default function BomDetailPage() {
                   {stages.map(s => (
                     <Link key={s.id} href={`/inventory/bom/${s.id}`} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2 border text-sm hover:border-blue-300">
                       <span className="font-mono text-blue-600">{s.bomNumber}</span>
+                      <span className="text-gray-400 font-mono text-xs">{s.version}</span>
                       <span className="text-gray-500 truncate mx-2">{s.product?.name}</span>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[s.status] || 'bg-gray-100'}`}>{s.status}</span>
                     </Link>
