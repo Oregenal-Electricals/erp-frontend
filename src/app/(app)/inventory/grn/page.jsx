@@ -50,7 +50,7 @@ export default function GrnPage() {
       }
     }
   }
-  const [form, setForm] = useState({ grnType: 'IMPORT', poId: '', ipoId: '', gateInwardEntryId: '', landedCostId: '', warehouseId: '', vehicleNumber: '', dcNumber: '', invoiceNumber: '', invoiceDate: '', remarks: '' });
+  const [form, setForm] = useState({ grnType: 'DOMESTIC', poId: '', ipoId: '', gateInwardEntryId: '', landedCostId: '', warehouseId: '', vehicleNumber: '', dcNumber: '', invoiceNumber: '', invoiceDate: '', remarks: '' });
   const [items, setItems] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -69,7 +69,8 @@ export default function GrnPage() {
       fetch(`${API}/import-orders?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/gate-inward?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
-    if (grnRes.ok) { const d = await grnRes.json(); setGrns(d.data); setTotalPages(d.totalPages); setTotal(d.total); }
+    let grnListForFilter = [];
+    if (grnRes.ok) { const d = await grnRes.json(); setGrns(d.data); setTotalPages(d.totalPages); setTotal(d.total); grnListForFilter = d.data || []; }
     if (statsRes.ok) setStats(await statsRes.json());
     if (whRes.ok) { const d = await whRes.json(); setWarehouses(d.data || d); }
     if (poRes.ok) { const d = await poRes.json(); setPos(d.data || []); }
@@ -77,7 +78,8 @@ export default function GrnPage() {
     if (ginRes.ok) {
       const raw = await ginRes.json();
       const ginList = Array.isArray(raw) ? raw : (raw.data || []);
-      setGateEntries(ginList.filter(g => ['VERIFIED','SENT_TO_STORES','COMPLETED'].includes(g.status)));
+      const alreadyCoveredGinIds = new Set(grnListForFilter.map(g => g.gateInwardEntryId).filter(Boolean));
+      setGateEntries(ginList.filter(g => ['VERIFIED','SENT_TO_STORES','COMPLETED'].includes(g.status) && !alreadyCoveredGinIds.has(g.id)));
     }
     setLoading(false);
   }, [page, search, status, grnType]);
@@ -162,6 +164,12 @@ export default function GrnPage() {
     }
   }
 
+  async function openGrnFromGin(gin) {
+    setForm({ grnType: 'DOMESTIC', poId: '', ipoId: '', gateInwardEntryId: '', landedCostId: '', warehouseId: '', vehicleNumber: '', dcNumber: '', invoiceNumber: '', invoiceDate: '', remarks: '' });
+    setItems([]); setError(''); setShowModal(true);
+    await handleGinSelect(gin.id);
+  }
+
   async function handleCreate() {
     setSaving(true); setError('');
     const body = { ...form, items: items.map(({ totalValue, ...i }) => ({ ...i })) };
@@ -205,7 +213,7 @@ export default function GrnPage() {
             <h1 className="text-2xl font-bold text-gray-900">Goods Receipt Note (GRN)</h1>
             <p className="text-gray-500 text-sm mt-1">Record physical receipt of goods against PO or Import PO</p>
           </div>
-          <button onClick={() => { setForm({ grnType: 'IMPORT', poId: '', ipoId: '', landedCostId: '', warehouseId: '', vehicleNumber: '', dcNumber: '', invoiceNumber: '', invoiceDate: '', remarks: '' }); setItems([]); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New GRN</button>
+          <button onClick={() => { setForm({ grnType: 'DOMESTIC', poId: '', ipoId: '', gateInwardEntryId: '', landedCostId: '', warehouseId: '', vehicleNumber: '', dcNumber: '', invoiceNumber: '', invoiceDate: '', remarks: '' }); setItems([]); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New GRN</button>
         </div>
 
         {stats && (
@@ -221,6 +229,26 @@ export default function GrnPage() {
                 <div className="text-xs text-gray-500 mt-1">{s.label}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {gateEntries.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+            <h3 className="text-sm font-bold text-amber-800 mb-3">Pending Gate Inward Entries — Ready for GRN ({gateEntries.length})</h3>
+            <div className="space-y-2">
+              {gateEntries.map(g => (
+                <div key={g.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-2.5 border border-amber-100">
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="font-mono text-blue-600 font-medium">{g.ginNumber}</span>
+                    <span className="text-gray-700">{g.supplierName}</span>
+                    {g.poNumber && <span className="text-gray-400">PO: {g.poNumber}</span>}
+                  </div>
+                  <button onClick={() => openGrnFromGin(g)} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-700">
+                    Create GRN
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
