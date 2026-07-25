@@ -166,8 +166,9 @@ export default function GrnPage() {
 
   async function openGrnFromGin(gin) {
     setForm({ grnType: 'DOMESTIC', poId: '', ipoId: '', gateInwardEntryId: '', landedCostId: '', warehouseId: '', vehicleNumber: '', dcNumber: '', invoiceNumber: '', invoiceDate: '', remarks: '' });
-    setItems([]); setError(''); setShowModal(true);
+    setItems([]); setError('');
     await handleGinSelect(gin.id);
+    setShowModal(true);
   }
 
   async function handleCreate() {
@@ -367,13 +368,25 @@ export default function GrnPage() {
                   )}
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">{form.grnType === 'IMPORT' ? 'Import PO' : 'Purchase Order'} *</label>
-                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.grnType === 'IMPORT' ? form.ipoId : form.poId} onChange={e => handleSourceSelect(form.grnType, e.target.value)}>
-                      <option value="">— Select —</option>
-                      {form.grnType === 'IMPORT'
-                        ? ipos.map(i => <option key={i.id} value={i.id}>{i.ipoNumber} — {i.vendor?.name}</option>)
-                        : pos.map(p => <option key={p.id} value={p.id}>{p.poNumber} — {p.vendor?.name}</option>)
-                      }
-                    </select>
+                    {form.gateInwardEntryId ? (
+                      <input
+                        className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600"
+                        value={(() => {
+                          const p = pos.find(p => p.id === form.poId);
+                          return p ? `${p.poNumber} — ${p.vendor?.name}` : 'Loading...';
+                        })()}
+                        disabled
+                        title="Locked to the PO linked via the selected Gate Inward Entry"
+                      />
+                    ) : (
+                      <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.grnType === 'IMPORT' ? form.ipoId : form.poId} onChange={e => handleSourceSelect(form.grnType, e.target.value)}>
+                        <option value="">— Select —</option>
+                        {form.grnType === 'IMPORT'
+                          ? ipos.map(i => <option key={i.id} value={i.id}>{i.ipoNumber} — {i.vendor?.name}</option>)
+                          : pos.map(p => <option key={p.id} value={p.id}>{p.poNumber} — {p.vendor?.name}</option>)
+                        }
+                      </select>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Warehouse *</label>
