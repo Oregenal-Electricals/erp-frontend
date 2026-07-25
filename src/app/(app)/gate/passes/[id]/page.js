@@ -70,7 +70,7 @@ export default function GatePassDetailPage() {
       <PageHeader
         title={pass?.passNumber || 'Gate Pass'}
         subtitle={`${pass?.type?.replace('_', '-')} · ${pass?.carrierName}`}
-        action={<button onClick={() => router.push('/gate/passes')} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">← Back</button>}
+        action={<button onClick={() => router.push('/gate/passes')} className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">← Back</button>}
       />
 
       {error && <div className="mb-4 p-3 bg-red-50 border-2 border-red-300 rounded-lg text-red-700 text-sm">{error}</div>}

@@ -35,7 +35,7 @@ export default function ItemDetailPage() {
         action={
           <div className="flex gap-2">
             <button onClick={() => router.push('/inventory/items')}
-              className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">← Back</button>
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">← Back</button>
           </div>
         }
       />
