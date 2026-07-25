@@ -71,10 +71,42 @@ export default function GateInwardDetailPage() {
           {/* Material Info */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2"><Package size={15} /> Material Details</h3>
+
+            {entry?.items && entry.items.length > 0 ? (
+              <div className="mb-4">
+                <table className="w-full text-sm border rounded-lg overflow-hidden">
+                  <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Item Code</th>
+                      <th className="px-3 py-2 text-left">Material</th>
+                      <th className="px-3 py-2 text-left">Qty</th>
+                      <th className="px-3 py-2 text-left">UOM</th>
+                      <th className="px-3 py-2 text-left">Packages</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {entry.items.map((it) => (
+                      <tr key={it.id}>
+                        <td className="px-3 py-2 font-mono text-xs text-gray-500">{it.itemCode}</td>
+                        <td className="px-3 py-2">{it.itemName}</td>
+                        <td className="px-3 py-2 font-medium">{formatNum(it.quantity)}</td>
+                        <td className="px-3 py-2 text-gray-500">{it.uom}</td>
+                        <td className="px-3 py-2 text-gray-500">{it.packageCount ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="mb-4">
+                <dt className="text-xs text-gray-400 font-medium">Material</dt>
+                <dd className="text-sm text-gray-800 font-medium mt-0.5">{entry?.materialDescription}</dd>
+              </div>
+            )}
+
             <dl className="grid grid-cols-2 gap-3">
               {[
-                { label: 'Material',      value: entry?.materialDescription },
-                { label: 'Quantity',      value: `${entry?.quantity} ${entry?.unit}` },
+                { label: 'Total Quantity', value: `${formatNum(entry?.quantity)} ${entry?.unit}` },
                 { label: 'Package Count', value: entry?.packageCount || '—' },
                 { label: 'Gross Weight',  value: entry?.grossWeight ? `${entry.grossWeight} kg` : '—' },
                 { label: 'Net Weight',    value: entry?.netWeight ? `${entry.netWeight} kg` : '—' },
