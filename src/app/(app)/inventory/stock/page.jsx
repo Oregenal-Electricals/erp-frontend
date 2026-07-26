@@ -50,13 +50,13 @@ export default function StockPage() {
       fetch(`${API}/stock-ledger?${ledParams}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/stock-ledger/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/warehouses?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/iqc?status=APPROVED&limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/stock-ledger/pending-receive`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (balRes.ok) { const d = await balRes.json(); setBalance(d.data); if (tab==='balance') { setTotalPages(d.totalPages); setTotal(d.total); } }
     if (ledRes.ok) { const d = await ledRes.json(); setLedger(d.data); if (tab==='ledger') { setTotalPages(d.totalPages); setTotal(d.total); } }
     if (statsRes.ok) setStats(await statsRes.json());
     if (whRes.ok) { const d = await whRes.json(); setWarehouses(d.data || d); }
-    if (iqcRes.ok) { const d = await iqcRes.json(); setApprovedIqcs(d.data || []); }
+    if (iqcRes.ok) { const d = await iqcRes.json(); setApprovedIqcs(Array.isArray(d) ? d : (d.data || [])); }
     setLoading(false);
   }, [page, search, warehouseId, txnType, tab]);
 
