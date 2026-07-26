@@ -172,7 +172,13 @@ export default function GrnPage() {
   }
 
   async function handleCreate() {
-    setSaving(true); setError('');
+    setError('');
+    if (!form.warehouseId) { setError('Please select a Warehouse.'); return; }
+    if (form.grnType === 'IMPORT' && !form.ipoId) { setError('Please select an Import PO.'); return; }
+    if (form.grnType !== 'IMPORT' && !form.poId) { setError('Please select a Purchase Order.'); return; }
+    if (items.length === 0) { setError('Add at least one item to receive.'); return; }
+    if (items.some(i => !i.receivedQty || i.receivedQty <= 0)) { setError('Every item needs a Received Qty greater than 0.'); return; }
+    setSaving(true);
     const body = { ...form, items: items.map(({ totalValue, ...i }) => ({ ...i })) };
     if (!body.poId) delete body.poId;
     if (!body.ipoId) delete body.ipoId;
