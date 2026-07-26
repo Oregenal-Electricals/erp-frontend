@@ -67,9 +67,23 @@ export default function PutawayPage() {
 
   async function openPutawayForIqc(iqc) {
     setError('');
-    setForm({ grnId: iqc.grnId, iqcId: iqc.id, warehouseId: '' });
-    setEmptyBins([]);
+    const warehouseId = iqc.grn?.warehouseId || '';
+    setForm({ grnId: iqc.grnId, iqcId: iqc.id, warehouseId });
     setPutawayItems([]);
+    setEmptyBins([]);
+
+    if (warehouseId) {
+      const binsRes = await fetch(`${API}/rack-bin/bins/empty/${warehouseId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (binsRes.ok) setEmptyBins(await binsRes.json());
+    }
+    const grnRes = await fetch(`${API}/grn/${iqc.grnId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (grnRes.ok) {
+      const grn = await grnRes.json();
+      setPutawayItems((grn.items || []).filter(i => i.acceptedQty > 0).map(i => ({
+        binId: '', itemCode: i.itemCode, itemName: i.itemName, uom: i.uom || 'PCS',
+        qty: String(i.acceptedQty), unitCost: i.landedCostPerUnit || i.unitPrice || 0,
+      })));
+    }
     setShowModal(true);
   }
 
@@ -144,12 +158,9 @@ export default function PutawayPage() {
   return (
     <AppLayout>
       <div className="p-6 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Stock Putaway</h1>
-            <p className="text-gray-500 text-sm mt-1">Assign accepted stock to specific rack/bin locations</p>
-          </div>
-          <button onClick={() => { setForm({ grnId: '', iqcId: '', warehouseId: '' }); setPutawayItems([]); setEmptyBins([]); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New Putaway</button>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Stock Putaway</h1>
+          <p className="text-gray-500 text-sm mt-1">Assign accepted stock to specific rack/bin locations</p>
         </div>
 
         {stats && (
@@ -259,17 +270,33 @@ export default function PutawayPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">GRN (Accepted) *</label>
-                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.grnId} onChange={e => handleGrnSelect(e.target.value)}>
-                      <option value="">— Select GRN —</option>
-                      {acceptedGrns.map(g => <option key={g.id} value={g.id}>{g.grnNumber} ({g.status})</option>)}
-                    </select>
+                    {form.iqcId ? (
+                      <input
+                        className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600"
+                        value={acceptedGrns.find(g => g.id === form.grnId)?.grnNumber || 'Loading...'}
+                        disabled
+                      />
+                    ) : (
+                      <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.grnId} onChange={e => handleGrnSelect(e.target.value)}>
+                        <option value="">— Select GRN —</option>
+                        {acceptedGrns.map(g => <option key={g.id} value={g.id}>{g.grnNumber} ({g.status})</option>)}
+                      </select>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Warehouse *</label>
-                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.warehouseId} onChange={e => handleWhSelect(e.target.value)}>
-                      <option value="">— Select Warehouse —</option>
-                      {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                    </select>
+                    {form.iqcId ? (
+                      <input
+                        className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600"
+                        value={warehouses.find(w => w.id === form.warehouseId)?.name || 'Loading...'}
+                        disabled
+                      />
+                    ) : (
+                      <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.warehouseId} onChange={e => handleWhSelect(e.target.value)}>
+                        <option value="">— Select Warehouse —</option>
+                        {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                      </select>
+                    )}
                   </div>
                 </div>
 
@@ -282,11 +309,12 @@ export default function PutawayPage() {
                     <div className="border rounded-lg overflow-hidden">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                          <tr>{['Item Code','Item Name','UOM','Qty','Bin Location',''].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
+                          <tr>{['Sr. No','Item Code','Item Name','UOM','Qty','Bin Location',''].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
                         </thead>
                         <tbody className="divide-y">
                           {putawayItems.map((item, idx) => (
                             <tr key={idx}>
+                              <td className="px-2 py-2 text-gray-500">{idx + 1}</td>
                               <td className="px-2 py-2">
                                 <select className="w-full border rounded px-2 py-1 text-xs" value={item.itemCode} onChange={e => {
                                   const bal = stockBalance.find(b => b.itemCode === e.target.value);
