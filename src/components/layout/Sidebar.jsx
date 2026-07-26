@@ -86,6 +86,7 @@ const PATH_PERMISSION = {
 // "Vendor Quotations", distinct from /sales/quotations' customer quotes,
 // even though both end in the same word).
 const FULL_PATH_OVERRIDES = {
+  '/production/floor': 'WORK_ORDER_VIEW',
   '/inventory/stock': 'STOCK_LEDGER_VIEW',
   '/purchase/quotations': 'VENDOR_QUOTATION_VIEW',
   '/purchase/shortages': 'PURCHASE_VIEW',
@@ -216,6 +217,7 @@ const NAV = [
   {
     label: 'Production', icon: Factory,
     children: [
+      { label: 'Production Floor', href: '/production/floor', icon: Factory },
       { label: 'Production Dashboard', href: '/production-dashboard', icon: BarChart3 },
       { label: 'Work Orders', href: '/production/work-orders', icon: ClipboardList },
       { label: 'Routing', href: '/production/routing', icon: ClipboardList },
