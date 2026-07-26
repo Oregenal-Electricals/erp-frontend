@@ -91,6 +91,7 @@ export default function IqcPage() {
   }
 
   async function handleApprove() {
+    if (saving) return;
     setSaving(true); setError('');
     // Save items first
     await handleUpdateItems();
@@ -99,7 +100,12 @@ export default function IqcPage() {
     });
     const data = await res.json();
     if (res.ok) { setShowInspectModal(null); fetchAll(); }
-    else setError(data.message || 'Failed');
+    else if (typeof data.message === 'string' && data.message.toLowerCase().includes('already approved')) {
+      // A prior click already succeeded (e.g. accidental double-click) - this
+      // isn't really a failure, so close the modal and refresh instead of
+      // leaving the user staring at an error with active buttons.
+      setShowInspectModal(null); fetchAll();
+    } else setError(data.message || 'Failed');
     setSaving(false);
   }
 
