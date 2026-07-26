@@ -396,7 +396,11 @@ export default function MrpPage() {
                           <label className="text-xs text-gray-500">Build Qty</label>
                           <input type="number" max={item.remainingToPlan} className="w-24 border rounded px-2 py-1 text-sm"
                             value={buildQtys[item.soItemId] || ''}
-                            onChange={e=>setBuildQtys(prev=>({...prev, [item.soItemId]: e.target.value}))} />
+                            onChange={e=>{
+                              const raw = e.target.value;
+                              const clamped = raw === '' ? '' : String(Math.min(parseFloat(raw) || 0, item.remainingToPlan));
+                              setBuildQtys(prev=>({...prev, [item.soItemId]: clamped}));
+                            }} />
                         </div>
                       )}
                     </div>
