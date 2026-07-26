@@ -199,7 +199,6 @@ const NAV = [
       { label: 'BOM', href: '/inventory/bom', icon: ClipboardList },
       { label: 'BOM Revisions', href: '/inventory/bom-revisions', icon: GitBranch },
       { label: 'GRN', href: '/inventory/grn', icon: PackageCheck },
-      { label: 'IQC', href: '/inventory/iqc', icon: BadgeCheck },
       { label: 'Stock Ledger', href: '/stock-ledger', icon: Database },
       { label: 'Rejected Stock', href: '/inventory/rejected', icon: Activity },
       { label: 'Rack & Bin', href: '/inventory/rack-bin', icon: Database },

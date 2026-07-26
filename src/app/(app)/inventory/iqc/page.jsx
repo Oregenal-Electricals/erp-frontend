@@ -137,9 +137,20 @@ export default function IqcPage() {
         {pendingGrns.length > 0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
             <div className="text-sm font-semibold text-yellow-800 mb-2">⏳ {pendingGrns.length} GRN(s) waiting for IQC inspection</div>
-            <div className="flex flex-wrap gap-2">
+            <div className="space-y-2">
               {pendingGrns.map(g => (
-                <span key={g.id} className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-mono">{g.grnNumber} — {g.po?.vendor?.name || g.ipo?.vendor?.name}</span>
+                <div key={g.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-yellow-100">
+                  <span className="text-sm">
+                    <span className="font-mono text-blue-600 font-medium">{g.grnNumber}</span>
+                    <span className="text-gray-500 ml-2">{g.po?.vendor?.name || g.ipo?.vendor?.name}</span>
+                  </span>
+                  <button
+                    onClick={() => { setCreateForm({ grnId: g.id, inspectedBy: '', remarks: '' }); setError(''); setShowCreateModal(true); }}
+                    className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-700"
+                  >
+                    Start Inspection
+                  </button>
+                </div>
               ))}
             </div>
           </div>
