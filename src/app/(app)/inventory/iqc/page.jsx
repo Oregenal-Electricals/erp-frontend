@@ -202,14 +202,15 @@ export default function IqcPage() {
               </div>
               <div className="p-6">
                 {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm mb-4">{error}</div>}
-                <div className="overflow-x-auto">
+                <div className="overflow-x-scroll" style={{ scrollbarWidth: 'auto' }}>
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                      <tr>{['Item Code','Item Name','UOM','Received','Accepted Qty','Rejected Qty','Rejection Reason'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
+                      <tr>{['Sr. No','Item Code','Item Name','UOM','Received','Accepted Qty','Rejected Qty','Rejection Reason'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
                     </thead>
                     <tbody className="divide-y">
                       {inspectItems.map((item, idx) => (
                         <tr key={item.id}>
+                          <td className="px-3 py-3 text-gray-500">{idx + 1}</td>
                           <td className="px-3 py-3 font-mono text-blue-600 text-xs">{item.itemCode}</td>
                           <td className="px-3 py-3 text-xs">{item.itemName}</td>
                           <td className="px-3 py-3 text-xs text-gray-500">{item.uom}</td>
@@ -268,24 +269,27 @@ export default function IqcPage() {
                   <div><span className="text-gray-500">Date:</span> {new Date(viewDetail.inspectionDate || viewDetail.createdAt).toLocaleDateString()}</div>
                 </div>
                 {viewDetail.remarks && <div className="text-sm"><span className="text-gray-500">Remarks:</span> {viewDetail.remarks}</div>}
-                <table className="w-full text-sm border rounded-lg overflow-hidden">
-                  <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                    <tr>{['Item Code','Item Name','UOM','Received','Accepted','Rejected','Reason'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {(viewDetail.items || []).map(item => (
-                      <tr key={item.id}>
-                        <td className="px-3 py-2 font-mono text-xs text-blue-600">{item.itemCode}</td>
-                        <td className="px-3 py-2 text-xs">{item.itemName}</td>
-                        <td className="px-3 py-2 text-xs text-gray-500">{item.uom}</td>
-                        <td className="px-3 py-2 text-xs">{item.receivedQty}</td>
-                        <td className="px-3 py-2 text-xs text-green-600 font-medium">{item.acceptedQty}</td>
-                        <td className="px-3 py-2 text-xs text-red-500 font-medium">{item.rejectedQty}</td>
-                        <td className="px-3 py-2 text-xs text-gray-500">{item.rejectionReason || '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="overflow-x-scroll">
+                  <table className="w-full text-sm border rounded-lg overflow-hidden">
+                    <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+                      <tr>{['Sr. No','Item Code','Item Name','UOM','Received','Accepted','Rejected','Reason'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {(viewDetail.items || []).map((item, idx) => (
+                        <tr key={item.id}>
+                          <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
+                          <td className="px-3 py-2 font-mono text-xs text-blue-600">{item.itemCode}</td>
+                          <td className="px-3 py-2 text-xs">{item.itemName}</td>
+                          <td className="px-3 py-2 text-xs text-gray-500">{item.uom}</td>
+                          <td className="px-3 py-2 text-xs">{item.receivedQty}</td>
+                          <td className="px-3 py-2 text-xs text-green-600 font-medium">{item.acceptedQty}</td>
+                          <td className="px-3 py-2 text-xs text-red-500 font-medium">{item.rejectedQty}</td>
+                          <td className="px-3 py-2 text-xs text-gray-500">{item.rejectionReason || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
                 <div className="p-3 bg-gray-50 rounded-lg text-sm flex gap-6">
                   <div>Total Received: <strong>{(viewDetail.items || []).reduce((s,i) => s+(i.receivedQty||0),0)}</strong></div>
                   <div className="text-green-600">Total Accepted: <strong>{(viewDetail.items || []).reduce((s,i) => s+(i.acceptedQty||0),0)}</strong></div>
