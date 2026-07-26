@@ -88,11 +88,20 @@ export default function PutawayPage() {
     if (!warehouseId) return;
     const res = await fetch(`${API}/rack-bin/bins/empty/${warehouseId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
     if (res.ok) setEmptyBins(await res.json());
-    // Initialize putaway items from stock balance
-    setPutawayItems(stockBalance.filter(b => b.warehouseId === warehouseId || true).slice(0,5).map(b => ({
-      binId: '', itemCode: b.itemCode, itemName: b.itemName, uom: b.uom || 'PCS',
-      qty: '', unitCost: b.unitCost,
-    })));
+    // Initialize putaway items from the actual GRN's accepted items -
+    // not an arbitrary slice of the whole warehouse's stock balance.
+    if (form.grnId) {
+      const grnRes = await fetch(`${API}/grn/${form.grnId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (grnRes.ok) {
+        const grn = await grnRes.json();
+        setPutawayItems((grn.items || []).filter(i => i.acceptedQty > 0).map(i => ({
+          binId: '', itemCode: i.itemCode, itemName: i.itemName, uom: i.uom || 'PCS',
+          qty: String(i.acceptedQty), unitCost: i.landedCostPerUnit || i.unitPrice || 0,
+        })));
+        return;
+      }
+    }
+    setPutawayItems([]);
   }
 
   async function handleCreate() {
