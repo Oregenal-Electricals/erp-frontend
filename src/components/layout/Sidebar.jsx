@@ -86,6 +86,7 @@ const PATH_PERMISSION = {
 // "Vendor Quotations", distinct from /sales/quotations' customer quotes,
 // even though both end in the same word).
 const FULL_PATH_OVERRIDES = {
+  '/inventory/stock': 'STOCK_LEDGER_VIEW',
   '/purchase/quotations': 'VENDOR_QUOTATION_VIEW',
   '/purchase/shortages': 'PURCHASE_VIEW',
   '/gate/inward': 'GATE_INWARD_VIEW',
@@ -199,7 +200,7 @@ const NAV = [
       { label: 'BOM', href: '/inventory/bom', icon: ClipboardList },
       { label: 'BOM Revisions', href: '/inventory/bom-revisions', icon: GitBranch },
       { label: 'GRN', href: '/inventory/grn', icon: PackageCheck },
-      { label: 'Stock Ledger', href: '/stock-ledger', icon: Database },
+      { label: 'Stock Ledger', href: '/inventory/stock', icon: Database },
       { label: 'Rejected Stock', href: '/inventory/rejected', icon: Activity },
       { label: 'Rack & Bin', href: '/inventory/rack-bin', icon: Database },
       { label: 'Stock Putaway', href: '/inventory/putaway', icon: PackageOpen },

@@ -94,6 +94,7 @@ export default function StockPage() {
               { label: 'Total Movements', value: stats.totalMovements, color: 'bg-gray-50' },
               { label: 'Total Inventory Value', value: fmt(stats.totalValue), color: 'bg-green-50' },
               { label: 'IQC Ready to Receive', value: approvedIqcs.length, color: 'bg-yellow-50' },
+              { label: 'Low Stock Alerts', value: stats.lowStockCount, color: stats.lowStockCount > 0 ? 'bg-red-50' : 'bg-gray-50' },
             ].map(s => (
               <div key={s.label} className={`${s.color} rounded-lg p-4 text-center`}>
                 <div className="text-xl font-bold text-gray-800">{s.value}</div>
@@ -150,19 +151,26 @@ export default function StockPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
-                  <tr>{['Item Code','Item Name','Warehouse','Available Qty','Reserved','In QC','Unit Cost','Total Value','Last Updated'].map(h => <th key={h} className="px-4 py-3 text-left">{h}</th>)}</tr>
+                  <tr>{['Item Code','Item Name','Warehouse','Available Qty','Min Level','Reserved','In QC','Unit Cost','Total Value','Last Updated'].map(h => <th key={h} className="px-4 py-3 text-left">{h}</th>)}</tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {loading ? (
-                    <tr><td colSpan={9} className="text-center py-10 text-gray-400">Loading...</td></tr>
+                    <tr><td colSpan={10} className="text-center py-10 text-gray-400">Loading...</td></tr>
                   ) : balance.length === 0 ? (
-                    <tr><td colSpan={9} className="text-center py-10 text-gray-400">No stock found</td></tr>
+                    <tr><td colSpan={10} className="text-center py-10 text-gray-400">No stock found</td></tr>
                   ) : balance.map(b => (
-                    <tr key={b.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleItemClick(b.itemCode)}>
+                    <tr key={b.id} className={`hover:bg-gray-50 cursor-pointer ${b.isLowStock ? 'bg-red-50' : ''}`} onClick={() => handleItemClick(b.itemCode)}>
                       <td className="px-4 py-3 font-mono font-bold text-blue-600">{b.itemCode}</td>
                       <td className="px-4 py-3 text-gray-800">{b.itemName}</td>
                       <td className="px-4 py-3 text-xs text-gray-500">{b.warehouse?.name}</td>
                       <td className="px-4 py-3 font-bold text-green-700">{fmtQty(b.availableQty)}</td>
+                      <td className="px-4 py-3">
+                        {b.minStockLevel != null ? (
+                          <span className={b.isLowStock ? 'text-red-600 font-bold' : 'text-gray-500'}>
+                            {fmtQty(b.minStockLevel)}{b.isLowStock && <span className="ml-1.5 px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs font-semibold">LOW</span>}
+                          </span>
+                        ) : <span className="text-gray-300">—</span>}
+                      </td>
                       <td className="px-4 py-3 text-orange-600">{fmtQty(b.reservedQty)}</td>
                       <td className="px-4 py-3 text-yellow-600">{fmtQty(b.inQcQty)}</td>
                       <td className="px-4 py-3">{fmt(b.unitCost)}</td>

@@ -25,6 +25,7 @@ export default function PutawayPage() {
   const [stats, setStats] = useState(null);
   const [warehouses, setWarehouses] = useState([]);
   const [acceptedGrns, setAcceptedGrns] = useState([]);
+  const [pendingIqcs, setPendingIqcs] = useState([]);
   const [emptyBins, setEmptyBins] = useState([]);
   const [stockBalance, setStockBalance] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,22 +46,32 @@ export default function PutawayPage() {
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
     if (status) params.set('status', status);
-    const [putRes, statsRes, whRes, grnRes, balRes] = await Promise.all([
+    const [putRes, statsRes, whRes, grnRes, balRes, pendingRes] = await Promise.all([
       fetch(`${API}/stock-putaway?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/stock-putaway/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/warehouses?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/grn?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/stock-ledger/balance?limit=200`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/stock-putaway/pending-iqcs`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (putRes.ok) { const d = await putRes.json(); setPutaways(d.data); setTotalPages(d.totalPages); setTotal(d.total); }
     if (statsRes.ok) setStats(await statsRes.json());
     if (whRes.ok) { const d = await whRes.json(); setWarehouses(d.data || d); }
     if (grnRes.ok) { const d = await grnRes.json(); setAcceptedGrns(d.data?.filter(g => ['ACCEPTED','PARTIALLY_ACCEPTED'].includes(g.status)) || []); }
     if (balRes.ok) { const d = await balRes.json(); setStockBalance(d.data || []); }
+    if (pendingRes.ok) setPendingIqcs(await pendingRes.json());
     setLoading(false);
   }, [page, search, status]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  async function openPutawayForIqc(iqc) {
+    setError('');
+    setForm({ grnId: iqc.grnId, iqcId: iqc.id, warehouseId: '' });
+    setEmptyBins([]);
+    setPutawayItems([]);
+    setShowModal(true);
+  }
 
   async function handleGrnSelect(grnId) {
     setForm(f => ({ ...f, grnId, iqcId: '' }));
@@ -148,9 +159,23 @@ export default function PutawayPage() {
           </div>
         )}
 
-        {acceptedGrns.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6 text-sm text-blue-800">
-            📦 <strong>{acceptedGrns.length}</strong> GRN(s) ready for putaway: {acceptedGrns.map(g => g.grnNumber).join(', ')}
+        {pendingIqcs.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
+            <div className="text-sm font-semibold text-amber-800 mb-2">📦 {pendingIqcs.length} IQC-approved lot(s) waiting for Putaway</div>
+            <div className="space-y-2">
+              {pendingIqcs.map(iqc => (
+                <div key={iqc.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-2.5 border border-amber-100">
+                  <span className="text-sm">
+                    <span className="font-mono text-blue-600 font-medium">{iqc.iqcNumber}</span>
+                    <span className="text-gray-500 ml-2">{iqc.grn?.grnNumber}</span>
+                    <span className="text-gray-400 ml-2">{iqc.grn?.warehouse?.name}</span>
+                  </span>
+                  <button onClick={() => openPutawayForIqc(iqc)} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-700">
+                    Putaway
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
