@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
+import { getUser } from '@/lib/auth';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
@@ -22,9 +23,7 @@ export default function IqcPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInspectModal, setShowInspectModal] = useState(null);
-  const [createForm, setCreateForm] = useState({ grnId: '', inspectedBy: '', remarks: '' });
   const [inspectItems, setInspectItems] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -52,24 +51,21 @@ export default function IqcPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  async function handleCreate() {
-    setSaving(true); setError('');
-    const body = { ...createForm };
-    if (!body.inspectedBy) delete body.inspectedBy;
-    if (!body.remarks) delete body.remarks;
+  async function startInspectionDirect(grnId) {
+    setError('');
+    const user = getUser();
+    const inspectedBy = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined;
     const res = await fetch(`${API}/iqc`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify(body),
+      body: JSON.stringify(inspectedBy ? { grnId, inspectedBy } : { grnId }),
     });
     const data = await res.json();
     if (res.ok) {
-      setShowCreateModal(false);
       setShowInspectModal(data.id);
       setInspectItems(data.items.map(i => ({ ...i })));
       fetchAll();
-    } else setError(data.message || 'Failed');
-    setSaving(false);
+    } else setError(data.message || 'Failed to start inspection');
   }
 
   async function handleOpenInspect(id) {
@@ -110,12 +106,9 @@ export default function IqcPage() {
   return (
     <AppLayout>
       <div className="p-6 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">IQC — Incoming Quality Control</h1>
-            <p className="text-gray-500 text-sm mt-1">Inspect received goods and record accepted / rejected quantities</p>
-          </div>
-          <button onClick={() => { setCreateForm({ grnId: '', inspectedBy: '', remarks: '' }); setError(''); setShowCreateModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ Start Inspection</button>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">IQC — Incoming Quality Control</h1>
+          <p className="text-gray-500 text-sm mt-1">Inspect received goods and record accepted / rejected quantities</p>
         </div>
 
         {stats && (
@@ -145,7 +138,7 @@ export default function IqcPage() {
                     <span className="text-gray-500 ml-2">{g.po?.vendor?.name || g.ipo?.vendor?.name}</span>
                   </span>
                   <button
-                    onClick={() => { setCreateForm({ grnId: g.id, inspectedBy: '', remarks: '' }); setError(''); setShowCreateModal(true); }}
+                    onClick={() => startInspectionDirect(g.id)}
                     className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-700"
                   >
                     Start Inspection
@@ -199,39 +192,6 @@ export default function IqcPage() {
             </table>
           </div>
         </div>
-
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-              <div className="p-6 border-b flex justify-between">
-                <h2 className="text-lg font-bold">Start IQC Inspection</h2>
-                <button onClick={() => setShowCreateModal(false)} className="text-gray-400 text-xl">✕</button>
-              </div>
-              <div className="p-6 space-y-4">
-                {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">GRN (IQC Pending) *</label>
-                  <select className="w-full border rounded-lg px-3 py-2 text-sm" value={createForm.grnId} onChange={e => setCreateForm(f => ({ ...f, grnId: e.target.value }))}>
-                    <option value="">— Select GRN —</option>
-                    {pendingGrns.map(g => <option key={g.id} value={g.id}>{g.grnNumber} — {g.po?.vendor?.name || g.ipo?.vendor?.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Inspected By</label>
-                  <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="QC Inspector name" value={createForm.inspectedBy} onChange={e => setCreateForm(f => ({ ...f, inspectedBy: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Remarks</label>
-                  <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} value={createForm.remarks} onChange={e => setCreateForm(f => ({ ...f, remarks: e.target.value }))} />
-                </div>
-              </div>
-              <div className="p-6 border-t flex justify-end gap-3">
-                <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
-                <button onClick={handleCreate} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50">{saving ? 'Starting...' : 'Start Inspection'}</button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {showInspectModal && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
