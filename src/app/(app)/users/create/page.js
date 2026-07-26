@@ -12,6 +12,7 @@ export default function CreateUserPage() {
     employeeCode: '', password: '', role: '',
     additionalRoles: [],
     companyId: '', mustChangePwd: true,
+    assignedStage: '',
   });
   const [companies, setCompanies] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -148,6 +149,19 @@ export default function CreateUserPage() {
                 onChange={handleChange} placeholder="+91-9876543210"
                 style={{ color: '#111827', backgroundColor: '#ffffff' }}
                 className={inputClass} />
+            </div>
+
+            <div>
+              <label className={labelClass}>Assigned Production Stage</label>
+              <select name="assignedStage" value={form.assignedStage} onChange={handleChange}
+                style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                className={inputClass}>
+                <option value="">— All Stages (no restriction) —</option>
+                <option value="SMT">SMT</option>
+                <option value="MI">MI</option>
+                <option value="Assembly">Assembly</option>
+                <option value="Packaging">Packaging</option>
+              </select>
             </div>
 
             <div className="col-span-2">

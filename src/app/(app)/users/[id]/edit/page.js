@@ -24,6 +24,7 @@ export default function EditUserPage() {
         phone:        data.phone || '',
         role:         data.role,
         employeeCode: data.employeeCode || '',
+        assignedStage: data.assignedStage || '',
       }))
       .catch(() => setError('Failed to load user'))
       .finally(() => setLoading(false));
@@ -117,6 +118,20 @@ export default function EditUserPage() {
                 onChange={handleChange} placeholder="+91-9876543210"
                 style={{ color: '#111827', backgroundColor: '#ffffff' }}
                 className={inputClass} />
+            </div>
+
+            <div className="col-span-2">
+              <label className={labelClass}>Assigned Production Stage</label>
+              <select name="assignedStage" value={form.assignedStage || ''} onChange={handleChange}
+                style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                className={inputClass}>
+                <option value="">— All Stages (no restriction) —</option>
+                <option value="SMT">SMT</option>
+                <option value="MI">MI</option>
+                <option value="Assembly">Assembly</option>
+                <option value="Packaging">Packaging</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">If set, this user's Work Orders list is filtered to only this stage. Supervisors and above always see every stage regardless of this setting.</p>
             </div>
 
             {/* Info box */}
