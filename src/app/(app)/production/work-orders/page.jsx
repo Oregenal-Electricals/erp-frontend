@@ -13,6 +13,7 @@ const STATUS_COLORS = {
   DRAFT: 'bg-gray-100 text-gray-600',
   RELEASED: 'bg-blue-100 text-blue-700',
   IN_PROGRESS: 'bg-yellow-100 text-yellow-700',
+  STOPPED: 'bg-orange-100 text-orange-700',
   COMPLETED: 'bg-green-100 text-green-700',
   CANCELLED: 'bg-red-100 text-red-600',
 };
@@ -108,7 +109,7 @@ export default function WorkOrdersPage() {
       if (action === 'release' && Array.isArray(data.materialReservations)) {
         setReleaseSummary({ woNumber: data.woNumber, lines: data.materialReservations });
       }
-      if (action === 'start' && data.pendingApproval) {
+      if ((action === 'start' || action === 'restart') && data.pendingApproval) {
         alert(data.message || 'Submitted for Plant Head approval');
       }
       fetchAll();
@@ -120,8 +121,15 @@ export default function WorkOrdersPage() {
   }
 
   async function fetchPendingApprovals() {
-    const res = await fetch(`${API}/workflows/requests?documentType=WO_START&status=PENDING&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } });
-    if (res.ok) { const d = await res.json(); setPendingApprovals(d.data || d || []); }
+    const [startRes, restartRes] = await Promise.all([
+      fetch(`${API}/workflows/requests?documentType=WO_START&status=PENDING&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/workflows/requests?documentType=WO_RESTART&status=PENDING&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+    ]);
+    const [startData, restartData] = await Promise.all([
+      startRes.ok ? startRes.json() : { data: [] },
+      restartRes.ok ? restartRes.json() : { data: [] },
+    ]);
+    setPendingApprovals([...(startData.data || []), ...(restartData.data || [])]);
   }
 
   async function handleApprovalAction(requestId, decision) {
@@ -206,12 +214,13 @@ export default function WorkOrdersPage() {
 
         {canSetPriority && pendingApprovals.length > 0 && (
           <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <h2 className="font-semibold text-amber-800 mb-3">🔔 Pending Work Order Start Approvals</h2>
+            <h2 className="font-semibold text-amber-800 mb-3">🔔 Pending Work Order Approvals</h2>
             <div className="space-y-2">
               {pendingApprovals.map(r => (
                 <div key={r.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-2.5 border border-amber-100">
                   <span className="text-sm">
                     <span className="font-mono font-bold text-blue-600">{r.documentNumber}</span>
+                    <span className="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-500">{r.documentType === 'WO_RESTART' ? 'Restart' : 'Start'}</span>
                     <span className="text-gray-400 ml-2">{r.remarks}</span>
                   </span>
                   <div className="flex gap-2">
@@ -301,6 +310,8 @@ export default function WorkOrdersPage() {
                     {wo.status === 'DRAFT' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'release')}} className="px-2 py-1 text-xs bg-blue-600 text-white rounded">Release</button>}
                     {wo.status === 'RELEASED' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'start')}} className="px-2 py-1 text-xs bg-yellow-500 text-gray-900 rounded">Start</button>}
                     {wo.status === 'IN_PROGRESS' && <button onClick={e=>{e.stopPropagation();setCompleteModal(wo.id);setCompleteForm({completedQty:wo.plannedQty,rejectedQty:'0'})}} className="px-2 py-1 text-xs bg-green-600 text-white rounded">Complete</button>}
+                    {wo.status === 'IN_PROGRESS' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'stop')}} className="px-2 py-1 text-xs bg-orange-500 text-white rounded">Stop</button>}
+                    {wo.status === 'STOPPED' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'restart')}} className="px-2 py-1 text-xs bg-yellow-500 text-gray-900 rounded">Restart</button>}
                     {['DRAFT','RELEASED','IN_PROGRESS'].includes(wo.status) && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'cancel')}} className="px-2 py-1 text-xs bg-red-500 text-white rounded">Cancel</button>}
                     <span className="text-gray-400 text-xs">{expandedId===wo.id?'▲':'▼'}</span>
                   </div>
