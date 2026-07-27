@@ -147,7 +147,11 @@ export default function WorkOrdersPage() {
   function groupSummary(routingGroupId) {
     const members = wos.filter(w => w.routingGroupId === routingGroupId).sort((a, b) => (a.stageSequence || 0) - (b.stageSequence || 0));
     const finalStage = members[members.length - 1];
-    const rootNumber = finalStage.woNumber.split('-').slice(0, -1).join('-');
+    const parts = finalStage.woNumber.split('-');
+    const lastPart = parts[parts.length - 1];
+    const rootNumber = ['SMT','MI','ASSEMBLY','PACKAGING','STORE','QUALITY'].includes(lastPart)
+      ? parts.slice(0, -1).join('-')
+      : finalStage.woNumber;
     const completedStages = members.filter(m => m.status === 'COMPLETED').length;
     return { members, finalStage, rootNumber, completedStages, totalStages: members.length };
   }
