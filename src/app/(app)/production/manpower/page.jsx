@@ -32,6 +32,19 @@ export default function ManpowerPage() {
   const [queryFor, setQueryFor] = useState(null);
   const [queryMessage, setQueryMessage] = useState('');
 
+  const [adjustFor, setAdjustFor] = useState(null);
+  const [adjustDelta, setAdjustDelta] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
+  const [adjustError, setAdjustError] = useState('');
+  const [adjusting, setAdjusting] = useState(false);
+
+  const [transferFor, setTransferFor] = useState(null);
+  const [transferTo, setTransferTo] = useState('');
+  const [transferQty, setTransferQty] = useState('');
+  const [transferReason, setTransferReason] = useState('');
+  const [transferError, setTransferError] = useState('');
+  const [transferring, setTransferring] = useState(false);
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     const [allocRes, userRes, relRes, ipRes] = await Promise.all([
@@ -107,6 +120,45 @@ export default function ManpowerPage() {
       body: JSON.stringify({ allocationId: queryFor.id, message: queryMessage }),
     });
     setQueryFor(null); setQueryMessage(''); fetchAll();
+  }
+
+  async function handleAdjust() {
+    setAdjustError('');
+    const delta = parseInt(adjustDelta);
+    if (!delta) { setAdjustError('Enter a positive number to increase, or a negative number to decrease'); return; }
+    setAdjusting(true);
+    const res = await fetch(`${API}/manpower/allocations/adjust`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ allocationId: adjustFor.id, delta, reason: adjustReason || undefined }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (data.pendingApproval) alert(data.message);
+      setAdjustFor(null); setAdjustDelta(''); setAdjustReason(''); fetchAll();
+    } else {
+      setAdjustError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed');
+    }
+    setAdjusting(false);
+  }
+
+  async function handleTransfer() {
+    setTransferError('');
+    if (!transferTo || !transferQty) { setTransferError('Select a destination Work Order and a quantity'); return; }
+    setTransferring(true);
+    const res = await fetch(`${API}/manpower/allocations/transfer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ allocationId: transferFor.id, toWorkOrderId: transferTo, qty: parseInt(transferQty), reason: transferReason || undefined }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (data.pendingApproval) alert(data.message);
+      setTransferFor(null); setTransferTo(''); setTransferQty(''); setTransferReason(''); fetchAll();
+    } else {
+      setTransferError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed');
+    }
+    setTransferring(false);
   }
 
   async function handleResolveQuery(queryId, response) {
@@ -207,7 +259,7 @@ export default function ManpowerPage() {
                     {a.category && <span className="ml-2 text-blue-600">{a.category}</span>}
                     {a.workOrder && <span className="ml-2 text-purple-600 font-mono text-xs">{a.workOrder.woNumber}</span>}
                     <span className="ml-2 font-bold">{a.count}</span>
-                </div>
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[a.status]}`}>{a.status}</span>
                     {a.toUserId === me.id && a.status !== 'PENDING' && a.level !== 'STAGE_TO_LINE' && (
@@ -215,6 +267,12 @@ export default function ManpowerPage() {
                     )}
                     {a.toUserId && (a.toUserId === me.id || a.fromUserId === me.id) && (
                       <button onClick={() => setQueryFor(a)} className="text-xs text-red-500 hover:underline">Raise Query</button>
+                    )}
+                    {a.workOrderId && a.status === 'ACCEPTED' && (
+                      <>
+                        <button onClick={() => { setAdjustFor(a); setAdjustDelta(''); setAdjustReason(''); setAdjustError(''); }} className="text-xs bg-amber-500 text-white px-2 py-1 rounded hover:bg-amber-600">Adjust</button>
+                        <button onClick={() => { setTransferFor(a); setTransferTo(''); setTransferQty(''); setTransferReason(''); setTransferError(''); }} className="text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-700">Transfer</button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -295,6 +353,54 @@ export default function ManpowerPage() {
               <div className="p-5 border-t flex justify-end gap-3">
                 <button onClick={() => setQueryFor(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
                 <button onClick={handleRaiseQuery} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium">Send Query</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Adjust modal */}
+        {adjustFor && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+              <div className="p-5 border-b flex justify-between items-center">
+                <h2 className="font-bold">Adjust Manpower — {adjustFor.workOrder?.woNumber}</h2>
+                <button onClick={() => setAdjustFor(null)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="p-5 space-y-3">
+                {adjustError && <div className="p-2 bg-red-50 text-red-600 rounded text-sm">{adjustError}</div>}
+                <p className="text-xs text-gray-500">Current count: <strong>{adjustFor.count}</strong>. Enter a positive number to increase, or a negative number to decrease. Not Plant Head/Admin? This will need approval before it takes effect.</p>
+                <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="e.g. 3 or -2" value={adjustDelta} onChange={e => setAdjustDelta(e.target.value)} />
+                <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Reason (optional)" value={adjustReason} onChange={e => setAdjustReason(e.target.value)} />
+              </div>
+              <div className="p-5 border-t flex justify-end gap-3">
+                <button onClick={() => setAdjustFor(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                <button onClick={handleAdjust} disabled={adjusting} className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium disabled:opacity-50">{adjusting ? 'Submitting...' : 'Submit'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Transfer modal */}
+        {transferFor && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+              <div className="p-5 border-b flex justify-between items-center">
+                <h2 className="font-bold">Transfer Manpower — {transferFor.workOrder?.woNumber}</h2>
+                <button onClick={() => setTransferFor(null)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="p-5 space-y-3">
+                {transferError && <div className="p-2 bg-red-50 text-red-600 rounded text-sm">{transferError}</div>}
+                <p className="text-xs text-gray-500">Currently allocated: <strong>{transferFor.count}</strong>. Not Plant Head/Admin? This will need approval before manpower actually moves.</p>
+                <select className="w-full border rounded-lg px-3 py-2 text-sm" value={transferTo} onChange={e => setTransferTo(e.target.value)}>
+                  <option value="">— Destination Work Order —</option>
+                  {workOrders.filter(w => w.id !== transferFor.workOrderId).map(w => <option key={w.id} value={w.id}>{w.woNumber} — {w.productName} ({w.stageName || 'Production'})</option>)}
+                </select>
+                <input type="number" min="1" className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Quantity to move" value={transferQty} onChange={e => setTransferQty(e.target.value)} />
+                <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Reason (optional)" value={transferReason} onChange={e => setTransferReason(e.target.value)} />
+              </div>
+              <div className="p-5 border-t flex justify-end gap-3">
+                <button onClick={() => setTransferFor(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                <button onClick={handleTransfer} disabled={transferring} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">{transferring ? 'Submitting...' : 'Submit'}</button>
               </div>
             </div>
           </div>
