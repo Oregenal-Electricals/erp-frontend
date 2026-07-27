@@ -16,6 +16,7 @@ export default function ManpowerPage() {
   const me = getUser() || {};
   const [allocations, setAllocations] = useState([]);
   const [users, setUsers] = useState([]);
+  const [workOrders, setWorkOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [sendForm, setSendForm] = useState({ date: new Date().toISOString().slice(0, 10), toUserId: '', count: '', remarks: '' });
@@ -23,7 +24,7 @@ export default function ManpowerPage() {
   const [sending, setSending] = useState(false);
 
   const [distributeFor, setDistributeFor] = useState(null); // allocation being distributed
-  const [distLines, setDistLines] = useState([{ toUserId: '', category: '', count: '' }]);
+  const [distLines, setDistLines] = useState([{ toUserId: '', workOrderId: '', category: '', count: '' }]);
   const [distError, setDistError] = useState('');
   const [distResult, setDistResult] = useState(null);
   const [distributing, setDistributing] = useState(false);
@@ -33,12 +34,19 @@ export default function ManpowerPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [allocRes, userRes] = await Promise.all([
+    const [allocRes, userRes, relRes, ipRes] = await Promise.all([
       fetch(`${API}/manpower/allocations`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/users?limit=200`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/work-orders?status=RELEASED&limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/work-orders?status=IN_PROGRESS&limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (allocRes.ok) setAllocations(await allocRes.json());
     if (userRes.ok) { const d = await userRes.json(); setUsers(d.data || d || []); }
+    const [relData, ipData] = await Promise.all([
+      relRes.ok ? relRes.json() : { data: [] },
+      ipRes.ok ? ipRes.json() : { data: [] },
+    ]);
+    setWorkOrders([...(ipData.data || []), ...(relData.data || [])]);
     setLoading(false);
   }, []);
 
@@ -71,14 +79,14 @@ export default function ManpowerPage() {
 
   function openDistribute(allocation) {
     setDistributeFor(allocation);
-    setDistLines([{ toUserId: '', category: allocation.level === 'HR_TO_PLANT' ? 'SMT' : '', count: '' }]);
+    setDistLines([{ toUserId: '', workOrderId: '', category: allocation.level === 'HR_TO_PLANT' ? 'SMT' : '', count: '' }]);
     setDistError(''); setDistResult(null);
   }
 
   async function handleDistribute() {
     setDistError(''); setDistResult(null);
-    const lines = distLines.filter(l => l.toUserId && l.count).map(l => ({ toUserId: l.toUserId, category: l.category || undefined, count: parseInt(l.count) }));
-    if (lines.length === 0) { setDistError('Add at least one line with a recipient and count'); return; }
+    const lines = distLines.filter(l => l.count && (l.toUserId || l.workOrderId)).map(l => ({ toUserId: l.toUserId || undefined, workOrderId: l.workOrderId || undefined, category: l.category || undefined, count: parseInt(l.count) }));
+    if (lines.length === 0) { setDistError('Add at least one line with a count and either a recipient or a Work Order'); return; }
     setDistributing(true);
     const res = await fetch(`${API}/manpower/allocations/distribute`, {
       method: 'POST',
@@ -195,16 +203,17 @@ export default function ManpowerPage() {
                 <div className="flex items-center justify-between">
                   <div className="text-sm">
                     <span className="font-mono text-xs text-gray-400">{a.level}</span>
-                    <span className="ml-2">{userName(a.fromUserId)} → {userName(a.toUserId)}</span>
+                    <span className="ml-2">{userName(a.fromUserId)}{a.toUserId ? ` → ${userName(a.toUserId)}` : ''}</span>
                     {a.category && <span className="ml-2 text-blue-600">{a.category}</span>}
+                    {a.workOrder && <span className="ml-2 text-purple-600 font-mono text-xs">{a.workOrder.woNumber}</span>}
                     <span className="ml-2 font-bold">{a.count}</span>
-                  </div>
+                </div>
                   <div className="flex items-center gap-2">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[a.status]}`}>{a.status}</span>
                     {a.toUserId === me.id && a.status !== 'PENDING' && a.level !== 'STAGE_TO_LINE' && (
                       <button onClick={() => openDistribute(a)} className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">Distribute</button>
                     )}
-                    {(a.toUserId === me.id || a.fromUserId === me.id) && (
+                    {a.toUserId && (a.toUserId === me.id || a.fromUserId === me.id) && (
                       <button onClick={() => setQueryFor(a)} className="text-xs text-red-500 hover:underline">Raise Query</button>
                     )}
                   </div>
@@ -241,19 +250,26 @@ export default function ManpowerPage() {
                   </div>
                 )}
                 {distLines.map((line, idx) => (
-                  <div key={idx} className="grid grid-cols-4 gap-2 items-center">
-                    <select className="border rounded-lg px-2 py-2 text-sm" value={line.category} onChange={e => setDistLines(prev => prev.map((l, i) => i === idx ? { ...l, category: e.target.value } : l))}>
-                      <option value="">— Category —</option>
-                      {CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                  <div key={idx} className="border rounded-lg p-3 space-y-2 bg-gray-50">
+                    <div className="grid grid-cols-3 gap-2">
+                      <select className="border rounded-lg px-2 py-2 text-sm" value={line.category} onChange={e => setDistLines(prev => prev.map((l, i) => i === idx ? { ...l, category: e.target.value } : l))}>
+                        <option value="">— Category —</option>
+                        {CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <select className="border rounded-lg px-2 py-2 text-sm" value={line.toUserId} onChange={e => setDistLines(prev => prev.map((l, i) => i === idx ? { ...l, toUserId: e.target.value } : l))}>
+                        <option value="">— Line Incharge (optional) —</option>
+                        {users.map(u => <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>)}
+                      </select>
+                      <input type="number" min="1" placeholder="Count" className="border rounded-lg px-2 py-2 text-sm" value={line.count} onChange={e => setDistLines(prev => prev.map((l, i) => i === idx ? { ...l, count: e.target.value } : l))} />
+                    </div>
+                    <select className="w-full border rounded-lg px-2 py-2 text-sm" value={line.workOrderId} onChange={e => setDistLines(prev => prev.map((l, i) => i === idx ? { ...l, workOrderId: e.target.value } : l))}>
+                      <option value="">— Work Order (optional) —</option>
+                      {workOrders.map(w => <option key={w.id} value={w.id}>{w.woNumber} — {w.productName} ({w.stageName || 'Production'})</option>)}
                     </select>
-                    <select className="border rounded-lg px-2 py-2 text-sm col-span-2" value={line.toUserId} onChange={e => setDistLines(prev => prev.map((l, i) => i === idx ? { ...l, toUserId: e.target.value } : l))}>
-                      <option value="">— Recipient —</option>
-                      {users.map(u => <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>)}
-                    </select>
-                    <input type="number" min="1" placeholder="Count" className="border rounded-lg px-2 py-2 text-sm" value={line.count} onChange={e => setDistLines(prev => prev.map((l, i) => i === idx ? { ...l, count: e.target.value } : l))} />
+                    <p className="text-xs text-gray-400">Pick a Line Incharge, a Work Order, or both — at least one is required.</p>
                   </div>
                 ))}
-                <button onClick={() => setDistLines(prev => [...prev, { toUserId: '', category: '', count: '' }])} className="text-xs text-blue-600 hover:underline">+ Add Row</button>
+                <button onClick={() => setDistLines(prev => [...prev, { toUserId: '', workOrderId: '', category: '', count: '' }])} className="text-xs text-blue-600 hover:underline">+ Add Row</button>
               </div>
               <div className="p-5 border-t flex justify-end gap-3">
                 <button onClick={() => setDistributeFor(null)} className="px-4 py-2 border rounded-lg text-sm">Close</button>
