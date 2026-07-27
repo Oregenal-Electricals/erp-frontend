@@ -95,6 +95,13 @@ const PERMISSION_SECTIONS = [
     actions: ['MANPOWER_ALLOCATE','MANPOWER_ACCEPT','MANPOWER_DISTRIBUTE','MANPOWER_QUERY'],
   },
   {
+    label: 'Stage Transfers',
+    tabs: [
+      { label: 'Stage Transfers', perm: 'STAGE_TRANSFER_VIEW' },
+    ],
+    actions: ['STAGE_TRANSFER_GIVE','STAGE_TRANSFER_RECEIVE'],
+  },
+  {
     label: 'Quality',
     tabs: [
       { label: 'Quality Dashboard', perm: 'QUALITY_DASHBOARD_VIEW' }, { label: 'IQC', perm: 'IQC_VIEW' },
@@ -158,6 +165,7 @@ const ACTION_LABELS = {
   TOGGLE_STATUS: 'Toggle Status', RESET_PASSWORD: 'Reset Password', UNLOCK: 'Unlock',
   EXPORT: 'Export', MANAGE_ROLES: 'Manage Roles',
   ALLOCATE: 'Allocate (send)', ACCEPT: 'Accept', DISTRIBUTE: 'Distribute', QUERY: 'Raise/Resolve Query',
+  GIVE: 'Give', RECEIVE: 'Receive',
 };
 function actionLabel(perm) {
   const parts = perm.split('_');

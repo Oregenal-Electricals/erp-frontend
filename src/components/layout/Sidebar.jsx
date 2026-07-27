@@ -88,6 +88,7 @@ const PATH_PERMISSION = {
 const FULL_PATH_OVERRIDES = {
   '/production/floor': 'WORK_ORDER_VIEW',
   '/production/manpower': 'MANPOWER_VIEW',
+  '/production/stage-transfers': 'STAGE_TRANSFER_VIEW',
   '/inventory/stock': 'STOCK_LEDGER_VIEW',
   '/purchase/quotations': 'VENDOR_QUOTATION_VIEW',
   '/purchase/shortages': 'PURCHASE_VIEW',
@@ -220,6 +221,7 @@ const NAV = [
     children: [
       { label: 'Production Floor', href: '/production/floor', icon: Factory },
       { label: 'Manpower', href: '/production/manpower', icon: Factory },
+      { label: 'Stage Transfers', href: '/production/stage-transfers', icon: Factory },
       { label: 'Production Dashboard', href: '/production-dashboard', icon: BarChart3 },
       { label: 'Work Orders', href: '/production/work-orders', icon: ClipboardList },
       { label: 'Routing', href: '/production/routing', icon: ClipboardList },
