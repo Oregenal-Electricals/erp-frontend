@@ -42,6 +42,7 @@ export default function WorkOrdersPage() {
   const [expandedGroups, setExpandedGroups] = useState({});
   const [reservationsByWo, setReservationsByWo] = useState({});
   const [releaseSummary, setReleaseSummary] = useState(null);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
   const [form, setForm] = useState({ productCode:'', productName:'', uom:'PCS', bomId:'', warehouseId:'', plannedQty:'', plannedStartDate:'', plannedEndDate:'', priority:'MEDIUM', remarks:'' });
   const [completeModal, setCompleteModal] = useState(null);
   const [completeForm, setCompleteForm] = useState({ completedQty:'', rejectedQty:'0' });
@@ -67,6 +68,7 @@ export default function WorkOrdersPage() {
   }
 
   useEffect(() => { fetchAll(); }, [page, search, status]);
+  useEffect(() => { if (canSetPriority) fetchPendingApprovals(); }, []);
 
   function handleBomSelect(bomId) {
     const bom = boms.find(b => b.id === bomId);
@@ -106,11 +108,28 @@ export default function WorkOrdersPage() {
       if (action === 'release' && Array.isArray(data.materialReservations)) {
         setReleaseSummary({ woNumber: data.woNumber, lines: data.materialReservations });
       }
+      if (action === 'start' && data.pendingApproval) {
+        alert(data.message || 'Submitted for Plant Head approval');
+      }
       fetchAll();
+      if (canSetPriority) fetchPendingApprovals();
     } else {
       const d = await res.json();
       alert(d.message);
     }
+  }
+
+  async function fetchPendingApprovals() {
+    const res = await fetch(`${API}/workflows/requests?documentType=WO_START&status=PENDING&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) { const d = await res.json(); setPendingApprovals(d.data || d || []); }
+  }
+
+  async function handleApprovalAction(requestId, decision) {
+    await fetch(`${API}/work-orders/approvals/${requestId}/${decision}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({}),
+    });
+    fetchPendingApprovals(); fetchAll();
   }
 
   async function handleComplete() {
@@ -182,6 +201,26 @@ export default function WorkOrdersPage() {
                 <div className="text-xs text-gray-500 mt-1">{s.label}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {canSetPriority && pendingApprovals.length > 0 && (
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <h2 className="font-semibold text-amber-800 mb-3">🔔 Pending Work Order Start Approvals</h2>
+            <div className="space-y-2">
+              {pendingApprovals.map(r => (
+                <div key={r.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-2.5 border border-amber-100">
+                  <span className="text-sm">
+                    <span className="font-mono font-bold text-blue-600">{r.documentNumber}</span>
+                    <span className="text-gray-400 ml-2">{r.remarks}</span>
+                  </span>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleApprovalAction(r.id, 'approve')} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-green-700">Approve</button>
+                    <button onClick={() => handleApprovalAction(r.id, 'reject')} className="bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-600">Reject</button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
