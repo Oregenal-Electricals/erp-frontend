@@ -39,6 +39,7 @@ export default function WorkOrdersPage() {
   const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
+  const [expandedGroups, setExpandedGroups] = useState({});
   const [reservationsByWo, setReservationsByWo] = useState({});
   const [releaseSummary, setReleaseSummary] = useState(null);
   const [form, setForm] = useState({ productCode:'', productName:'', uom:'PCS', bomId:'', warehouseId:'', plannedQty:'', plannedStartDate:'', plannedEndDate:'', priority:'MEDIUM', remarks:'' });
@@ -137,6 +138,20 @@ export default function WorkOrdersPage() {
 
   const progressPct = wo => wo.plannedQty > 0 ? Math.min(100, Math.round(wo.completedQty / wo.plannedQty * 100)) : 0;
 
+  // A routing chain's stage Work Orders share a routingGroupId and are
+  // named {root}-{STAGENAME} (e.g. WO-2026-0009-SMT). This collapses them
+  // under one group header showing overall chain progress, so Plant
+  // Manager and above see one clean row per production run instead of one
+  // row per stage - while each stage's individual row is still available
+  // by expanding the group.
+  function groupSummary(routingGroupId) {
+    const members = wos.filter(w => w.routingGroupId === routingGroupId).sort((a, b) => (a.stageSequence || 0) - (b.stageSequence || 0));
+    const finalStage = members[members.length - 1];
+    const rootNumber = finalStage.woNumber.split('-').slice(0, -1).join('-');
+    const completedStages = members.filter(m => m.status === 'COMPLETED').length;
+    return { members, finalStage, rootNumber, completedStages, totalStages: members.length };
+  }
+
   return (
     <AppLayout>
       <div className="p-6 max-w-7xl mx-auto">
@@ -201,8 +216,34 @@ export default function WorkOrdersPage() {
           <div className="divide-y">
             {loading ? <div className="text-center py-10 text-gray-400">Loading...</div>
             : wos.length === 0 ? <div className="text-center py-10 text-gray-400">No work orders found</div>
-            : wos.map(wo => (
-              <div key={wo.id} className="p-4">
+            : (() => { const seenGroups = new Set(); return wos.map(wo => {
+              const isGroupHead = wo.routingGroupId && !seenGroups.has(wo.routingGroupId);
+              if (isGroupHead) seenGroups.add(wo.routingGroupId);
+              const group = isGroupHead ? groupSummary(wo.routingGroupId) : null;
+              const groupOpen = wo.routingGroupId ? !!expandedGroups[wo.routingGroupId] : true;
+              return (
+              <div key={wo.id}>
+              {isGroupHead && (
+                <div className="p-4 bg-blue-50 cursor-pointer" onClick={() => setExpandedGroups(prev => ({ ...prev, [wo.routingGroupId]: !prev[wo.routingGroupId] }))}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-mono font-bold text-blue-700">{group.rootNumber}</span>
+                      <span className="font-medium text-gray-800">{group.finalStage.productCode}</span>
+                      <span className="text-sm text-gray-500">{group.finalStage.productName}</span>
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{group.completedStages}/{group.totalStages} stages complete</span>
+                    </div>
+                    <span className="text-gray-400 text-xs">{groupOpen ? '▲ collapse chain' : '▼ expand chain'}</span>
+                  </div>
+                  <div className="mt-2 flex items-center gap-4">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div className={`h-2 rounded-full ${group.finalStage.status==='COMPLETED'?'bg-green-500':'bg-blue-500'}`} style={{ width: `${progressPct(group.finalStage)}%`}}></div>
+                    </div>
+                    <span className="text-xs text-gray-500">{progressPct(group.finalStage)}% overall ({group.finalStage.completedQty}/{group.finalStage.plannedQty})</span>
+                  </div>
+                </div>
+              )}
+              {groupOpen && (
+              <div className="p-4" style={wo.routingGroupId ? { paddingLeft: '2.5rem', background: '#fcfcfd' } : {}}>
                 <div className="flex items-center justify-between cursor-pointer" onClick={() => handleExpand(wo.id)}>
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="font-mono font-bold text-blue-600">{wo.woNumber}</span>
@@ -282,7 +323,10 @@ export default function WorkOrdersPage() {
                   </div>
                 )}
               </div>
-            ))}
+              )}
+              </div>
+              );
+            }) })()}
           </div>
 
           {totalPages > 1 && (
