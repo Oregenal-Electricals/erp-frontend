@@ -15,6 +15,7 @@ export default function ProductionDashboardPage() {
   const [today, setToday] = useState(null);
   const [alerts, setAlerts] = useState(null);
   const [quality, setQuality] = useState(null);
+  const [hourly, setHourly] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
@@ -22,14 +23,15 @@ export default function ProductionDashboardPage() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
     const h = { Authorization: `Bearer ${getToken()}` };
-    const [ov, wos, td, al, q] = await Promise.all([
+    const [ov, wos, td, al, q, hm] = await Promise.all([
       fetch(`${API}/production-dashboard/overview`, {headers:h}).then(r=>r.ok?r.json():null),
       fetch(`${API}/production-dashboard/active-wos`, {headers:h}).then(r=>r.ok?r.json():[]),
       fetch(`${API}/production-dashboard/today`, {headers:h}).then(r=>r.ok?r.json():null),
       fetch(`${API}/production-dashboard/alerts`, {headers:h}).then(r=>r.ok?r.json():null),
       fetch(`${API}/production-dashboard/quality`, {headers:h}).then(r=>r.ok?r.json():null),
+      fetch(`${API}/production-dashboard/hourly-monitoring`, {headers:h}).then(r=>r.ok?r.json():null),
     ]);
-    setOverview(ov); setActiveWos(wos||[]); setToday(td); setAlerts(al); setQuality(q);
+    setOverview(ov); setActiveWos(wos||[]); setToday(td); setAlerts(al); setQuality(q); setHourly(hm);
     setLastRefresh(new Date()); setLoading(false);
   }
 
@@ -111,8 +113,98 @@ export default function ProductionDashboardPage() {
               </div>
             </div>
 
+            {/* Hourly Monitoring (Phase D) */}
+            {hourly && (
+              <div className="bg-white rounded-xl border shadow-sm mb-6">
+                <div className="p-4 border-b flex items-center justify-between">
+                  <span className="font-semibold text-gray-700">Hourly Monitoring — {hourly.date}</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full font-medium">{hourly.workOrders.startedToday} started today</span>
+                    <span className="px-2 py-1 bg-green-50 text-green-700 rounded-full font-medium">{hourly.workOrders.completedToday} completed today</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 border-b">
+                  <div>
+                    <div className="text-xs text-gray-500">Manpower Allocated</div>
+                    <div className="text-lg font-bold text-gray-800">{hourly.manpower.totalAllocatedToday}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Idle Headcount</div>
+                    <div className={`text-lg font-bold ${hourly.manpower.idleHeadcount>0?'text-orange-600':'text-gray-800'}`}>{hourly.manpower.idleHeadcount}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Utilization</div>
+                    <div className="text-lg font-bold text-blue-700">{hourly.manpower.utilizationPct}%</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Overall Good vs Total</div>
+                    <div className="text-lg font-bold text-green-700">{hourly.efficiency.overallGoodVsTotalPct}%</div>
+                  </div>
+                </div>
+
+                {/* Hourly output bar chart */}
+                <div className="p-4 border-b">
+                  <div className="text-xs font-semibold text-gray-600 mb-2">Output by Hour</div>
+                  <div className="flex items-end gap-1 h-24">
+                    {hourly.hourlyOutput.map(h => {
+                      const maxQty = Math.max(1, ...hourly.hourlyOutput.map(x => x.goodQty + x.scrapQty));
+                      const total = h.goodQty + h.scrapQty;
+                      const heightPct = Math.max(2, Math.round(total / maxQty * 100));
+                      return (
+                        <div key={h.hour} className="flex-1 flex flex-col items-center justify-end h-full" title={`${h.hour} — good:${h.goodQty} scrap:${h.scrapQty}`}>
+                          <div className="w-full bg-blue-500 rounded-t" style={{ height: `${total > 0 ? heightPct : 2}%`, opacity: total > 0 ? 1 : 0.15 }}></div>
+                          <div className="text-[9px] text-gray-400 mt-1 rotate-45 origin-left whitespace-nowrap">{h.hour}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-4 divide-y md:divide-y-0">
+                  {/* Stage-wise output */}
+                  <div className="p-4">
+                    <div className="text-xs font-semibold text-gray-600 mb-2">Output by Stage (Today)</div>
+                    {hourly.stageWiseOutput.length === 0 && <div className="text-xs text-gray-400 py-3">No confirmed production entries yet today</div>}
+                    {hourly.stageWiseOutput.map(s => (
+                      <div key={s.stageName} className="flex items-center justify-between text-xs py-1.5 border-b last:border-0">
+                        <span className="font-medium text-gray-700">{s.stageName}</span>
+                        <span className="text-gray-500">{s.workOrderCount} WO{s.workOrderCount!==1?'s':''}</span>
+                        <span className="text-green-600 font-semibold">{s.goodQty} good</span>
+                        <span className="text-red-500">{s.scrapQty} scrap</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Stage transfers */}
+                  <div className="p-4">
+                    <div className="text-xs font-semibold text-gray-600 mb-2">Stage Transfers Today ({hourly.transfers.todayCount})</div>
+                    {hourly.transfers.list.length === 0 && <div className="text-xs text-gray-400 py-3">No transfers logged today</div>}
+                    {hourly.transfers.list.slice(0, 5).map(t => (
+                      <div key={t.id} className="text-xs py-1.5 border-b last:border-0">
+                        <span className="font-mono text-blue-600">{t.fromWoNumber}</span> → <span className="font-mono text-blue-600">{t.toWoNumber}</span>
+                        <span className="text-gray-500 ml-2">{t.itemCode} × {t.qty}</span>
+                        <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium ${t.status==='RECEIVED'?'bg-green-50 text-green-600':'bg-yellow-50 text-yellow-600'}`}>{t.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Manpower costing estimate */}
+                <div className="p-4 bg-gray-50 rounded-b-xl">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-gray-600">Manpower Cost Estimate (Today)</span>
+                    <span className="text-lg font-bold text-blue-700">{fmt(hourly.costing.totalManpowerCostToday)}</span>
+                  </div>
+                  {hourly.costing.headcountWithoutRate > 0 && (
+                    <div className="text-xs text-orange-500 mb-1">{hourly.costing.headcountWithoutRate} allocated headcount has no matched Employee salary record — excluded from this estimate.</div>
+                  )}
+                  <div className="text-[10px] text-gray-400 leading-relaxed">{hourly.costing.assumptionNote}</div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Alerts */}
               <div className="bg-white rounded-xl border shadow-sm">
                 <div className="p-4 border-b flex justify-between">
                   <span className="font-semibold text-gray-700">Alerts</span>
