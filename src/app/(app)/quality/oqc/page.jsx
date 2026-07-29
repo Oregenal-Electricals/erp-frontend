@@ -17,7 +17,6 @@ export default function OqcPage() {
   const [records, setRecords] = useState([]);
   const [stats, setStats] = useState(null);
   const [fgReceipts, setFgReceipts] = useState([]);
-  const [wos, setWos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [result, setResult] = useState('');
@@ -39,16 +38,14 @@ export default function OqcPage() {
     if (search) params.set('search', search);
     if (result) params.set('result', result);
     if (status) params.set('status', status);
-    const [recRes, statsRes, fgrRes, woRes] = await Promise.all([
+    const [recRes, statsRes, fgrRes] = await Promise.all([
       fetch(`${API}/oqc?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/oqc/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/fg-receipts?status=RECEIVED&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/work-orders?status=COMPLETED&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/oqc/pending-fg-receipts`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (recRes.ok) { const d = await recRes.json(); setRecords(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
     if (statsRes.ok) setStats(await statsRes.json());
     if (fgrRes.ok) { const d = await fgrRes.json(); setFgReceipts(d.data || []); }
-    if (woRes.ok) { const d = await woRes.json(); setWos(d.data || []); }
     setLoading(false);
   }
 
@@ -61,6 +58,7 @@ export default function OqcPage() {
   }
 
   async function handleCreate() {
+    if (!form.fgReceiptId) { setError('Select which FG Receipt this inspection is for - every OQC now has to be tied to one.'); return; }
     setSaving(true); setError('');
     const body = { ...form, sampleSize: parseInt(form.sampleSize)||0, passQty: parseInt(form.passQty)||0, failQty: parseInt(form.failQty)||0 };
     ['fgReceiptId','workOrderId','customerName','lotNumber','batchNumber','inspectorName','cocNumber','defectsFound','remarks'].forEach(k => { if (!body[k]) delete body[k]; });
@@ -102,8 +100,9 @@ export default function OqcPage() {
         </div>
 
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             {[
+              {label:'Pending OQC', value:fgReceipts.length, color:fgReceipts.length>0?'bg-orange-50':'bg-gray-50'},
               {label:'Pass Rate', value:`${stats.passRate}%`, color:stats.passRate>=95?'bg-green-50':stats.passRate>=80?'bg-yellow-50':'bg-red-50'},
               {label:'PASS', value:stats.pass, color:'bg-green-50'},
               {label:'FAIL', value:stats.fail, color:'bg-red-50'},
@@ -196,6 +195,9 @@ export default function OqcPage() {
                             ✅ Released for dispatch on {fmtDate(expandedDetail.releasedDate)}
                           </div>
                         )}
+                        <div className="mt-4 pt-4 border-t">
+                          <DocumentAttachments referenceType="OQC" referenceId={expandedDetail.id} referenceNumber={expandedDetail.oqcNumber} title="OQC Attachments" />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -216,11 +218,12 @@ export default function OqcPage() {
                 {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
-                    <label className="block text-sm text-gray-600 mb-1">FG Receipt (optional)</label>
+                    <label className="block text-sm text-gray-600 mb-1">FG Receipt awaiting OQC *</label>
                     <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.fgReceiptId} onChange={e=>handleFgrSelect(e.target.value)}>
                       <option value="">— Select FG Receipt —</option>
                       {fgReceipts.map(f=><option key={f.id} value={f.id}>{f.receiptNumber} — {f.itemCode} (qty:{f.receivedQty})</option>)}
                     </select>
+                    {fgReceipts.length===0 && <p className="text-xs text-gray-400 mt-1">No FG Receipts are currently waiting on OQC.</p>}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Item Code *</label>
@@ -272,8 +275,6 @@ export default function OqcPage() {
                   <label className="block text-sm text-gray-600 mb-1">Defects Found</label>
                   <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} value={form.defectsFound} onChange={e=>setForm(f=>({...f,defectsFound:e.target.value}))} />
                 </div>
-
-              <DocumentAttachments referenceType="OQC" referenceId={viewDetail?.id} referenceNumber={viewDetail?.oqcNumber} title="OQC Attachments" />
               </div>
               <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
                 <button onClick={()=>setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
