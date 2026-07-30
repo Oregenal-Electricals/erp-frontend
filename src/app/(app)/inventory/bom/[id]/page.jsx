@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
@@ -23,7 +23,7 @@ export default function BomDetailPage() {
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({
-    sequence: 1, itemType: 'RAW_MATERIAL', itemCode: '', itemName: '',
+    sequence: 1, itemType: 'RAW_MATERIAL', section: '', itemCode: '', itemName: '',
     uom: 'PCS', quantity: '', wastagePercent: 0, unitCost: '', isCritical: false, notes: ''
   });
   const [saving, setSaving] = useState(false);
@@ -50,17 +50,17 @@ export default function BomDetailPage() {
 
   useEffect(() => { fetchBom(); fetchChain(); }, [fetchBom, fetchChain]);
 
-  function openAdd() {
+  function openAdd(presetSection) {
     setEditItem(null);
     const nextSeq = bom?.items?.length ? Math.max(...bom.items.map(i => i.sequence)) + 1 : 1;
-    setForm({ sequence: nextSeq, itemType: 'RAW_MATERIAL', itemCode: '', itemName: '', uom: 'PCS', quantity: '', wastagePercent: 0, unitCost: '', isCritical: false, notes: '' });
+    setForm({ sequence: nextSeq, itemType: 'RAW_MATERIAL', section: presetSection || '', itemCode: '', itemName: '', uom: 'PCS', quantity: '', wastagePercent: 0, unitCost: '', isCritical: false, notes: '' });
     setError(''); setShowModal(true);
   }
 
   function openEdit(item) {
     setEditItem(item);
     setForm({
-      sequence: item.sequence, itemType: item.itemType, itemCode: item.itemCode,
+      sequence: item.sequence, itemType: item.itemType, section: item.section || '', itemCode: item.itemCode,
       itemName: item.itemName, uom: item.uom, quantity: item.quantity,
       wastagePercent: item.wastagePercent || 0, unitCost: item.unitCost || '',
       isCritical: item.isCritical, notes: item.notes || ''
@@ -203,28 +203,50 @@ export default function BomDetailPage() {
               <tbody className="divide-y divide-gray-100">
                 {!bom.items || bom.items.length === 0 ? (
                   <tr><td colSpan={10} className="text-center py-10 text-gray-400">No items yet. Click "+ Add Item" to start.</td></tr>
-                ) : bom.items.map(item => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-3 text-gray-500">{item.sequence}</td>
-                    <td className="px-3 py-3"><span className="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{item.itemType}</span></td>
-                    <td className="px-3 py-3 font-mono text-blue-600">{item.itemCode}</td>
-                    <td className="px-3 py-3 font-medium text-gray-900">{item.itemName}</td>
-                    <td className="px-3 py-3 text-gray-600">{item.uom}</td>
-                    <td className="px-3 py-3 text-gray-800">{item.quantity}</td>
-                    <td className="px-3 py-3 text-gray-800 font-medium">{item.effectiveQty?.toFixed(3)}</td>
-                    <td className="px-3 py-3 text-gray-600">{item.unitCost ? `₹${Number(item.unitCost).toFixed(2)}` : '—'}</td>
-                    <td className="px-3 py-3 font-medium text-gray-800">{item.totalCost ? `₹${item.totalCost.toFixed(2)}` : '—'}</td>
-                    <td className="px-3 py-3">
-                      {bom.status === 'DRAFT' && (
-                        <div className="flex gap-2">
-                          <button onClick={() => openEdit(item)} className="text-blue-600 hover:underline text-xs">Edit</button>
-                          <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:underline text-xs">Remove</button>
-                        </div>
-                      )}
-                      {bom.status !== 'DRAFT' && <span className="text-xs text-gray-400">Locked</span>}
-                    </td>
-                  </tr>
-                ))}
+                ) : (() => {
+                  // Group items by section, preserving the order each section first appears in (matches the order sections appeared in the uploaded BOM sheet, if any)
+                  const order = [];
+                  const groups = {};
+                  for (const item of bom.items) {
+                    const key = item.section || 'Ungrouped';
+                    if (!groups[key]) { groups[key] = []; order.push(key); }
+                    groups[key].push(item);
+                  }
+                  return order.map(section => (
+                    <Fragment key={section}>
+                      <tr className="bg-blue-50">
+                        <td colSpan={9} className="px-3 py-2 font-semibold text-blue-800 text-xs uppercase tracking-wide">{section} <span className="text-blue-400 font-normal normal-case">({groups[section].length} items)</span></td>
+                        <td className="px-3 py-2">
+                          {bom.status === 'DRAFT' && (
+                            <button onClick={() => openAdd(section === 'Ungrouped' ? '' : section)} className="text-blue-600 hover:underline text-xs">+ Add</button>
+                          )}
+                        </td>
+                      </tr>
+                      {groups[section].map(item => (
+                        <tr key={item.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-3 text-gray-500">{item.sequence}</td>
+                          <td className="px-3 py-3"><span className="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{item.itemType}</span></td>
+                          <td className="px-3 py-3 font-mono text-blue-600">{item.itemCode}</td>
+                          <td className="px-3 py-3 font-medium text-gray-900">{item.itemName}</td>
+                          <td className="px-3 py-3 text-gray-600">{item.uom}</td>
+                          <td className="px-3 py-3 text-gray-800">{item.quantity}</td>
+                          <td className="px-3 py-3 text-gray-800 font-medium">{item.effectiveQty?.toFixed(3)}</td>
+                          <td className="px-3 py-3 text-gray-600">{item.unitCost ? `₹${Number(item.unitCost).toFixed(2)}` : '—'}</td>
+                          <td className="px-3 py-3 font-medium text-gray-800">{item.totalCost ? `₹${item.totalCost.toFixed(2)}` : '—'}</td>
+                          <td className="px-3 py-3">
+                            {bom.status === 'DRAFT' && (
+                              <div className="flex gap-2">
+                                <button onClick={() => openEdit(item)} className="text-blue-600 hover:underline text-xs">Edit</button>
+                                <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:underline text-xs">Remove</button>
+                              </div>
+                            )}
+                            {bom.status !== 'DRAFT' && <span className="text-xs text-gray-400">Locked</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  ));
+                })()}
               </tbody>
               {bom.items && bom.items.length > 0 && (
                 <tfoot className="bg-gray-50">
@@ -258,6 +280,13 @@ export default function BomDetailPage() {
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Sequence</label>
                     <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.sequence} onChange={e => setForm(f => ({ ...f, sequence: parseInt(e.target.value) }))} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm text-gray-600 mb-1">Section / Stage</label>
+                    <input list="bom-sections" className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="e.g. SMT Components (leave blank for Ungrouped)" value={form.section} onChange={e => setForm(f => ({ ...f, section: e.target.value }))} />
+                    <datalist id="bom-sections">
+                      {[...new Set((bom.items || []).map(i => i.section).filter(Boolean))].map(s => <option key={s} value={s} />)}
+                    </datalist>
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Item Type</label>
