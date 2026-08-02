@@ -1,7 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import { isTestSessionEnabled, onTestSessionChange } from '@/lib/testSession';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
@@ -15,6 +16,12 @@ export default function BomUploadPage() {
   const [useExisting, setUseExisting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState(null);
+  const [testMode, setTestMode] = useState(false);
+
+  useEffect(() => {
+    setTestMode(isTestSessionEnabled());
+    return onTestSessionChange(setTestMode);
+  }, []);
 
   async function handleUpload() {
     if (!file) return;
@@ -71,6 +78,12 @@ export default function BomUploadPage() {
   }
 
   async function handleConfirm() {
+    if (testMode) {
+      const proceed = window.confirm(
+        'Test Mode is ON.\n\nIf any of these part codes already exist as real products or raw materials, this BOM will be recorded as test data - fine. But if these are NEW item codes meant for real production, they will get permanently tagged as test data, even after you turn Test Mode off.\n\nTurn off Test Mode first if this is a real BOM upload.\n\nContinue anyway?'
+      );
+      if (!proceed) return;
+    }
     setConfirming(true); setError('');
     const payload = {
       useExistingProductId: useExisting ? preview.existingProduct?.id : undefined,
@@ -115,6 +128,12 @@ export default function BomUploadPage() {
         <h1 className="text-2xl font-bold text-gray-900">Upload BOM</h1>
         <p className="text-gray-500 text-sm mt-1">Import a Bill of Materials from Excel or CSV. Review and correct everything before it's saved.</p>
       </div>
+
+      {testMode && !result && (
+        <div className="mb-4 p-3 bg-red-50 border-2 border-red-300 rounded-lg text-red-800 text-sm">
+          <span className="font-semibold">Test Mode is ON.</span> BOM uploads create real, permanent Products and Raw Materials by item code - if these are real part numbers for actual production, turn Test Mode off first (top right). They'll otherwise stay tagged as test data even after you switch it off.
+        </div>
+      )}
 
       {error && <div className="mb-4 p-3 bg-red-50 border-2 border-red-300 rounded-lg text-red-700 text-sm font-medium">{error}</div>}
 
