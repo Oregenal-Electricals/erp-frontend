@@ -31,15 +31,35 @@ export default function BomDetailPage() {
   const [stages, setStages] = useState([]);
   const [versions, setVersions] = useState([]);
   const [showVersions, setShowVersions] = useState(false);
+  const [routings, setRoutings] = useState([]);
+  const [stageNames, setStageNames] = useState({});
+  const [generatingStages, setGeneratingStages] = useState(false);
+  const [approvingStages, setApprovingStages] = useState(false);
+  const [creatingRouting, setCreatingRouting] = useState(false);
+  const [setupError, setSetupError] = useState('');
 
   const fetchChain = useCallback(async () => {
-    const [sRes, vRes] = await Promise.all([
+    const [sRes, vRes, rRes] = await Promise.all([
       fetch(`${API}/boms/${id}/stages`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/boms/${id}/history`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/routing`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (sRes.ok) setStages(await sRes.json());
     if (vRes.ok) setVersions(await vRes.json());
+    if (rRes.ok) setRoutings(await rRes.json());
   }, [id]);
+
+  // Best-effort guess at a stage name from a section name (e.g. "LED DRIVER
+  // -SMT" -> "SMT") - just a starting point, always editable before
+  // generating stages.
+  function guessStageName(section) {
+    const s = section.toUpperCase();
+    if (s.includes('SMT')) return 'SMT';
+    if (/\bMI\b/.test(s)) return 'MI';
+    if (s.includes('ASSEMBL')) return 'Assembly';
+    if (s.includes('PACK')) return 'Packaging';
+    return section;
+  }
 
   const fetchBom = useCallback(async () => {
     setLoading(true);
@@ -49,6 +69,15 @@ export default function BomDetailPage() {
   }, [id]);
 
   useEffect(() => { fetchBom(); fetchChain(); }, [fetchBom, fetchChain]);
+
+  useEffect(() => {
+    if (!bom?.items || Object.keys(stageNames).length > 0) return;
+    const sections = [...new Set(bom.items.map(i => i.section).filter(Boolean))];
+    if (sections.length === 0) return;
+    const guesses = {};
+    for (const s of sections) guesses[s] = guessStageName(s);
+    setStageNames(guesses);
+  }, [bom, stageNames]);
 
   function openAdd(presetSection) {
     setEditItem(null);
@@ -99,6 +128,54 @@ export default function BomDetailPage() {
     fetchBom();
   }
 
+  async function handleGenerateStages() {
+    setGeneratingStages(true); setSetupError('');
+    const sections = Object.keys(stageNames);
+    const body = { stages: sections.map(section => ({ stageName: stageNames[section], sections: [section] })) };
+    const res = await fetch(`${API}/boms/${id}/generate-stages`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (res.ok) { fetchChain(); }
+    else setSetupError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed to generate stages');
+    setGeneratingStages(false);
+  }
+
+  async function handleApproveAllStages() {
+    setApprovingStages(true); setSetupError('');
+    const toApprove = stages.filter(s => s.status === 'DRAFT');
+    for (const s of toApprove) {
+      const res = await fetch(`${API}/boms/${s.id}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
+      if (!res.ok) {
+        const data = await res.json();
+        setSetupError(`Failed approving ${s.bomNumber}: ${data.message || 'unknown error'}`);
+        setApprovingStages(false);
+        return;
+      }
+    }
+    fetchChain();
+    setApprovingStages(false);
+  }
+
+  async function handleCreateRouting() {
+    setCreatingRouting(true); setSetupError('');
+    const approvedStages = stages.filter(s => s.status === 'APPROVED');
+    const body = {
+      finalProductId: bom.productId,
+      routingName: `${bom.product?.name || bom.product?.code} Standard Routing`,
+      stages: approvedStages.map(s => ({ stageName: s.bomNumber.split('-').pop(), bomId: s.id })),
+    };
+    const res = await fetch(`${API}/routing`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (res.ok) { fetchChain(); }
+    else setSetupError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed to create routing');
+    setCreatingRouting(false);
+  }
+
   if (loading) return <AppLayout><div className="p-6 text-gray-400">Loading...</div></AppLayout>;
   if (!bom) return <AppLayout><div className="p-6 text-red-500">BOM not found</div></AppLayout>;
 
@@ -129,40 +206,92 @@ export default function BomDetailPage() {
           ))}
         </div>
 
-        {(stages.length > 0 || versions.length > 0) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {stages.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-3">Stage BOMs ({stages.length})</h3>
-                <div className="space-y-1">
-                  {stages.map(s => (
-                    <Link key={s.id} href={`/inventory/bom/${s.id}`} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2 border text-sm hover:border-blue-300">
-                      <span className="font-mono text-blue-600">{s.bomNumber}</span>
-                      <span className="text-gray-400 font-mono text-xs">{s.version}</span>
-                      <span className="text-gray-500 truncate mx-2">{s.product?.name}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[s.status] || 'bg-gray-100'}`}>{s.status}</span>
-                    </Link>
+        {bom.status === 'APPROVED' && bom.bomType === 'MASTER' && (
+          <div className="bg-white rounded-xl shadow-sm border-2 border-blue-200 p-5 mb-6">
+            <h2 className="font-semibold text-gray-800 mb-1">Set Up Production</h2>
+            <p className="text-xs text-gray-500 mb-4">Turn this approved BOM into a working production routing, step by step — no need to know where the Production module lives.</p>
+
+            {setupError && <div className="mb-3 bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{setupError}</div>}
+
+            {stages.length === 0 ? (
+              <div>
+                <div className="text-sm font-medium text-gray-700 mb-2">Step 1: Name each production stage</div>
+                <div className="space-y-2 mb-3">
+                  {Object.keys(stageNames).map(section => (
+                    <div key={section} className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500 w-56 truncate" title={section}>{section}</span>
+                      <span className="text-gray-300">→</span>
+                      <input className="border rounded px-2 py-1 text-sm w-40" value={stageNames[section]} onChange={e => setStageNames(prev => ({ ...prev, [section]: e.target.value }))} />
+                    </div>
                   ))}
                 </div>
-              </div>
-            )}
-            {versions.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                <button onClick={() => setShowVersions(v => !v)} className="w-full flex items-center justify-between text-xs font-semibold text-gray-500 uppercase">
-                  <span>Previous Versions ({versions.length})</span>
-                  <span className="text-gray-400">{showVersions ? '▾' : '▸'}</span>
+                <button onClick={handleGenerateStages} disabled={generatingStages || Object.keys(stageNames).length === 0} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
+                  {generatingStages ? 'Generating...' : 'Generate Production Stages'}
                 </button>
-                {showVersions && (
-                  <div className="space-y-1 mt-3">
-                    {versions.map(v => (
-                      <Link key={v.id} href={`/inventory/bom/${v.id}`} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2 border text-sm hover:border-blue-300">
-                        <span className="font-mono">{v.version}</span>
-                        <span className="text-gray-500">{v._count?.items || 0} items</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[v.status] || 'bg-gray-100'}`}>{v.status}</span>
-                      </Link>
-                    ))}
+              </div>
+            ) : (
+              <div>
+                <div className="text-sm font-medium text-green-700 mb-2">✓ Step 1 done — {stages.length} stage{stages.length > 1 ? 's' : ''} generated</div>
+                <div className="space-y-1 mb-4">
+                  {stages.map(s => (
+                    <div key={s.id} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2 border text-sm">
+                      <span className="font-mono text-blue-600">{s.bomNumber}</span>
+                      <span className="text-gray-500">{s._count?.items || 0} items</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[s.status] || 'bg-gray-100'}`}>{s.status}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {stages.some(s => s.status === 'DRAFT') ? (
+                  <div>
+                    <div className="text-sm font-medium text-gray-700 mb-2">Step 2: Approve the stages</div>
+                    <button onClick={handleApproveAllStages} disabled={approvingStages} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50">
+                      {approvingStages ? 'Approving...' : 'Approve All Stages'}
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-sm font-medium text-green-700 mb-2">✓ Step 2 done — all stages approved</div>
+                    {(() => {
+                      const existingRouting = routings.find(r => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId);
+                      if (existingRouting) {
+                        return (
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+                            ✅ Routing ready: <Link href="/production/routing" className="underline font-medium">{existingRouting.routingName}</Link> — go there whenever a customer order needs to start production, whether it needs the full chain or just one stage's output.
+                          </div>
+                        );
+                      }
+                      return (
+                        <div>
+                        <div className="text-sm font-medium text-gray-700 mb-2">Step 3: Create the production routing</div>
+                        <button onClick={handleCreateRouting} disabled={creatingRouting} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50">
+                            {creatingRouting ? 'Creating...' : 'Create Production Routing'}
+                        </button>
+                      </div>
+                      );
+                    })()}
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {versions.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+            <button onClick={() => setShowVersions(v => !v)} className="w-full flex items-center justify-between text-xs font-semibold text-gray-500 uppercase">
+              <span>Previous Versions ({versions.length})</span>
+              <span className="text-gray-400">{showVersions ? '▾' : '▸'}</span>
+            </button>
+            {showVersions && (
+              <div className="space-y-1 mt-3">
+                {versions.map(v => (
+                  <Link key={v.id} href={`/inventory/bom/${v.id}`} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2 border text-sm hover:border-blue-300">
+                    <span className="font-mono">{v.version}</span>
+                    <span className="text-gray-500">{v._count?.items || 0} items</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[v.status] || 'bg-gray-100'}`}>{v.status}</span>
+                  </Link>
+                ))}
               </div>
             )}
           </div>
