@@ -50,21 +50,29 @@ export default function WorkOrdersPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const [routings, setRoutings] = useState([]);
+  const [showRoutingModal, setShowRoutingModal] = useState(false);
+  const [startForm, setStartForm] = useState({ routingId: '', plannedQty: '', warehouseId: '' });
+  const [starting, setStarting] = useState(false);
+  const [startResult, setStartResult] = useState(null);
+
   async function fetchAll() {
     setLoading(true);
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
     if (status) params.set('status', status);
-    const [woRes, statsRes, whRes, bomRes] = await Promise.all([
+    const [woRes, statsRes, whRes, bomRes, rtRes] = await Promise.all([
       fetch(`${API}/work-orders?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/work-orders/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/warehouses?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/bom?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/routing`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (woRes.ok) { const d = await woRes.json(); setWos(d.data); setTotalPages(d.totalPages); setTotal(d.total); }
     if (statsRes.ok) setStats(await statsRes.json());
     if (whRes.ok) { const d = await whRes.json(); setWarehouses(d.data || d); }
     if (bomRes.ok) { const d = await bomRes.json(); setBoms(d.data || []); }
+    if (rtRes.ok) setRoutings(await rtRes.json());
     setLoading(false);
   }
 
@@ -96,6 +104,28 @@ export default function WorkOrdersPage() {
     if (res.ok) { setShowModal(false); fetchAll(); }
     else setError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed');
     setSaving(false);
+  }
+
+  async function handleStartProduction() {
+    setStarting(true); setStartResult(null); setError('');
+    const res = await fetch(`${API}/routing/start-production`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({
+        routingId: startForm.routingId,
+        plannedQty: parseFloat(startForm.plannedQty),
+        warehouseId: startForm.warehouseId,
+      }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setStartResult(data);
+      setStartForm({ routingId: '', plannedQty: '', warehouseId: '' });
+      fetchAll();
+    } else {
+      setError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed to start production');
+    }
+    setStarting(false);
   }
 
   async function handleAction(id, action, body = {}) {
@@ -191,7 +221,10 @@ export default function WorkOrdersPage() {
             <h1 className="text-2xl font-bold text-gray-900">Work Orders</h1>
             <p className="text-gray-500 text-sm mt-1">Plan, release and track production work orders</p>
           </div>
-          <button onClick={() => { setForm({ productCode:'', productName:'', uom:'PCS', bomId:'', warehouseId:'', plannedQty:'', plannedStartDate:'', plannedEndDate:'', priority:'MEDIUM', remarks:'' }); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New Work Order</button>
+          <div className="flex gap-2">
+            <button onClick={() => { setStartForm({ routingId: '', plannedQty: '', warehouseId: '' }); setStartResult(null); setError(''); setShowRoutingModal(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium">+ Start Routing Chain</button>
+            <button onClick={() => { setForm({ productCode:'', productName:'', uom:'PCS', bomId:'', warehouseId:'', plannedQty:'', plannedStartDate:'', plannedEndDate:'', priority:'MEDIUM', remarks:'' }); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New Work Order</button>
+          </div>
         </div>
 
         {stats && (
@@ -462,6 +495,68 @@ export default function WorkOrdersPage() {
               <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
                 <button onClick={()=>setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
                 <button onClick={handleCreate} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50">{saving?'Creating...':'Create Work Order'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showRoutingModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-screen overflow-y-auto">
+              <div className="p-6 border-b flex justify-between sticky top-0 bg-white">
+                <div>
+                  <h2 className="text-lg font-bold">Start Routing Chain</h2>
+                  <p className="text-xs text-gray-500 mt-1">For build-to-stock production not tied to a specific customer order. Orders against a routing normally start automatically from Sales Order allocation instead.</p>
+                </div>
+                <button onClick={()=>setShowRoutingModal(false)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="p-6 space-y-4">
+                {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
+                {startResult ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="text-sm font-semibold text-green-700 mb-2">✅ Production chain started — {startResult.stages.length} stage Work Orders created</div>
+                    <table className="w-full text-xs">
+                      <thead className="text-green-600 uppercase"><tr>{['Stage','WO Number','Status'].map(h=><th key={h} className="text-left px-2 py-1">{h}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-green-100">
+                        {startResult.stages.map(s => (
+                          <tr key={s.woId} className="bg-white">
+                            <td className="px-2 py-1">{s.sequence}. {s.stageName}</td>
+                            <td className="px-2 py-1 font-mono font-bold">{s.woNumber}</td>
+                            <td className="px-2 py-1 text-gray-500">{s.sequence === 1 ? 'Released' : 'Waiting on previous stage'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div className="text-xs text-green-600 mt-2">Only Stage 1 is releasable right away. Each later stage auto-releases the moment the stage before it gets a confirmed FG Receipt.</div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Routing *</label>
+                      <select className="w-full border rounded-lg px-3 py-2 text-sm" value={startForm.routingId} onChange={e=>setStartForm(f=>({...f,routingId:e.target.value}))}>
+                        <option value="">— Select Routing —</option>
+                        {routings.map(r => <option key={r.id} value={r.id}>{r.routingName} — {r.finalProduct?.name} ({r.stages?.length || 0} stages)</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Planned Qty *</label>
+                      <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={startForm.plannedQty} onChange={e=>setStartForm(f=>({...f,plannedQty:e.target.value}))} />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Warehouse *</label>
+                      <select className="w-full border rounded-lg px-3 py-2 text-sm" value={startForm.warehouseId} onChange={e=>setStartForm(f=>({...f,warehouseId:e.target.value}))}>
+                        <option value="">— Select —</option>
+                        {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
+                <button onClick={()=>setShowRoutingModal(false)} className="px-4 py-2 border rounded-lg text-sm">{startResult ? 'Close' : 'Cancel'}</button>
+                {!startResult && (
+                  <button onClick={handleStartProduction} disabled={starting || !startForm.routingId || !startForm.plannedQty || !startForm.warehouseId} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm disabled:opacity-50">{starting?'Starting...':'Start Production'}</button>
+                )}
               </div>
             </div>
           </div>

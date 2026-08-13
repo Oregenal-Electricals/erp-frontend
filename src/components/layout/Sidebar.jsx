@@ -224,7 +224,6 @@ const NAV = [
       { label: 'Stage Transfers', href: '/production/stage-transfers', icon: Factory },
       { label: 'Production Dashboard', href: '/production/dashboard', icon: BarChart3 },
       { label: 'Work Orders', href: '/production/work-orders', icon: ClipboardList },
-      { label: 'Routing', href: '/production/routing', icon: ClipboardList },
       { label: 'MRP', href: '/production/mrp', icon: BarChart3 },
       { label: 'Production Entries', href: '/production/recording', icon: FileText },
       { label: 'FG Receipts', href: '/production/fg-receipt', icon: PackageCheck },
