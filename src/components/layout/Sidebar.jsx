@@ -200,6 +200,7 @@ const NAV = [
       { label: 'Warehouses', href: '/warehouse', icon: Building2 },
       { label: 'UOM', href: '/inventory/uom', icon: Layers },
       { label: 'Products', href: '/masters/products', icon: Box },
+      { label: 'Raw Materials', href: '/masters/raw-materials', icon: Box },
       { label: 'BOM', href: '/inventory/bom', icon: ClipboardList },
       { label: 'BOM Revisions', href: '/inventory/bom-revisions', icon: GitBranch },
       { label: 'GRN', href: '/inventory/grn', icon: PackageCheck },
