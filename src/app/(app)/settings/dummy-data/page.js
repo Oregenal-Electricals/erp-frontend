@@ -14,15 +14,21 @@ export default function DummyDataPage() {
   const [message, setMessage]     = useState('');
   const [error, setError]         = useState('');
 
+  const [sessionSummary, setSessionSummary] = useState(null);
+  const [sessionPurging, setSessionPurging] = useState(false);
+  const [sessionMessage, setSessionMessage] = useState('');
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [statusRes, companiesRes] = await Promise.all([
+      const [statusRes, companiesRes, sessionRes] = await Promise.all([
         api.get('/dummy-data/status'),
         api.get('/masters/companies'),
+        api.get('/dummy-data/test-session-summary'),
       ]);
       setStatus(statusRes.data);
       setCompanies(companiesRes.data);
+      setSessionSummary(sessionRes.data);
     } catch (err) {
       setError('Failed to load data');
     } finally { setLoading(false); }
@@ -66,6 +72,18 @@ export default function DummyDataPage() {
     } finally { setPurging(''); }
   };
 
+  const handlePurgeSessionData = async () => {
+    if (!confirm(`⚠️ Delete all ${sessionSummary?.total || 0} Test Mode records (Work Orders, Stock Adjustments, BOMs, Sales Orders, etc.)?\n\nThis deletes everything tagged isTestData=true across every module. Real data will NOT be affected.`)) return;
+    setSessionPurging(true); setSessionMessage(''); setError('');
+    try {
+      const { data } = await api.delete('/dummy-data/purge-test-session');
+      setSessionMessage(`🗑️ ${data.message}${data.note ? ' — ' + data.note : ''}`);
+      fetchData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Purge failed');
+    } finally { setSessionPurging(false); }
+  };
+
   const ENTITY_COLORS = {
     companies:     'bg-blue-100 text-blue-700',
     plants:        'bg-green-100 text-green-700',
@@ -91,6 +109,35 @@ export default function DummyDataPage() {
           </button>
         }
       />
+
+      {/* Test Mode Data (X-Test-Session header / Test Mode toggle) */}
+      <div className="mb-6 bg-white rounded-xl border-2 border-orange-200 overflow-hidden">
+        <div className="px-5 py-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-gray-800">Test Mode Data</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Everything created while Test Mode was on (Work Orders, Stock Adjustments, BOMs, Customer POs, Sales Orders, and 150+ other modules) — computed live, not a fixed list.</p>
+          </div>
+          <button onClick={handlePurgeSessionData} disabled={sessionPurging || !sessionSummary?.total}
+            className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50 transition-colors shrink-0">
+            <Trash2 size={16} />
+            {sessionPurging ? 'Purging...' : `Delete All Test Mode Data${sessionSummary?.total ? ` (${sessionSummary.total})` : ''}`}
+          </button>
+        </div>
+        {sessionMessage && <div className="mx-5 mb-4 p-3 bg-green-50 border-2 border-green-300 rounded-lg text-green-700 text-sm font-medium">{sessionMessage}</div>}
+        {sessionSummary?.total > 0 && (
+          <div className="px-5 pb-4 grid grid-cols-4 gap-2">
+            {Object.entries(sessionSummary.byTable).map(([table, count]) => (
+              <div key={table} className="bg-orange-50 rounded-lg border border-orange-100 px-3 py-2">
+                <p className="text-xs text-gray-500 truncate" title={table}>{table}</p>
+                <p className="text-base font-bold text-orange-700">{count}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {sessionSummary?.total === 0 && (
+          <p className="px-5 pb-4 text-sm text-gray-400">No Test Mode data right now.</p>
+        )}
+      </div>
 
       {/* Warning Banner */}
       <div className="mb-6 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-xl flex items-start gap-3">
