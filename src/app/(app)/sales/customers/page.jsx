@@ -76,10 +76,18 @@ export default function CustomersPage() {
   async function handleSave() {
     setSaving(true); setError('');
     const body = {
-      ...form,
-      addresses: form.addresses.filter(a => a.addressLine),
-      contacts: form.contacts.filter(c => c.name),
-      gstNumbers: form.gstNumbers.filter(g => g.gstNumber),
+      code: form.code, name: form.name, email: form.email, phone: form.phone,
+      addresses: form.addresses.filter(a => a.addressLine).map(a => ({
+        id: a.id, addressType: a.addressType, addressLine: a.addressLine,
+        city: a.city, state: a.state, pincode: a.pincode, isDefault: a.isDefault,
+      })),
+      contacts: form.contacts.filter(c => c.name).map(c => ({
+        id: c.id, name: c.name, designation: c.designation, phone: c.phone,
+        email: c.email, isPrimary: c.isPrimary,
+      })),
+      gstNumbers: form.gstNumbers.filter(g => g.gstNumber).map(g => ({
+        id: g.id, gstNumber: g.gstNumber, branchLabel: g.branchLabel,
+      })),
     };
     const url = editingId ? `${API}/customers/${editingId}` : `${API}/customers`;
     const method = editingId ? 'PUT' : 'POST';
