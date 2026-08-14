@@ -197,7 +197,6 @@ const NAV = [
     label: 'Inventory', icon: Database,
     children: [
       { label: 'Inv. Dashboard', href: '/inventory-dashboard', icon: BarChart3 },
-      { label: 'Warehouses', href: '/warehouse', icon: Building2 },
       { label: 'UOM', href: '/inventory/uom', icon: Layers },
       { label: 'Products', href: '/masters/products', icon: Box },
       { label: 'Raw Materials', href: '/masters/raw-materials', icon: Box },
@@ -293,6 +292,7 @@ const NAV = [
     children: [
       { label: 'Companies', href: '/masters/company', icon: Building2 },
       { label: 'Plants', href: '/masters/plant', icon: Factory },
+      { label: 'Warehouses', href: '/warehouse', icon: Building2 },
       { label: 'Units', href: '/masters/unit', icon: Layers },
       { label: 'Departments', href: '/masters/department', icon: Users2 },
       { label: 'Branches', href: '/masters/branch', icon: GitBranch },
