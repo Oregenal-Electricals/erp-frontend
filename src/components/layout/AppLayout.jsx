@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FlaskConical } from 'lucide-react';
 import Sidebar from './Sidebar';
+import { UiControlProvider } from '@/context/UiControlContext';
 import Header from './Header';
 import { isAuthenticated } from '@/lib/auth';
 import { isTestSessionEnabled, onTestSessionChange, installTestSessionFetchInterceptor } from '@/lib/testSession';
@@ -39,6 +40,7 @@ export default function AppLayout({ children }) {
   }
 
   return (
+    <UiControlProvider>
     <div className="flex min-h-screen bg-gray-50">
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -71,5 +73,6 @@ export default function AppLayout({ children }) {
         </main>
       </div>
     </div>
+    </UiControlProvider>
   );
 }

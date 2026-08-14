@@ -16,6 +16,13 @@ export function UiControlProvider({ children }) {
   const [ready, setReady] = useState(false);
 
   const refresh = useCallback(async () => {
+    // Never call this without a token — avoids a 401 -> redirect loop on
+    // any page that isn't behind auth yet (e.g. this got wrapped around the
+    // login page once and caused exactly that: infinite reload).
+    if (typeof window === 'undefined' || !localStorage.getItem('erp_token')) {
+      setReady(true);
+      return;
+    }
     try {
       const res = await api.get('/ui-control/my-visibility');
       setMap(res.data || {});
