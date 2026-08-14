@@ -80,8 +80,29 @@ const PATH_PERMISSION = {
   'system': 'SETTINGS_VIEW', 'numbering': 'SETTINGS_VIEW', 'custom-fields': 'SETTINGS_VIEW', 'dummy-data': 'SETTINGS_VIEW',
 };
 
+// Full-path overrides checked before generic single-segment matching -
+// needed when two different domains reuse the same final path segment
+// for genuinely different features (e.g. /purchase/quotations is really
+// "Vendor Quotations", distinct from /sales/quotations' customer quotes,
+// even though both end in the same word).
+const FULL_PATH_OVERRIDES = {
+  '/production/floor': 'WORK_ORDER_VIEW',
+  '/production/manpower': 'MANPOWER_VIEW',
+  '/production/stage-transfers': 'STAGE_TRANSFER_VIEW',
+  '/inventory/stock': 'STOCK_LEDGER_VIEW',
+  '/purchase/quotations': 'VENDOR_QUOTATION_VIEW',
+  '/purchase/shortages': 'PURCHASE_VIEW',
+  '/gate/inward': 'GATE_INWARD_VIEW',
+  '/gate/outward': 'GATE_OUTWARD_VIEW',
+  '/gate/passes': 'GATE_PASS_VIEW',
+  '/gate/vehicles': 'VEHICLE_LOG_VIEW',
+  '/gate/visitors': 'VISITOR_VIEW',
+  '/gate/check-in': 'GATE_INWARD_VIEW',
+};
+
 function getRequiredPermission(href) {
   if (!href) return null;
+  if (FULL_PATH_OVERRIDES[href] !== undefined) return FULL_PATH_OVERRIDES[href];
   const segments = href.split('/').filter(Boolean);
   if (segments.includes('roles-permissions')) return 'SYSTEM_MANAGE_ROLES';
   for (const seg of segments) {
@@ -93,15 +114,15 @@ function getRequiredPermission(href) {
 const ROLE_SECTIONS = {
   SUPER_ADMIN:      'ALL',
   CORPORATE_ADMIN:  'ALL',
-  PLANT_HEAD:       ['Dashboard','Master Setup','User Management','Purchase','Import','Inventory','Production','Quality','HR','Finance','Industry 4.0','Analytics','Settings'],
-  PLANNING_MANAGER: ['Dashboard','Master Setup','Purchase','Inventory','Production','Quality','Analytics'],
-  PURCHASE_MANAGER: ['Dashboard','Master Setup','Purchase','Import','Inventory'],
+  PLANT_HEAD:       ['Dashboard','Purchase','Import','Inventory','Production','Quality','HR','Finance','Industry 4.0','Analytics','Settings'],
+  PLANNING_MANAGER: ['Dashboard','Purchase','Inventory','Production','Quality','Analytics','Settings'],
+  PURCHASE_MANAGER: ['Dashboard','Purchase','Import','Inventory','Settings'],
   STORE_MANAGER:    ['Dashboard','Inventory','Purchase'],
-  PRODUCTION_HEAD:  ['Dashboard','Master Setup','Production','Inventory','Quality'],
+  PRODUCTION_HEAD:  ['Dashboard','Production','Inventory','Quality','Settings'],
   QC_MANAGER:       ['Dashboard','Quality','Inventory'],
   FINANCE_MANAGER:  ['Dashboard','Finance','Analytics','Settings'],
   HR_MANAGER:       ['Dashboard','HR','Settings'],
-  UNIT_HEAD:        ['Dashboard','Sales','Master Setup','Inventory','Analytics'],
+  UNIT_HEAD:        ['Dashboard','Sales','Inventory','Analytics','Settings'],
   SUPERVISOR:       ['Dashboard','Purchase','Sales','Inventory','Production','Quality','HR','Finance'],
   OPERATOR:         ['Dashboard','Inventory','Production'],
   VIEWER:           ['Dashboard'],
@@ -110,23 +131,6 @@ const GATE_SECTIONS = ['Dashboard','Gate Management'];
 
 const NAV = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  {
-    label: 'Master Setup', icon: Settings,
-    children: [
-      { label: 'Companies', href: '/masters/companies', icon: Building2 },
-      { label: 'Plants', href: '/masters/plants', icon: Factory },
-      { label: 'Units', href: '/masters/units', icon: Layers },
-      { label: 'Departments', href: '/masters/departments', icon: Users2 },
-      { label: 'Branches', href: '/masters/branches', icon: GitBranch },
-      { label: 'Financial Year', href: '/masters/financial-years', icon: Calendar },
-    ],
-  },
-  {
-    label: 'User Management', icon: Users,
-    children: [
-      { label: 'Users', href: '/users', icon: Users },
-    ],
-  },
   {
     label: 'Change Requests', icon: ClipboardList,
     children: [
@@ -138,11 +142,12 @@ const NAV = [
     label: 'Gate Management', icon: Shield,
     children: [
       { label: 'Gate Dashboard', href: '/gate-dashboard', icon: LayoutDashboard },
-      { label: 'Gate Inward', href: '/gate-inward', icon: LogIn },
-      { label: 'Gate Outward', href: '/gate-outward', icon: Truck },
-      { label: 'Gate Passes', href: '/gate-passes', icon: BadgeCheck },
-      { label: 'Visitors', href: '/visitors', icon: UserCheck },
-      { label: 'Vehicle Logs', href: '/vehicle-logs', icon: Activity },
+      { label: 'Gate Inward', href: '/gate/inward', icon: PackageCheck },
+      { label: 'Gate Outward', href: '/gate/outward', icon: PackageOpen },
+      { label: 'Gate Passes', href: '/gate/passes', icon: BadgeCheck },
+      { label: 'Vehicle Log', href: '/gate/vehicles', icon: Truck },
+      { label: 'Visitors', href: '/gate/visitors', icon: UserCheck },
+      { label: 'Check-In', href: '/gate/check-in', icon: LogIn },
     ],
   },
   {
@@ -150,40 +155,41 @@ const NAV = [
     children: [
       { label: 'Purchase Requisitions', href: '/purchase-requisitions', icon: FileText },
       { label: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
-      { label: 'RFQs', href: '/rfqs', icon: FileText },
-      { label: 'Vendor Quotations', href: '/vendor-quotations', icon: FileText },
-      { label: 'Quotation Comparison', href: '/quotation-comparison', icon: BarChart3 },
-      { label: 'PO Amendments', href: '/po-amendments', icon: GitBranch },
-      { label: 'PO Approvals', href: '/po-approvals', icon: BadgeCheck },
-      { label: 'Purchase Analytics', href: '/purchase-analytics', icon: BarChart3 },
-      { label: 'Price Lists', href: '/price-lists', icon: Tag },
-      { label: 'Price History', href: '/price-history', icon: Activity },
-      { label: 'Vendors', href: '/vendors', icon: Users2 },
+      { label: 'Material Shortages', href: '/purchase/shortages', icon: ClipboardList },
+      { label: 'RFQs', href: '/purchase/rfqs', icon: FileText },
+      { label: 'Vendor Quotations', href: '/purchase/quotations', icon: FileText },
+      { label: 'Quotation Comparison', href: '/purchase/comparison', icon: BarChart3 },
+      { label: 'PO Amendments', href: '/purchase/amendments', icon: GitBranch },
+      { label: 'PO Approvals', href: '/purchase/approvals', icon: BadgeCheck },
+      { label: 'Purchase Analytics', href: '/purchase/analytics', icon: BarChart3 },
+      { label: 'Price Lists', href: '/masters/price-lists', icon: Tag },
+      { label: 'Price History', href: '/masters/price-history', icon: Activity },
+      { label: 'Vendors', href: '/masters/vendors', icon: Users2 },
     ],
   },
   {
     label: 'Import', icon: Globe,
     children: [
-      { label: 'Import Orders', href: '/import-orders', icon: PackageOpen },
-      { label: 'Customs Entries', href: '/customs-entries', icon: FileText },
-      { label: 'Landed Costs', href: '/landed-costs', icon: Calculator },
+      { label: 'Import Orders', href: '/import/orders', icon: PackageOpen },
+      { label: 'Customs Entries', href: '/import/customs', icon: FileText },
+      { label: 'Landed Costs', href: '/import/landed-cost', icon: Calculator },
       { label: 'Shipments', href: '/import/shipments', icon: Truck },
-      { label: 'Shipping Documents', href: '/shipping-documents', icon: FileText },
     ],
   },
   {
     label: 'Sales', icon: Tag,
     children: [
-      { label: 'Leads', href: '/leads', icon: Users2 },
-      { label: 'Quotations', href: '/quotations', icon: FileText },
+      { label: 'Leads', href: '/sales/leads', icon: Users2 },
+      { label: 'Quotations', href: '/sales/quotations', icon: FileText },
+      { label: 'Customers', href: '/sales/customers', icon: Users2 },
       { label: 'Customer PO', href: '/customer-po', icon: ClipboardList },
-      { label: 'Sales Orders', href: '/sales-orders', icon: ShoppingCart },
-      { label: 'Dispatch Plans', href: '/dispatch-plans', icon: Truck },
-      { label: 'Dispatch', href: '/dispatch', icon: Truck },
-      { label: 'Delivery Confirmations', href: '/delivery-confirmations', icon: BadgeCheck },
-      { label: 'Proforma Invoices', href: '/proforma-invoices', icon: FileText },
+      { label: 'Sales Orders', href: '/sales/sales-orders', icon: ShoppingCart },
+      { label: 'Dispatch Plans', href: '/sales/dispatch-planning', icon: Truck },
+      { label: 'Dispatch', href: '/sales/dispatch', icon: Truck },
+      { label: 'Delivery Confirmations', href: '/sales/delivery', icon: BadgeCheck },
+      { label: 'Proforma Invoices', href: '/import/proforma', icon: FileText },
       { label: 'Credit Control', href: '/sales/credit-control', icon: CreditCard },
-      { label: 'Customer Complaints', href: '/customer-complaints', icon: Activity },
+      { label: 'Customer Complaints', href: '/quality/complaints', icon: Activity },
       { label: 'Customer Portal', href: '/customer-portal', icon: Globe },
     ],
   },
@@ -191,35 +197,39 @@ const NAV = [
     label: 'Inventory', icon: Database,
     children: [
       { label: 'Inv. Dashboard', href: '/inventory-dashboard', icon: BarChart3 },
-      { label: 'Warehouses', href: '/warehouse', icon: Building2 },
+      { label: 'UOM', href: '/inventory/uom', icon: Layers },
+      { label: 'Products', href: '/masters/products', icon: Box },
+      { label: 'Raw Materials', href: '/masters/raw-materials', icon: Box },
       { label: 'BOM', href: '/inventory/bom', icon: ClipboardList },
       { label: 'BOM Revisions', href: '/inventory/bom-revisions', icon: GitBranch },
       { label: 'GRN', href: '/inventory/grn', icon: PackageCheck },
-      { label: 'IQC', href: '/inventory/iqc', icon: BadgeCheck },
-      { label: 'Stock Ledger', href: '/stock-ledger', icon: Database },
-      { label: 'Rejected Stock', href: '/rejected-stock', icon: Activity },
+      { label: 'Stock Ledger', href: '/inventory/stock', icon: Database },
+      { label: 'Rejected Stock', href: '/inventory/rejected', icon: Activity },
       { label: 'Rack & Bin', href: '/inventory/rack-bin', icon: Database },
-      { label: 'Stock Putaway', href: '/stock-putaway', icon: PackageOpen },
-      { label: 'Batches & Lots', href: '/stock-batches', icon: Layers },
-      { label: 'Stock Issues', href: '/stock-issues', icon: LogIn },
-      { label: 'Stock Transfer', href: '/stock-transfers', icon: Truck },
-      { label: 'Stock Adjustment', href: '/stock-adjustments', icon: SlidersHorizontal },
-      { label: 'Stock Reports', href: '/stock-reports', icon: FileText },
-      { label: 'Inv. Valuation', href: '/inventory-valuation', icon: BarChart3 },
-      { label: 'Inv. Reports', href: '/inventory-reports', icon: FileText },
+      { label: 'Stock Putaway', href: '/inventory/putaway', icon: PackageOpen },
+      { label: 'Batches & Lots', href: '/inventory/batches', icon: Layers },
+      { label: 'Stock Issues', href: '/inventory/issues', icon: LogIn },
+      { label: 'Stock Transfer', href: '/inventory/transfers', icon: Truck },
+      { label: 'Stock Adjustment', href: '/inventory/adjustments', icon: SlidersHorizontal },
+      { label: 'Stock Reports', href: '/inventory/reports', icon: FileText },
+      { label: 'Inv. Valuation', href: '/inventory/valuation', icon: BarChart3 },
+      { label: 'Inv. Reports', href: '/inventory/inv-reports', icon: FileText },
     ],
   },
   {
     label: 'Production', icon: Factory,
     children: [
-      { label: 'Production Dashboard', href: '/production-dashboard', icon: BarChart3 },
-      { label: 'Work Orders', href: '/work-orders', icon: ClipboardList },
+      { label: 'Production Floor', href: '/production/floor', icon: Factory },
+      { label: 'Manpower', href: '/production/manpower', icon: Factory },
+      { label: 'Stage Transfers', href: '/production/stage-transfers', icon: Factory },
+      { label: 'Production Dashboard', href: '/production/dashboard', icon: BarChart3 },
+      { label: 'Work Orders', href: '/production/work-orders', icon: ClipboardList },
       { label: 'MRP', href: '/production/mrp', icon: BarChart3 },
-      { label: 'Production Entries', href: '/production-entries', icon: FileText },
-      { label: 'FG Receipts', href: '/fg-receipts', icon: PackageCheck },
-      { label: 'Production Issues', href: '/production-issues', icon: Activity },
-      { label: 'Cost Sheets', href: '/production-cost-sheets', icon: Calculator },
-      { label: 'Production Reports', href: '/production-reports', icon: FileText },
+      { label: 'Production Entries', href: '/production/recording', icon: FileText },
+      { label: 'FG Receipts', href: '/production/fg-receipt', icon: PackageCheck },
+      { label: 'Production Issues', href: '/production/material-issue', icon: Activity },
+      { label: 'Cost Sheets', href: '/production/cost-sheet', icon: Calculator },
+      { label: 'Production Reports', href: '/production/reports', icon: FileText },
     ],
   },
   {
@@ -227,41 +237,35 @@ const NAV = [
     children: [
       { label: 'Quality Dashboard', href: '/quality-dashboard', icon: BarChart3 },
       { label: 'IQC', href: '/inventory/iqc', icon: BadgeCheck },
-      { label: 'Production QC', href: '/production-qc', icon: BadgeCheck },
+      { label: 'Production QC', href: '/production/ipqc', icon: BadgeCheck },
       { label: 'OQC', href: '/quality/oqc', icon: ClipboardList },
-      { label: 'NCR', href: '/ncr', icon: FileText },
-      { label: 'CAPA', href: '/capa', icon: ClipboardList },
-      { label: 'RCA', href: '/rca', icon: Activity },
-      { label: 'Supplier Quality', href: '/supplier-quality', icon: Users2 },
-      { label: 'Quality Reports', href: '/quality-reports', icon: FileText },
+      { label: 'NCR', href: '/quality/ncr', icon: FileText },
+      { label: 'CAPA', href: '/quality/capa', icon: ClipboardList },
+      { label: 'RCA', href: '/quality/rca', icon: Activity },
+      { label: 'Supplier Quality', href: '/quality/supplier', icon: Users2 },
+      { label: 'Quality Reports', href: '/quality/reports', icon: FileText },
     ],
   },
   {
     label: 'HR', icon: Users2,
     children: [
-      { label: 'Employees', href: '/employees', icon: Users2 },
-      { label: 'Attendance', href: '/attendance', icon: Calendar },
-      { label: 'Leave', href: '/leave', icon: Calendar },
-      { label: 'Payroll', href: '/payroll', icon: CreditCard },
-      { label: 'Salary Slip', href: '/salary-slip', icon: FileText },
-      { label: 'PF/ESI', href: '/pf-esi', icon: FileText },
-      { label: 'Training', href: '/training', icon: BadgeCheck },
-      { label: 'HR Reports', href: '/hr-reports', icon: FileText },
+      { label: 'Employees', href: '/hr/employees', icon: Users2 },
+      { label: 'Attendance', href: '/hr/attendance', icon: Calendar },
+      { label: 'Leave', href: '/hr/leave', icon: Calendar },
+      { label: 'Payroll', href: '/hr/payroll', icon: CreditCard },
+      { label: 'PF/ESI', href: '/hr/pf-esi', icon: FileText },
+      { label: 'Training', href: '/hr/training', icon: BadgeCheck },
     ],
   },
   {
     label: 'Finance', icon: CreditCard,
     children: [
-      { label: 'Accounting', href: '/accounting', icon: Calculator },
-      { label: 'Chart of Accounts', href: '/accounts', icon: List },
-      { label: 'Vouchers', href: '/vouchers', icon: FileText },
-      { label: 'Accounts Receivable', href: '/ar', icon: CreditCard },
-      { label: 'Accounts Payable', href: '/ap', icon: CreditCard },
-      { label: 'GST', href: '/gst', icon: FileText },
-      { label: 'Bank Reconciliation', href: '/bank-reconciliation', icon: Database },
-      { label: 'Payment Instruments', href: '/payment-instruments', icon: CreditCard },
-      { label: 'TDS', href: '/tds', icon: Calculator },
-      { label: 'Financial Reports', href: '/financial-reports', icon: FileText },
+      { label: 'Chart of Accounts', href: '/finance/accounts', icon: List },
+      { label: 'Vouchers', href: '/finance/vouchers', icon: FileText },
+      { label: 'Accounts Receivable', href: '/finance/ar', icon: CreditCard },
+      { label: 'Accounts Payable', href: '/finance/ap', icon: CreditCard },
+      { label: 'GST', href: '/finance/gst', icon: FileText },
+      { label: 'TDS', href: '/hr/tds', icon: Calculator },
     ],
   },
   {
@@ -286,6 +290,14 @@ const NAV = [
   {
     label: 'Settings', icon: Settings,
     children: [
+      { label: 'Companies', href: '/masters/company', icon: Building2 },
+      { label: 'Plants', href: '/masters/plant', icon: Factory },
+      { label: 'Warehouses', href: '/warehouse', icon: Building2 },
+      { label: 'Units', href: '/masters/unit', icon: Layers },
+      { label: 'Departments', href: '/masters/department', icon: Users2 },
+      { label: 'Branches', href: '/masters/branch', icon: GitBranch },
+      { label: 'Financial Year', href: '/masters/financial-year', icon: Calendar },
+      { label: 'Users', href: '/users', icon: Users },
       { label: 'System Settings', href: '/settings/system', icon: Settings },
       { label: 'Roles & Permissions', href: '/settings/roles-permissions', icon: Shield },
       { label: 'Numbering Series', href: '/settings/numbering', icon: Hash },
@@ -295,9 +307,27 @@ const NAV = [
   },
 ];
 
+const SIDEBAR_STORAGE_KEY = 'erp_sidebar_open_sections';
+
 export default function Sidebar() {
   const pathname = usePathname();
   const [openSections, setOpenSections] = useState({});
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const openKeys = Object.keys(parsed).filter(k => parsed[k]);
+        const sanitized = openKeys.length > 1 ? { [openKeys[0]]: true } : parsed;
+        setOpenSections(sanitized);
+        if (openKeys.length > 1) {
+          try { localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(sanitized)); } catch {}
+        }
+      }
+    } catch {}
+    setHydrated(true);
+  }, []);
   const [user, setUser] = useState(null);
   const [myPermissions, setMyPermissions] = useState(null);
 
@@ -319,13 +349,9 @@ export default function Sidebar() {
   const isSuperAdmin = role === 'SUPER_ADMIN' || (Array.isArray(user.allRoles) && user.allRoles.includes('SUPER_ADMIN'));
   const isGateOperator = role === 'OPERATOR' && user.email?.includes('gate');
 
-  const allowedSections = isGateOperator ? GATE_SECTIONS
+  const knownRoleSections = isGateOperator ? GATE_SECTIONS
     : (ROLE_SECTIONS[role] === 'ALL' || isSuperAdmin) ? 'ALL'
-    : (ROLE_SECTIONS[role] || ['Dashboard']);
-
-  function sectionVisible(label) {
-    return allowedSections === 'ALL' || allowedSections.includes(label);
-  }
+    : ROLE_SECTIONS[role];
 
   function itemVisible(href) {
     if (isSuperAdmin) return true;
@@ -335,15 +361,27 @@ export default function Sidebar() {
     return myPermissions.has(required);
   }
 
+  function sectionVisible(label, children) {
+    if (knownRoleSections === 'ALL') return true;
+    if (Array.isArray(knownRoleSections)) return knownRoleSections.includes(label);
+    if (!children || children.length === 0) return true;
+    return children.some(c => itemVisible(c.href));
+  }
+
   function toggleSection(label) {
-    setOpenSections(prev => ({ ...prev, [label]: !prev[label] }));
+    setOpenSections(prev => {
+      const wasOpen = !!prev[label];
+      const next = wasOpen ? {} : { [label]: true };
+      try { localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
   }
 
   return (
     <nav className="w-64 bg-white border-r h-screen overflow-y-auto flex-shrink-0">
       <div className="p-4">
         {NAV.map(item => {
-          if (!sectionVisible(item.label)) return null;
+          if (!sectionVisible(item.label, item.children)) return null;
 
           if (!item.children) {
             if (!itemVisible(item.href)) return null;
@@ -359,15 +397,16 @@ export default function Sidebar() {
           const visibleChildren = item.children.filter(c => itemVisible(c.href));
           if (visibleChildren.length === 0) return null;
 
-          const isOpen = openSections[item.label] ?? true;
+          const containsActivePage = visibleChildren.some(c => c.href === pathname);
+          const sectionIsOpen = item.label in openSections ? openSections[item.label] : (hydrated && containsActivePage);
           const Icon = item.icon;
           return (
             <div key={item.label} className="mb-1">
               <button onClick={() => toggleSection(item.label)} className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50 font-medium">
                 <span className="flex items-center gap-2"><Icon size={16} /> {item.label}</span>
-                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                {sectionIsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </button>
-              {isOpen && (
+              {sectionIsOpen && (
                 <div className="ml-4 mt-1 space-y-0.5">
                   {visibleChildren.map(child => {
                     const ChildIcon = child.icon;
