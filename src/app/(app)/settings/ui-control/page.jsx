@@ -192,7 +192,7 @@ export default function UiControlCenterPage() {
   };
 
   const deleteElement = async (id) => {
-    if (!confirm('Remove this element? (Only works if it has no items under it.)')) return;
+    if (!confirm('This deletes it completely — for every role and every person, everywhere. To hide it from just one role or person instead, use the checkboxes on the right. Continue with full deletion?')) return;
     try {
       await api.delete(`/ui-control/elements/${id}`);
       await silentReload();
@@ -458,7 +458,7 @@ function VisibilityPanel({ element, roles, users, selectedUserId, setSelectedUse
         <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} className="border rounded px-2 py-1 text-xs w-full mb-2">
           <option value="">— Select a user —</option>
           {users.map((u) => (
-            <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+            <option key={u.id} value={u.id}>{u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email} ({u.email})</option>
           ))}
         </select>
         {selectedUserId && (
