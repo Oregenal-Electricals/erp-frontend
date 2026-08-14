@@ -136,9 +136,10 @@ export default function CustomersPage() {
           <div className="divide-y">
             {loading ? <div className="text-center py-10 text-gray-400">Loading...</div>
             : customers.length === 0 ? <div className="text-center py-10 text-gray-400">No customers yet</div>
-            : customers.map(c => (
+            : customers.map((c, i) => (
               <div key={c.id} className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
+                  <span className="text-xs text-gray-400 w-8 text-right shrink-0">{(page - 1) * 20 + i + 1}</span>
                   <span className="font-mono font-bold text-blue-600">{c.code}</span>
                   <span className="font-medium text-gray-800">{c.name}</span>
                   <span className="text-xs text-gray-400">{c.email}</span>

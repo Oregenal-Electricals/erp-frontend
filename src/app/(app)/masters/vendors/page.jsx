@@ -172,6 +172,7 @@ export default function VendorsPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
               <tr>
+                <th className="px-4 py-3 text-left">Sr.</th>
                 {['Code', 'Name', 'Type', 'GSTIN', 'Phone', 'City', 'Payment Terms', 'Rating', 'Status', 'Actions'].map(h => (
                   <th key={h} className="px-4 py-3 text-left">{h}</th>
                 ))}
@@ -179,11 +180,12 @@ export default function VendorsPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr><td colSpan={10} className="text-center py-10 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={11} className="text-center py-10 text-gray-400">Loading...</td></tr>
               ) : vendors.length === 0 ? (
-                <tr><td colSpan={10} className="text-center py-10 text-gray-400">No vendors found</td></tr>
-              ) : vendors.map(v => (
+                <tr><td colSpan={11} className="text-center py-10 text-gray-400">No vendors found</td></tr>
+              ) : vendors.map((v, i) => (
                 <tr key={v.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-gray-400">{(page - 1) * 20 + i + 1}</td>
                   <td className="px-4 py-3 font-mono font-medium text-blue-600">{v.code}</td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-900">{v.name}</div>
