@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
+import CustomerFormModal from '@/components/CustomerFormModal';
+import CustomerFormModal from '@/components/CustomerFormModal';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
@@ -163,99 +165,12 @@ export default function CustomersPage() {
           )}
         </div>
 
-        {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-screen overflow-y-auto">
-              <div className="p-6 border-b flex justify-between sticky top-0 bg-white">
-                <h2 className="text-lg font-bold">{editingId ? 'Edit Customer' : 'New Customer'}</h2>
-                <button onClick={()=>setShowModal(false)} className="text-gray-400 text-xl">✕</button>
-              </div>
-              <div className="p-6 space-y-6">
-                {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Customer Code *</label>
-                    <input disabled={!!editingId} className="w-full border rounded-lg px-3 py-2 text-sm disabled:bg-gray-50" value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value}))} placeholder="CUST-001" />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Customer Name *</label>
-                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Email</label>
-                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Phone</label>
-                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-semibold text-gray-700">Addresses</label>
-                    <button onClick={()=>addSub('addresses',BLANK_ADDRESS)} className="text-xs px-2 py-1 bg-indigo-50 text-indigo-600 rounded border border-indigo-200">+ Add Address</button>
-                  </div>
-                  <div className="space-y-2">
-                    {form.addresses.map((a,i)=>(
-                      <div key={i} className="border rounded-lg p-3 grid grid-cols-6 gap-2 items-end">
-                        <select className="border rounded px-2 py-1.5 text-xs col-span-1" value={a.addressType} onChange={e=>updateSubField('addresses',i,'addressType',e.target.value)}>
-                          <option value="DELIVERY">Delivery</option>
-                          <option value="BILLING">Billing</option>
-                          <option value="BOTH">Both</option>
-                        </select>
-                        <input className="border rounded px-2 py-1.5 text-xs col-span-2" placeholder="Address line" value={a.addressLine} onChange={e=>updateSubField('addresses',i,'addressLine',e.target.value)} />
-                        <input className="border rounded px-2 py-1.5 text-xs" placeholder="City" value={a.city} onChange={e=>updateSubField('addresses',i,'city',e.target.value)} />
-                        <input className="border rounded px-2 py-1.5 text-xs" placeholder="State" value={a.state} onChange={e=>updateSubField('addresses',i,'state',e.target.value)} />
-                        <input className="border rounded px-2 py-1.5 text-xs" placeholder="Pincode" value={a.pincode} onChange={e=>updateSubField('addresses',i,'pincode',e.target.value)} />
-                        {form.addresses.length>1 && <button onClick={()=>removeSub('addresses',i)} className="text-red-400 hover:text-red-600 text-sm col-span-6 text-left">Remove</button>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-semibold text-gray-700">Contact Persons</label>
-                    <button onClick={()=>addSub('contacts',BLANK_CONTACT)} className="text-xs px-2 py-1 bg-indigo-50 text-indigo-600 rounded border border-indigo-200">+ Add Contact</button>
-                  </div>
-                  <div className="space-y-2">
-                    {form.contacts.map((c,i)=>(
-                      <div key={i} className="border rounded-lg p-3 grid grid-cols-4 gap-2 items-end">
-                        <input className="border rounded px-2 py-1.5 text-xs" placeholder="Name" value={c.name} onChange={e=>updateSubField('contacts',i,'name',e.target.value)} />
-                        <input className="border rounded px-2 py-1.5 text-xs" placeholder="Designation" value={c.designation} onChange={e=>updateSubField('contacts',i,'designation',e.target.value)} />
-                        <input className="border rounded px-2 py-1.5 text-xs" placeholder="Phone" value={c.phone} onChange={e=>updateSubField('contacts',i,'phone',e.target.value)} />
-                        <input className="border rounded px-2 py-1.5 text-xs" placeholder="Email" value={c.email} onChange={e=>updateSubField('contacts',i,'email',e.target.value)} />
-                        {form.contacts.length>1 && <button onClick={()=>removeSub('contacts',i)} className="text-red-400 hover:text-red-600 text-sm col-span-4 text-left">Remove</button>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-semibold text-gray-700">GST Numbers</label>
-                    <button onClick={()=>addSub('gstNumbers',BLANK_GST)} className="text-xs px-2 py-1 bg-indigo-50 text-indigo-600 rounded border border-indigo-200">+ Add GST</button>
-                  </div>
-                  <div className="space-y-2">
-                    {form.gstNumbers.map((g,i)=>(
-                      <div key={i} className="border rounded-lg p-3 grid grid-cols-3 gap-2 items-end">
-                        <input className="border rounded px-2 py-1.5 text-xs col-span-2" placeholder="GST Number" value={g.gstNumber} onChange={e=>updateSubField('gstNumbers',i,'gstNumber',e.target.value)} />
-                        <input className="border rounded px-2 py-1.5 text-xs" placeholder="Branch label (optional)" value={g.branchLabel} onChange={e=>updateSubField('gstNumbers',i,'branchLabel',e.target.value)} />
-                        {form.gstNumbers.length>1 && <button onClick={()=>removeSub('gstNumbers',i)} className="text-red-400 hover:text-red-600 text-sm col-span-3 text-left">Remove</button>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
-                <button onClick={()=>setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
-                <button onClick={handleSave} disabled={saving || !form.code || !form.name} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50">{saving?'Saving...':'Save Customer'}</button>
-              </div>
-            </div>
-          </div>
-        )}
+        <CustomerFormModal
+          open={showModal}
+          editingId={editingId}
+          onClose={() => setShowModal(false)}
+          onSaved={() => fetchAll()}
+        />
 
         {viewDetail && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
