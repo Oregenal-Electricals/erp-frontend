@@ -2,9 +2,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import api from '@/lib/api';
 import { UI_CONTROL_MANIFEST } from '@/lib/uiControlManifest';
 import SortableList from '@/components/SortableList';
+
+const overrideKey = (elementId, scopeType, roleName, userId) =>
+  `${elementId}:${scopeType}:${scopeType === 'ROLE' ? roleName : userId}`;
 
 export default function UiControlCenterPage() {
   const [structure, setStructure] = useState([]);
@@ -15,9 +20,17 @@ export default function UiControlCenterPage() {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [tab, setTab] = useState('sidebar');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [newSectionLabel, setNewSectionLabel] = useState('');
   const [newItemLabel, setNewItemLabel] = useState({});
   const [newItemPage, setNewItemPage] = useState({});
+
+  // Nothing in here touches the server. Everything the user does gets queued
+  // here first; only "Save Changes" actually calls the API.
+  const [pendingOverrides, setPendingOverrides] = useState({});
+  const [pendingReorders, setPendingReorders] = useState({});
+
+  const pendingCount = Object.keys(pendingOverrides).length + Object.keys(pendingReorders).length;
 
   const load = async () => {
     setLoading(true);
@@ -36,10 +49,6 @@ export default function UiControlCenterPage() {
 
   useEffect(() => { load(); }, []);
 
-  // Keep the right-side Visibility Panel in sync with fresh data. Without this,
-  // after toggling a checkbox and reloading, the panel keeps showing the OLD
-  // selectedElement object it grabbed on click — the save works, but the
-  // checkbox visually never updates, looking like nothing happened.
   useEffect(() => {
     if (!selectedElement) return;
     let found = null;
@@ -63,39 +72,75 @@ export default function UiControlCenterPage() {
     await load();
   };
 
-  const reorderSections = async (newOrder) => {
-    if (!newOrder.every((s) => s && s.id)) return; // guard against a stray drag event with a missing id
+  const handleSaveAll = async () => {
+    setSaving(true);
+    try {
+      const overrides = Object.values(pendingOverrides);
+      const reorders = Object.values(pendingReorders);
+      if (overrides.length > 0) {
+        await api.put('/ui-control/overrides', { overrides });
+      }
+      if (reorders.length > 0) {
+        await api.put('/ui-control/elements/reorder', { items: reorders });
+      }
+      setPendingOverrides({});
+      setPendingReorders({});
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDiscardAll = async () => {
+    setPendingOverrides({});
+    setPendingReorders({});
+    await load();
+  };
+
+  const queueReorder = (id, parentKey, sortOrder) => {
+    setPendingReorders((prev) => ({
+      ...prev,
+      [id]: parentKey !== undefined ? { id, parentKey, sortOrder } : { id, sortOrder },
+    }));
+  };
+
+  const reorderSections = (newOrder) => {
+    if (!newOrder.every((s) => s && s.id)) return;
     setStructure(newOrder);
-    await api.put('/ui-control/elements/reorder', {
-      items: newOrder.map((s, idx) => ({ id: s.id, sortOrder: idx })),
-    });
-    await load();
+    newOrder.forEach((s, idx) => queueReorder(s.id, undefined, idx));
   };
 
-  const reorderItemsInSection = async (sectionKey, newItems) => {
-    if (!newItems.every((it) => it && it.id)) return; // guard against a stray drag event with a missing id
+  const reorderItemsInSection = (sectionKey, newItems) => {
+    if (!newItems.every((it) => it && it.id)) return;
     setStructure((prev) => prev.map((s) => (s.key === sectionKey ? { ...s, items: newItems } : s)));
-    await api.put('/ui-control/elements/reorder', {
-      items: newItems.map((it, idx) => ({ id: it.id, sortOrder: idx })),
-    });
-    await load();
+    newItems.forEach((it, idx) => queueReorder(it.id, undefined, idx));
   };
 
-  const moveItemWithinSection = async (section, fromIndex, toIndex) => {
+  const moveItemWithinSection = (section, fromIndex, toIndex) => {
     const items = [...section.items];
     const [moved] = items.splice(fromIndex, 1);
     items.splice(toIndex, 0, moved);
-    await reorderItemsInSection(section.key, items);
+    reorderItemsInSection(section.key, items);
   };
 
-  const moveItemToSection = async (draggedItemId, targetSectionKey) => {
-    if (!draggedItemId || !targetSectionKey) return; // guard against a stray drag event
-    const targetSection = structure.find((s) => s.key === targetSectionKey);
-    const newSortOrder = targetSection ? targetSection.items.length : 0;
-    await api.put('/ui-control/elements/reorder', {
-      items: [{ id: draggedItemId, parentKey: targetSectionKey, sortOrder: newSortOrder }],
+  const moveItemToSection = (draggedItemId, targetSectionKey) => {
+    if (!draggedItemId || !targetSectionKey) return;
+    setStructure((prev) => {
+      let moved = null;
+      const removed = prev.map((s) => {
+        const idx = (s.items || []).findIndex((i) => i.id === draggedItemId);
+        if (idx === -1) return s;
+        moved = s.items[idx];
+        return { ...s, items: s.items.filter((i) => i.id !== draggedItemId) };
+      });
+      if (!moved) return prev;
+      const next = removed.map((s) =>
+        s.key === targetSectionKey ? { ...s, items: [...s.items, moved] } : s,
+      );
+      const target = next.find((s) => s.key === targetSectionKey);
+      queueReorder(draggedItemId, targetSectionKey, Math.max((target?.items.length || 1) - 1, 0));
+      return next;
     });
-    await load();
   };
 
   const addSection = async () => {
@@ -133,193 +178,216 @@ export default function UiControlCenterPage() {
     }
   };
 
+  const queueOverride = (elementId, scopeType, roleName, userId, isVisible) => {
+    const key = overrideKey(elementId, scopeType, roleName, userId);
+    setPendingOverrides((prev) => ({
+      ...prev,
+      [key]: { elementId, scopeType, roleName, userId, isVisible },
+    }));
+    setSelectedElement((prev) => {
+      if (!prev || prev.id !== elementId) return prev;
+      const overrides = prev.overrides ? [...prev.overrides] : [];
+      const idx = overrides.findIndex((o) =>
+        scopeType === 'ROLE' ? o.scopeType === 'ROLE' && o.roleName === roleName : o.scopeType === 'USER' && o.userId === userId,
+      );
+      const newOv = { scopeType, roleName, userId, isVisible };
+      if (idx >= 0) overrides[idx] = { ...overrides[idx], ...newOv };
+      else overrides.push(newOv);
+      return { ...prev, overrides };
+    });
+  };
+
   if (loading) return <div className="p-6">Loading UI Control Center…</div>;
 
   return (
-    <div className="p-6 grid grid-cols-3 gap-6">
-      <div className="col-span-2 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold">UI Control Center</h1>
-            <p className="text-sm text-gray-500">
-              Drag to reorder sections, drag items between sections. Click any element to control
-              exactly who can see it, on the right.
-            </p>
-          </div>
-          <button onClick={handleSync} className="px-3 py-2 bg-blue-600 text-white rounded text-sm shrink-0">
-            Sync New Elements from Manifest
-          </button>
+    <div className="p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
+          <ArrowLeft size={14} /> Back to ERP
+        </Link>
+        <div className="flex items-center gap-2">
+          {pendingCount > 0 && (
+            <>
+              <span className="text-xs text-orange-600 font-medium">{pendingCount} unsaved change{pendingCount > 1 ? 's' : ''}</span>
+              <button onClick={handleDiscardAll} disabled={saving} className="px-3 py-1.5 text-sm border rounded text-gray-600">
+                Discard
+              </button>
+              <button onClick={handleSaveAll} disabled={saving} className="px-3 py-1.5 text-sm bg-green-600 text-white rounded font-medium">
+                {saving ? 'Saving…' : `Save Changes (${pendingCount})`}
+              </button>
+            </>
+          )}
         </div>
-
-        <div className="flex gap-2 border-b">
-          <button onClick={() => setTab('sidebar')} className={`px-3 py-2 text-sm ${tab === 'sidebar' ? 'border-b-2 border-blue-600 font-medium' : 'text-gray-500'}`}>
-            Sidebar Structure (Sections &amp; Items)
-          </button>
-          <button onClick={() => setTab('pageElements')} className={`px-3 py-2 text-sm ${tab === 'pageElements' ? 'border-b-2 border-blue-600 font-medium' : 'text-gray-500'}`}>
-            Page Elements (Fields / Columns / Buttons)
-          </button>
-        </div>
-
-        {tab === 'sidebar' && (
-          <div className="space-y-3">
-            <SortableList
-              items={structure}
-              dropZoneId="__sections__"
-              onReorder={reorderSections}
-              renderItem={(section) => (
-                <div className="flex-1 border rounded p-3 bg-white">
-                  <div className="flex items-center justify-between">
-                    <button onClick={() => setSelectedElement(section)} className={`text-sm font-semibold text-left ${selectedElement?.id === section.id ? 'text-blue-600' : ''}`}>
-                      {section.label}
-                    </button>
-                    <button onClick={() => deleteElement(section.id)} className="text-xs text-red-500">Remove</button>
-                  </div>
-
-                  <div
-                    className="mt-2"
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (window.__uiControlDragOrigin !== section.key) {
-                        moveItemToSection(window.__uiControlDragId, section.key);
-                        window.__uiControlDragId = null;
-                      }
-                    }}
-                  >
-                    <SortableList
-                      items={section.items || []}
-                      dropZoneId={section.key}
-                      onReorder={(newItems) => reorderItemsInSection(section.key, newItems)}
-                      onExternalDrop={(draggedId) => moveItemToSection(draggedId, section.key)}
-                      emptyLabel="Drag an item here, or use Move to below"
-                      renderItem={(item, index, itemsArr) => (
-                        <div className="flex-1 flex items-center justify-between gap-2">
-                          <button onClick={() => setSelectedElement(item)} className={`text-sm text-left ${selectedElement?.id === item.id ? 'text-blue-600 font-medium' : ''}`}>
-                            {item.label} <span className="text-xs text-gray-400">({item.page})</span>
-                          </button>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              disabled={index === 0}
-                              onClick={() => moveItemWithinSection(section, index, index - 1)}
-                              className="text-xs px-1 text-gray-400 disabled:opacity-20"
-                              title="Move up"
-                            >▲</button>
-                            <button
-                              disabled={index === itemsArr.length - 1}
-                              onClick={() => moveItemWithinSection(section, index, index + 1)}
-                              className="text-xs px-1 text-gray-400 disabled:opacity-20"
-                              title="Move down"
-                            >▼</button>
-                            <select
-                              value=""
-                              onChange={(e) => { if (e.target.value) moveItemToSection(item.id, e.target.value); }}
-                              className="text-xs border rounded px-1 py-0.5"
-                            >
-                              <option value="">Move to…</option>
-                              {structure.filter((s) => s.key !== section.key).map((s) => (
-                                <option key={s.key} value={s.key}>{s.label}</option>
-                              ))}
-                            </select>
-                            <button onClick={() => deleteElement(item.id)} className="text-xs text-red-500">Remove</button>
-                          </div>
-                        </div>
-                      )}
-                    />
-                    <div className="flex gap-2 mt-2">
-                      <input placeholder="New item label" value={newItemLabel[section.key] || ''} onChange={(e) => setNewItemLabel((p) => ({ ...p, [section.key]: e.target.value }))} className="border rounded px-2 py-1 text-xs flex-1" />
-                      <input placeholder="/route/path" value={newItemPage[section.key] || ''} onChange={(e) => setNewItemPage((p) => ({ ...p, [section.key]: e.target.value }))} className="border rounded px-2 py-1 text-xs flex-1" />
-                      <button onClick={() => addItem(section)} className="text-xs px-2 py-1 bg-gray-100 rounded">+ Add</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            />
-            <div className="flex gap-2">
-              <input placeholder="New section name" value={newSectionLabel} onChange={(e) => setNewSectionLabel(e.target.value)} className="border rounded px-2 py-1 text-sm flex-1" />
-              <button onClick={addSection} className="px-3 py-1 bg-gray-800 text-white rounded text-sm">+ Add Section</button>
-            </div>
-          </div>
-        )}
-
-        {tab === 'pageElements' && (
-          <div className="space-y-4">
-            {Object.entries(pageElements).map(([group, elements]) => (
-              <div key={group} className="border rounded p-3 bg-white">
-                <div className="text-sm font-semibold mb-2">{group}</div>
-                <SortableList
-                  items={elements}
-                  dropZoneId={group}
-                  onReorder={async (newOrder) => {
-                    setPageElements((p) => ({ ...p, [group]: newOrder }));
-                    await api.put('/ui-control/elements/reorder', {
-                      items: newOrder.map((el, idx) => ({ id: el.id, sortOrder: idx })),
-                    });
-                  }}
-                  renderItem={(el) => (
-                    <div className="flex-1 flex items-center justify-between">
-                      <button onClick={() => setSelectedElement(el)} className={`text-sm text-left ${selectedElement?.id === el.id ? 'text-blue-600 font-medium' : ''}`}>
-                        {el.label} <span className="text-xs text-gray-400">[{el.elementType}]</span>
-                      </button>
-                      <button onClick={() => deleteElement(el.id)} className="text-xs text-red-500">Remove</button>
-                    </div>
-                  )}
-                />
-              </div>
-            ))}
-            {Object.keys(pageElements).length === 0 && (
-              <p className="text-sm text-gray-400">
-                No page elements registered yet. Add FIELD/COLUMN/BUTTON entries to
-                uiControlManifest.js and click "Sync New Elements from Manifest" above.
-              </p>
-            )}
-          </div>
-        )}
       </div>
 
-      <div className="col-span-1">
-        {!selectedElement && (
-          <div className="text-sm text-gray-400 border rounded p-4">
-            Click any section, item, or page element on the left to control who can see it.
+      <div className="grid grid-cols-3 gap-6">
+        <div className="col-span-2 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-semibold">UI Control Center</h1>
+              <p className="text-sm text-gray-500">
+                Drag, reorder, move items, or toggle visibility freely — nothing saves until you
+                click "Save Changes" above.
+              </p>
+            </div>
+            <button onClick={handleSync} className="px-3 py-2 bg-blue-600 text-white rounded text-sm shrink-0">
+              Sync New Elements from Manifest
+            </button>
           </div>
-        )}
-        {selectedElement && (
-          <VisibilityPanel
-            element={selectedElement}
-            roles={roles}
-            users={users}
-            selectedUserId={selectedUserId}
-            setSelectedUserId={setSelectedUserId}
-            onChanged={load}
-          />
-        )}
+
+          <div className="flex gap-2 border-b">
+            <button onClick={() => setTab('sidebar')} className={`px-3 py-2 text-sm ${tab === 'sidebar' ? 'border-b-2 border-blue-600 font-medium' : 'text-gray-500'}`}>
+              Sidebar Structure (Sections &amp; Items)
+            </button>
+            <button onClick={() => setTab('pageElements')} className={`px-3 py-2 text-sm ${tab === 'pageElements' ? 'border-b-2 border-blue-600 font-medium' : 'text-gray-500'}`}>
+              Page Elements (Fields / Columns / Buttons)
+            </button>
+          </div>
+
+          {tab === 'sidebar' && (
+            <div className="space-y-3">
+              <SortableList
+                items={structure}
+                dropZoneId="__sections__"
+                onReorder={reorderSections}
+                renderItem={(section) => (
+                  <div className="flex-1 border rounded p-3 bg-white">
+                    <div className="flex items-center justify-between">
+                      <button onClick={() => setSelectedElement(section)} className={`text-sm font-semibold text-left ${selectedElement?.id === section.id ? 'text-blue-600' : ''}`}>
+                        {section.label}
+                      </button>
+                      <button onClick={() => deleteElement(section.id)} className="text-xs text-red-500">Remove</button>
+                    </div>
+
+                    <div
+                      className="mt-2"
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (window.__uiControlDragOrigin !== section.key) {
+                          moveItemToSection(window.__uiControlDragId, section.key);
+                          window.__uiControlDragId = null;
+                        }
+                      }}
+                    >
+                      <SortableList
+                        items={section.items || []}
+                        dropZoneId={section.key}
+                        onReorder={(newItems) => reorderItemsInSection(section.key, newItems)}
+                        onExternalDrop={(draggedId) => moveItemToSection(draggedId, section.key)}
+                        emptyLabel="Drag an item here, or use Move to below"
+                        renderItem={(item, index, itemsArr) => (
+                          <div className="flex-1 flex items-center justify-between gap-2">
+                            <button onClick={() => setSelectedElement(item)} className={`text-sm text-left ${selectedElement?.id === item.id ? 'text-blue-600 font-medium' : ''}`}>
+                              {item.label} <span className="text-xs text-gray-400">({item.page})</span>
+                            </button>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button disabled={index === 0} onClick={() => moveItemWithinSection(section, index, index - 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move up">▲</button>
+                              <button disabled={index === itemsArr.length - 1} onClick={() => moveItemWithinSection(section, index, index + 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move down">▼</button>
+                              <select
+                                value=""
+                                onChange={(e) => { if (e.target.value) moveItemToSection(item.id, e.target.value); }}
+                                className="text-xs border rounded px-1 py-0.5"
+                              >
+                                <option value="">Move to…</option>
+                                {structure.filter((s) => s.key !== section.key).map((s) => (
+                                  <option key={s.key} value={s.key}>{s.label}</option>
+                                ))}
+                              </select>
+                              <button onClick={() => deleteElement(item.id)} className="text-xs text-red-500">Remove</button>
+                            </div>
+                          </div>
+                        )}
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <input placeholder="New item label" value={newItemLabel[section.key] || ''} onChange={(e) => setNewItemLabel((p) => ({ ...p, [section.key]: e.target.value }))} className="border rounded px-2 py-1 text-xs flex-1" />
+                        <input placeholder="/route/path" value={newItemPage[section.key] || ''} onChange={(e) => setNewItemPage((p) => ({ ...p, [section.key]: e.target.value }))} className="border rounded px-2 py-1 text-xs flex-1" />
+                        <button onClick={() => addItem(section)} className="text-xs px-2 py-1 bg-gray-100 rounded">+ Add</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              />
+              <div className="flex gap-2">
+                <input placeholder="New section name" value={newSectionLabel} onChange={(e) => setNewSectionLabel(e.target.value)} className="border rounded px-2 py-1 text-sm flex-1" />
+                <button onClick={addSection} className="px-3 py-1 bg-gray-800 text-white rounded text-sm">+ Add Section</button>
+              </div>
+            </div>
+          )}
+
+          {tab === 'pageElements' && (
+            <div className="space-y-4">
+              {Object.entries(pageElements).map(([group, elements]) => (
+                <div key={group} className="border rounded p-3 bg-white">
+                  <div className="text-sm font-semibold mb-2">{group}</div>
+                  <SortableList
+                    items={elements}
+                    dropZoneId={group}
+                    onReorder={(newOrder) => {
+                      if (!newOrder.every((el) => el && el.id)) return;
+                      setPageElements((p) => ({ ...p, [group]: newOrder }));
+                      newOrder.forEach((el, idx) => queueReorder(el.id, undefined, idx));
+                    }}
+                    renderItem={(el) => (
+                      <div className="flex-1 flex items-center justify-between">
+                        <button onClick={() => setSelectedElement(el)} className={`text-sm text-left ${selectedElement?.id === el.id ? 'text-blue-600 font-medium' : ''}`}>
+                          {el.label} <span className="text-xs text-gray-400">[{el.elementType}]</span>
+                        </button>
+                        <button onClick={() => deleteElement(el.id)} className="text-xs text-red-500">Remove</button>
+                      </div>
+                    )}
+                  />
+                </div>
+              ))}
+              {Object.keys(pageElements).length === 0 && (
+                <p className="text-sm text-gray-400">
+                  No page elements registered yet. Add FIELD/COLUMN/BUTTON entries to
+                  uiControlManifest.js and click "Sync New Elements from Manifest" above.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="col-span-1">
+          {!selectedElement && (
+            <div className="text-sm text-gray-400 border rounded p-4">
+              Click any section, item, or page element on the left to control who can see it.
+            </div>
+          )}
+          {selectedElement && (
+            <VisibilityPanel
+              element={selectedElement}
+              roles={roles}
+              users={users}
+              selectedUserId={selectedUserId}
+              setSelectedUserId={setSelectedUserId}
+              onQueueOverride={queueOverride}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function VisibilityPanel({ element, roles, users, selectedUserId, setSelectedUserId, onChanged }) {
+function VisibilityPanel({ element, roles, users, selectedUserId, setSelectedUserId, onQueueOverride }) {
   const findRoleOverride = (roleName) =>
     element.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === roleName);
   const findUserOverride = (userId) =>
     element.overrides?.find((o) => o.scopeType === 'USER' && o.userId === userId);
 
-  const toggleRole = async (role) => {
+  const toggleRole = (role) => {
     const existing = findRoleOverride(role.name);
     const currentlyVisible = existing ? existing.isVisible : element.defaultVisible;
-    await api.put('/ui-control/overrides', {
-      overrides: [{ elementId: element.id, scopeType: 'ROLE', roleName: role.name, isVisible: !currentlyVisible }],
-    });
-    onChanged();
+    onQueueOverride(element.id, 'ROLE', role.name, undefined, !currentlyVisible);
   };
 
-  const toggleUser = async () => {
+  const toggleUser = () => {
     if (!selectedUserId) return;
     const existing = findUserOverride(selectedUserId);
     const currentlyVisible = existing ? existing.isVisible : element.defaultVisible;
-    await api.put('/ui-control/overrides', {
-      overrides: [{ elementId: element.id, scopeType: 'USER', userId: selectedUserId, isVisible: !currentlyVisible }],
-    });
-    onChanged();
+    onQueueOverride(element.id, 'USER', undefined, selectedUserId, !currentlyVisible);
   };
 
   return (
