@@ -406,6 +406,7 @@ function VisibilityPanel({ element, roles, users, selectedUserId, setSelectedUse
     element.overrides?.find((o) => o.scopeType === 'USER' && o.userId === userId);
 
   const toggleRole = (role) => {
+    if (role.name === 'SUPER_ADMIN') return; // never hideable — backend bypasses this anyway
     const existing = findRoleOverride(role.name);
     const currentlyVisible = existing ? existing.isVisible : element.defaultVisible;
     onQueueOverride(element.id, 'ROLE', role.name, undefined, !currentlyVisible);
@@ -429,12 +430,23 @@ function VisibilityPanel({ element, roles, users, selectedUserId, setSelectedUse
         <div className="text-xs font-medium text-gray-500 mb-1">By Role</div>
         <div className="space-y-1 max-h-64 overflow-y-auto">
           {roles.map((r) => {
+            const isSuperAdmin = r.name === 'SUPER_ADMIN';
             const ov = findRoleOverride(r.name);
-            const visible = ov ? ov.isVisible : element.defaultVisible;
+            const visible = isSuperAdmin ? true : (ov ? ov.isVisible : element.defaultVisible);
             return (
-              <label key={r.id || r.name} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={visible} onChange={() => toggleRole(r)} />
+              <label
+                key={r.id || r.name}
+                className={`flex items-center gap-2 text-sm ${isSuperAdmin ? 'text-gray-400' : ''}`}
+                title={isSuperAdmin ? 'Super Admin can always see everything — this cannot be hidden.' : undefined}
+              >
+                <input
+                  type="checkbox"
+                  checked={visible}
+                  disabled={isSuperAdmin}
+                  onChange={() => !isSuperAdmin && toggleRole(r)}
+                />
                 {r.label || r.name}
+                {isSuperAdmin && <span className="text-xs">(always visible)</span>}
               </label>
             );
           })}
