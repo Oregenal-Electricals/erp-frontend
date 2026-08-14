@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import CustomerFormModal from '@/components/CustomerFormModal';
-import CustomerFormModal from '@/components/CustomerFormModal';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
