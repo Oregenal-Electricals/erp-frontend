@@ -21,6 +21,7 @@ export default function UiControlCenterPage() {
   const [tab, setTab] = useState('sidebar');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
   const [newSectionLabel, setNewSectionLabel] = useState('');
   const [newItemLabel, setNewItemLabel] = useState({});
   const [newItemPage, setNewItemPage] = useState({});
@@ -47,6 +48,26 @@ export default function UiControlCenterPage() {
     setLoading(false);
   };
 
+  // Same fetch, but doesn't swap the whole page to the "Loading…" screen —
+  // used after Save/Discard so it doesn't feel like a page reload.
+  const silentReload = async () => {
+    const [structRes, pageElRes, roleRes, userRes] = await Promise.all([
+      api.get('/ui-control/structure'),
+      api.get('/ui-control/page-elements'),
+      api.get('/roles'),
+      api.get('/users'),
+    ]);
+    setStructure(structRes.data || []);
+    setPageElements(pageElRes.data || {});
+    setRoles(roleRes.data || []);
+    setUsers(userRes.data?.items || userRes.data || []);
+  };
+
+  const showToast = (message) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 2500);
+  };
+
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
@@ -69,7 +90,7 @@ export default function UiControlCenterPage() {
 
   const handleSync = async () => {
     await api.post('/ui-control/sync', { elements: UI_CONTROL_MANIFEST });
-    await load();
+    await silentReload();
   };
 
   const handleSaveAll = async () => {
@@ -85,7 +106,8 @@ export default function UiControlCenterPage() {
       }
       setPendingOverrides({});
       setPendingReorders({});
-      await load();
+      await silentReload();
+      showToast('✓ Changes saved');
     } finally {
       setSaving(false);
     }
@@ -94,7 +116,8 @@ export default function UiControlCenterPage() {
   const handleDiscardAll = async () => {
     setPendingOverrides({});
     setPendingReorders({});
-    await load();
+    await silentReload();
+    showToast('Changes discarded');
   };
 
   const queueReorder = (id, parentKey, sortOrder) => {
@@ -151,7 +174,7 @@ export default function UiControlCenterPage() {
       sortOrder: structure.length,
     });
     setNewSectionLabel('');
-    await load();
+    await silentReload();
   };
 
   const addItem = async (section) => {
@@ -165,14 +188,14 @@ export default function UiControlCenterPage() {
     });
     setNewItemLabel((p) => ({ ...p, [section.key]: '' }));
     setNewItemPage((p) => ({ ...p, [section.key]: '' }));
-    await load();
+    await silentReload();
   };
 
   const deleteElement = async (id) => {
     if (!confirm('Remove this element? (Only works if it has no items under it.)')) return;
     try {
       await api.delete(`/ui-control/elements/${id}`);
-      await load();
+      await silentReload();
     } catch (e) {
       alert(e?.response?.data?.message || 'Could not delete.');
     }
@@ -201,6 +224,11 @@ export default function UiControlCenterPage() {
 
   return (
     <div className="p-6 space-y-4">
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 bg-gray-900 text-white text-sm px-4 py-2 rounded shadow-lg">
+          {toast}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
           <ArrowLeft size={14} /> Back to ERP
