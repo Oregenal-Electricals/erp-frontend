@@ -411,8 +411,8 @@ export default function MrpPage() {
                           {item.rmRequirements.map(rm => (
                             <tr key={rm.itemCode}>
                               <td className="px-2 py-1 font-mono">{rm.itemCode} — {rm.itemName}</td>
-                              <td className="px-2 py-1">{rm.qtyPerUnit} {rm.uom}</td>
-                              <td className={`px-2 py-1 font-bold ${rm.availableQty > 0 ? 'text-green-600' : 'text-red-500'}`}>{rm.availableQty} {rm.uom}</td>
+                              <td className="px-2 py-1">{rm.totalNeeded} {rm.uom}</td>
+                              <td className={`px-2 py-1 font-bold ${rm.available > 0 ? 'text-green-600' : 'text-red-500'}`}>{rm.available} {rm.uom}</td>
                             </tr>
                           ))}
                         </tbody>
