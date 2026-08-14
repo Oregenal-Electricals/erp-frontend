@@ -945,32 +945,32 @@ export default function CustomerPoPage() {
                               </div>
                             )}
                             {item.components && item.components.length > 0 && (
-                              <table className="w-full text-xs mt-2 border-collapse">
+                              <table className="w-full text-sm mt-2 border border-gray-300 border-collapse">
                                 <thead>
-                                  <tr className="text-left text-gray-500 border-b">
-                                    <th className="py-1 pr-2 font-medium">Item</th>
-                                    <th className="py-1 px-2 font-medium text-right">Available</th>
-                                    <th className="py-1 px-2 font-medium text-right">Required</th>
-                                    <th className="py-1 pl-2 font-medium text-right">Difference</th>
+                                  <tr className="text-left text-gray-600 bg-gray-100">
+                                    <th className="py-2 px-3 font-semibold border border-gray-300">Item</th>
+                                    <th className="py-2 px-3 font-semibold text-right border border-gray-300">Available</th>
+                                    <th className="py-2 px-3 font-semibold text-right border border-gray-300">Required</th>
+                                    <th className="py-2 px-3 font-semibold text-right border border-gray-300">Difference</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {item.components.map((c, ci) => (
                                     <tr
                                       key={ci}
-                                      className={`border-b border-gray-100 ${c.status === 'SHORTAGE' ? 'text-red-600 font-medium' : 'text-gray-600'}`}
+                                      className={c.status === 'SHORTAGE' ? 'text-red-600 font-medium' : 'text-gray-700'}
                                     >
-                                      <td className="py-1 pr-2">
+                                      <td className="py-2 px-3 border border-gray-300 text-sm leading-snug whitespace-normal break-words">
                                         {c.itemCode} ({c.itemName})
                                       </td>
-                                      <td className="py-1 px-2 text-right">
+                                      <td className="py-2 px-3 border border-gray-300 text-right whitespace-nowrap">
                                         {c.availableQty} {c.uom}
                                       </td>
-                                      <td className="py-1 px-2 text-right">
+                                      <td className="py-2 px-3 border border-gray-300 text-right whitespace-nowrap">
                                         {c.netRequired} {c.uom}
                                       </td>
-                                      <td className="py-1 pl-2 text-right">
-                                        {c.shortage > 0 ? `-${c.shortage}` : '0'}
+                                      <td className="py-2 px-3 border border-gray-300 text-right whitespace-nowrap">
+                                        {c.shortage > 0 ? `-${c.shortage} ${c.uom}` : `0 ${c.uom}`}
                                       </td>
                                     </tr>
                                   ))}
