@@ -270,6 +270,12 @@ export default function DocumentAttachments({
               </div>
               <div className="flex items-center gap-1 ml-2">
                 <button
+                  onClick={() => handleView(doc.id)}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-50"
+                >
+                  👁 View
+                </button>
+                <button
                   onClick={() => handleDownload(doc.id, doc.fileName)}
                   className="text-xs text-teal-600 hover:text-teal-800 px-2 py-1 rounded hover:bg-teal-50"
                 >
