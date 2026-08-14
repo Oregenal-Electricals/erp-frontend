@@ -97,6 +97,7 @@ export default function VendorsPage() {
     if (body.creditLimit) body.creditLimit = parseFloat(body.creditLimit);
     if (body.rating) body.rating = parseInt(body.rating);
     else delete body.rating;
+    if (editVendor) delete body.code; // UpdateVendorDto doesn't accept code (immutable) - forbidNonWhitelisted rejects it if present
     const url = editVendor ? `${API}/vendors/${editVendor.id}` : `${API}/vendors`;
     const method = editVendor ? 'PUT' : 'POST';
     const res = await fetch(url, {

@@ -99,6 +99,7 @@ export default function RawMaterialsPage() {
   async function handleSave() {
     setSaving(true); setError('');
     const body = { ...form };
+    if (editItem) delete body.code; // UpdateRawMaterialDto doesn't accept code (immutable) - forbidNonWhitelisted rejects it if present
     ['minStockLevel', 'maxStockLevel', 'reorderQty'].forEach(k => {
       if (body[k] !== '') body[k] = parseFloat(body[k]); else delete body[k];
     });

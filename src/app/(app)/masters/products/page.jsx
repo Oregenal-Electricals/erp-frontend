@@ -99,6 +99,7 @@ export default function ProductsPage() {
   async function handleSave() {
     setSaving(true); setError('');
     const body = { ...form };
+    if (editProduct) delete body.code; // UpdateProductDto doesn't accept code (immutable) - forbidNonWhitelisted rejects it if present
     if (body.minOrderQty) body.minOrderQty = parseFloat(body.minOrderQty);
     else delete body.minOrderQty;
     if (body.leadTimeDays) body.leadTimeDays = parseInt(body.leadTimeDays);
