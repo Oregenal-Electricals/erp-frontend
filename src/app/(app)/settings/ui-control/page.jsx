@@ -36,6 +36,28 @@ export default function UiControlCenterPage() {
 
   useEffect(() => { load(); }, []);
 
+  // Keep the right-side Visibility Panel in sync with fresh data. Without this,
+  // after toggling a checkbox and reloading, the panel keeps showing the OLD
+  // selectedElement object it grabbed on click — the save works, but the
+  // checkbox visually never updates, looking like nothing happened.
+  useEffect(() => {
+    if (!selectedElement) return;
+    let found = null;
+    for (const s of structure) {
+      if (s.id === selectedElement.id) { found = s; break; }
+      const item = (s.items || []).find((i) => i.id === selectedElement.id);
+      if (item) { found = item; break; }
+    }
+    if (!found) {
+      for (const group of Object.values(pageElements)) {
+        const el = group.find((e) => e.id === selectedElement.id);
+        if (el) { found = el; break; }
+      }
+    }
+    if (found) setSelectedElement(found);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [structure, pageElements]);
+
   const handleSync = async () => {
     await api.post('/ui-control/sync', { elements: UI_CONTROL_MANIFEST });
     await load();
