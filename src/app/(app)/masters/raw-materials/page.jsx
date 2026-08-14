@@ -43,8 +43,8 @@ export default function RawMaterialsPage() {
       fetch(`${API}/items/categories?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/items/uom?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
-    if (catRes.ok) { const d = await catRes.json(); setCategories(d.data || []); }
-    if (uomRes.ok) { const d = await uomRes.json(); setUoms(d.data || []); }
+    if (catRes.ok) { const d = await catRes.json(); setCategories(Array.isArray(d) ? d : (d.data || [])); }
+    if (uomRes.ok) { const d = await uomRes.json(); setUoms(Array.isArray(d) ? d : (d.data || [])); }
   }, []);
 
   const fetchMaterials = useCallback(async () => {
