@@ -155,6 +155,16 @@ export default function DocumentAttachments({
     }
   }
 
+  async function handleView(id) {
+    const res = await fetch(`${API}/documents/${id}/download`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    }
+  }
   async function handleDelete(id) {
     if (!confirm('Delete this attachment?')) return;
     const res = await fetch(`${API}/documents/${id}`, {
