@@ -42,6 +42,7 @@ export default function UiControlCenterPage() {
   };
 
   const reorderSections = async (newOrder) => {
+    if (!newOrder.every((s) => s && s.id)) return; // guard against a stray drag event with a missing id
     setStructure(newOrder);
     await api.put('/ui-control/elements/reorder', {
       items: newOrder.map((s, idx) => ({ id: s.id, sortOrder: idx })),
@@ -50,6 +51,7 @@ export default function UiControlCenterPage() {
   };
 
   const reorderItemsInSection = async (sectionKey, newItems) => {
+    if (!newItems.every((it) => it && it.id)) return; // guard against a stray drag event with a missing id
     setStructure((prev) => prev.map((s) => (s.key === sectionKey ? { ...s, items: newItems } : s)));
     await api.put('/ui-control/elements/reorder', {
       items: newItems.map((it, idx) => ({ id: it.id, sortOrder: idx })),
@@ -57,7 +59,15 @@ export default function UiControlCenterPage() {
     await load();
   };
 
+  const moveItemWithinSection = async (section, fromIndex, toIndex) => {
+    const items = [...section.items];
+    const [moved] = items.splice(fromIndex, 1);
+    items.splice(toIndex, 0, moved);
+    await reorderItemsInSection(section.key, items);
+  };
+
   const moveItemToSection = async (draggedItemId, targetSectionKey) => {
+    if (!draggedItemId || !targetSectionKey) return; // guard against a stray drag event
     const targetSection = structure.find((s) => s.key === targetSectionKey);
     const newSortOrder = targetSection ? targetSection.items.length : 0;
     await api.put('/ui-control/elements/reorder', {
@@ -159,13 +169,37 @@ export default function UiControlCenterPage() {
                       dropZoneId={section.key}
                       onReorder={(newItems) => reorderItemsInSection(section.key, newItems)}
                       onExternalDrop={(draggedId) => moveItemToSection(draggedId, section.key)}
-                      emptyLabel="Drag an item here"
-                      renderItem={(item) => (
-                        <div className="flex-1 flex items-center justify-between">
+                      emptyLabel="Drag an item here, or use Move to below"
+                      renderItem={(item, index, itemsArr) => (
+                        <div className="flex-1 flex items-center justify-between gap-2">
                           <button onClick={() => setSelectedElement(item)} className={`text-sm text-left ${selectedElement?.id === item.id ? 'text-blue-600 font-medium' : ''}`}>
                             {item.label} <span className="text-xs text-gray-400">({item.page})</span>
                           </button>
-                          <button onClick={() => deleteElement(item.id)} className="text-xs text-red-500">Remove</button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              disabled={index === 0}
+                              onClick={() => moveItemWithinSection(section, index, index - 1)}
+                              className="text-xs px-1 text-gray-400 disabled:opacity-20"
+                              title="Move up"
+                            >▲</button>
+                            <button
+                              disabled={index === itemsArr.length - 1}
+                              onClick={() => moveItemWithinSection(section, index, index + 1)}
+                              className="text-xs px-1 text-gray-400 disabled:opacity-20"
+                              title="Move down"
+                            >▼</button>
+                            <select
+                              value=""
+                              onChange={(e) => { if (e.target.value) moveItemToSection(item.id, e.target.value); }}
+                              className="text-xs border rounded px-1 py-0.5"
+                            >
+                              <option value="">Move to…</option>
+                              {structure.filter((s) => s.key !== section.key).map((s) => (
+                                <option key={s.key} value={s.key}>{s.label}</option>
+                              ))}
+                            </select>
+                            <button onClick={() => deleteElement(item.id)} className="text-xs text-red-500">Remove</button>
+                          </div>
                         </div>
                       )}
                     />

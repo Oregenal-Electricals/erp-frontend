@@ -33,6 +33,7 @@ export default function SortableList({ items, onReorder, renderItem, onExternalD
 
   const handleDrop = (e, index) => {
     e.preventDefault();
+    e.stopPropagation(); // don't let this also trigger the container's onDrop below
     const draggedId = window.__uiControlDragId;
     setDragOverIndex(null);
 
@@ -86,7 +87,7 @@ export default function SortableList({ items, onReorder, renderItem, onExternalD
           } ${draggingLocalId === item.id ? 'opacity-40' : ''}`}
         >
           <span className="text-gray-300 text-xs select-none">⠿</span>
-          {renderItem ? renderItem(item) : <span className="text-sm">{item.label}</span>}
+          {renderItem ? renderItem(item, index, items) : <span className="text-sm">{item.label}</span>}
         </div>
       ))}
     </div>
