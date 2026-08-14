@@ -1158,6 +1158,28 @@ export default function CustomerPoPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Customer Name *
+                    </label>
+                    <input
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                      value={form.customerName}
+                      onChange={(e) => {
+                        setForm((f) => ({
+                          ...f,
+                          customerId: '',
+                          customerName: e.target.value,
+                        }));
+                        openCustomerSuggestions(e);
+                      }}
+                      onFocus={(e) => openCustomerSuggestions(e)}
+                      onBlur={() =>
+                        setTimeout(() => setCustomerSuggestOpen(false), 150)
+                      }
+                      placeholder="Type to search existing customers, or type a new name"
+                    />
+                  </div>
                   {form.poType === 'WRITTEN' ? (
                     <div className="col-span-2">
                       <label className="block text-sm text-gray-600 mb-1">
@@ -1211,28 +1233,6 @@ export default function CustomerPoPage() {
                       </div>
                     </>
                   )}
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">
-                      Customer Name *
-                    </label>
-                    <input
-                      className="w-full border rounded-lg px-3 py-2 text-sm"
-                      value={form.customerName}
-                      onChange={(e) => {
-                        setForm((f) => ({
-                          ...f,
-                          customerId: '',
-                          customerName: e.target.value,
-                        }));
-                        openCustomerSuggestions(e);
-                      }}
-                      onFocus={(e) => openCustomerSuggestions(e)}
-                      onBlur={() =>
-                        setTimeout(() => setCustomerSuggestOpen(false), 150)
-                      }
-                      placeholder="Type to search existing customers, or type a new name"
-                    />
-                  </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">
                       Customer Email
