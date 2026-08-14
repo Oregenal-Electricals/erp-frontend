@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import AppLayout from '@/components/layout/AppLayout';
 import DocumentAttachments from '@/components/shared/DocumentAttachments';
+import CustomerFormModal from '@/components/CustomerFormModal';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() {
@@ -170,6 +171,7 @@ export default function CustomerPoPage() {
   }
   const [customerList, setCustomerList] = useState([]);
   const [customerSuggestOpen, setCustomerSuggestOpen] = useState(false);
+  const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
   const [customerSuggestPos, setCustomerSuggestPos] = useState({
     top: 0,
     left: 0,
@@ -214,7 +216,18 @@ export default function CustomerPoPage() {
     setCustomerSuggestOpen(false);
   }
 
-  async function quickCreateCustomer() {
+  function openNewCustomerModal() {
+    setCustomerSuggestOpen(false);
+    setShowNewCustomerModal(true);
+  }
+  async function handleNewCustomerSaved(customer) {
+    // Re-use the exact same logic as picking an EXISTING customer - fetches
+    // full detail (addresses etc.) rather than trusting the create response
+    // shape, so this behaves identically either way.
+    await selectCustomer(customer);
+    setCustomerList((list) => [...list, customer]);
+  }
+  async function _unused_quickCreateCustomer_keep_for_reference() {
     const res = await fetch(`${API}/customers/quick-create`, {
       method: 'POST',
       headers: {
@@ -1820,7 +1833,7 @@ export default function CustomerPoPage() {
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={quickCreateCustomer}
+                onClick={openNewCustomerModal}
                 className="w-full text-left px-3 py-2 text-xs hover:bg-green-50 border-b font-medium text-green-700"
               >
                 + Add "{form.customerName}" as new customer
@@ -1886,6 +1899,13 @@ export default function CustomerPoPage() {
           })(),
           document.body,
         )}
+      <CustomerFormModal
+        open={showNewCustomerModal}
+        editingId={null}
+        initialName={form.customerName}
+        onClose={() => setShowNewCustomerModal(false)}
+        onSaved={handleNewCustomerSaved}
+      />
     </AppLayout>
   );
 }
