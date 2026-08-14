@@ -944,22 +944,39 @@ export default function CustomerPoPage() {
                                 {item.message}
                               </div>
                             )}
-                            {item.components &&
-                              item.components.map((c, ci) => (
-                                <div
-                                  key={ci}
-                                  className={`flex justify-between text-xs mt-1 pl-3 ${c.status === 'SHORTAGE' ? 'text-red-600 font-medium' : 'text-gray-600'}`}
-                                >
-                                  <span>
-                                    {c.itemCode} ({c.itemName})
-                                  </span>
-                                  <span>
-                                    need {c.netRequired} {c.uom} / have{' '}
-                                    {c.availableQty} {c.uom}{' '}
-                                    {c.shortage > 0 && `→ short ${c.shortage}`}
-                                  </span>
-                                </div>
-                              ))}
+                            {item.components && item.components.length > 0 && (
+                              <table className="w-full text-xs mt-2 border-collapse">
+                                <thead>
+                                  <tr className="text-left text-gray-500 border-b">
+                                    <th className="py-1 pr-2 font-medium">Item</th>
+                                    <th className="py-1 px-2 font-medium text-right">Available</th>
+                                    <th className="py-1 px-2 font-medium text-right">Required</th>
+                                    <th className="py-1 pl-2 font-medium text-right">Difference</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {item.components.map((c, ci) => (
+                                    <tr
+                                      key={ci}
+                                      className={`border-b border-gray-100 ${c.status === 'SHORTAGE' ? 'text-red-600 font-medium' : 'text-gray-600'}`}
+                                    >
+                                      <td className="py-1 pr-2">
+                                        {c.itemCode} ({c.itemName})
+                                      </td>
+                                      <td className="py-1 px-2 text-right">
+                                        {c.availableQty} {c.uom}
+                                      </td>
+                                      <td className="py-1 px-2 text-right">
+                                        {c.netRequired} {c.uom}
+                                      </td>
+                                      <td className="py-1 pl-2 text-right">
+                                        {c.shortage > 0 ? `-${c.shortage}` : '0'}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
                             {item.status === 'CHECKED_DIRECT_STOCK' && (
                               <div
                                 className={`text-xs mt-1 ${item.shortage > 0 ? 'text-red-600 font-medium' : 'text-gray-600'}`}
