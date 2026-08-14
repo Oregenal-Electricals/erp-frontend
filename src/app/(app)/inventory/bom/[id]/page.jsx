@@ -257,7 +257,7 @@ export default function BomDetailPage() {
                       if (existingRouting) {
                         return (
                           <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-                            ✅ Routing ready: <strong>{existingRouting.routingName}</strong> — production for a customer order starts automatically from the Sales Order once confirmed. For build-to-stock, use <Link href="/production/work-orders" className="underline font-medium">Work Orders → Start Routing Chain</Link>.
+                            ✅ Production Routing: <strong>{existingRouting.routingName}</strong> — {existingRouting.stages?.length || stages.length} stage{(existingRouting.stages?.length || stages.length) > 1 ? 's' : ''} ({stages.map(s => s.bomNumber.split('-').pop()).join(' → ')}). Work Orders for this chain are created automatically once a Customer PO's Sales Order is confirmed and allocated - there is no manual start.
                           </div>
                         );
                       }
