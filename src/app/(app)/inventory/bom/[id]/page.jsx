@@ -257,7 +257,8 @@ export default function BomDetailPage() {
                       if (existingRouting) {
                         return (
                           <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-                            ✅ Production Routing: <strong>{existingRouting.routingName}</strong> — {existingRouting.stages?.length || stages.length} stage{(existingRouting.stages?.length || stages.length) > 1 ? 's' : ''} ({stages.map(s => s.bomNumber.split('-').pop()).join(' → ')}). Work Orders for this chain are created automatically once a Customer PO's Sales Order is confirmed and allocated - there is no manual start.
+                            <div>✅ Production Routing: <strong>{existingRouting.routingName}</strong> — {existingRouting.stages?.length || stages.length} stage{(existingRouting.stages?.length || stages.length) > 1 ? 's' : ''}</div>
+                            <div className="mt-1 font-medium">{stages.map(s => s.bomNumber.split('-').pop()).join(' → ')}</div>
                           </div>
                         );
                       }
