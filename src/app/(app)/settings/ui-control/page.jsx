@@ -15,6 +15,7 @@ export default function UiControlCenterPage() {
   const [structure, setStructure] = useState([]);
   const [pageElements, setPageElements] = useState({});
   const [roles, setRoles] = useState([]);
+  const [previewRole, setPreviewRole] = useState('');
   const [users, setUsers] = useState([]);
   const [selectedElement, setSelectedElement] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -201,19 +202,30 @@ export default function UiControlCenterPage() {
     }
   };
 
-  const queueOverride = (elementId, scopeType, roleName, userId, isVisible) => {
+  const queueOverride = (elementId, scopeType, roleName, userId, isVisible, customLabel) => {
     const key = overrideKey(elementId, scopeType, roleName, userId);
-    setPendingOverrides((prev) => ({
-      ...prev,
-      [key]: { elementId, scopeType, roleName, userId, isVisible },
-    }));
+    setPendingOverrides((prev) => {
+      const existing = prev[key] || {};
+      return {
+        ...prev,
+        [key]: {
+          elementId, scopeType, roleName, userId,
+          isVisible: isVisible !== undefined ? isVisible : existing.isVisible,
+          customLabel: customLabel !== undefined ? customLabel : existing.customLabel,
+        },
+      };
+    });
     setSelectedElement((prev) => {
       if (!prev || prev.id !== elementId) return prev;
       const overrides = prev.overrides ? [...prev.overrides] : [];
       const idx = overrides.findIndex((o) =>
         scopeType === 'ROLE' ? o.scopeType === 'ROLE' && o.roleName === roleName : o.scopeType === 'USER' && o.userId === userId,
       );
-      const newOv = { scopeType, roleName, userId, isVisible };
+      const newOv = {
+        scopeType, roleName, userId,
+        isVisible: isVisible !== undefined ? isVisible : overrides[idx]?.isVisible,
+        customLabel: customLabel !== undefined ? customLabel : overrides[idx]?.customLabel,
+      };
       if (idx >= 0) overrides[idx] = { ...overrides[idx], ...newOv };
       else overrides.push(newOv);
       return { ...prev, overrides };
@@ -258,9 +270,28 @@ export default function UiControlCenterPage() {
                 click "Save Changes" above.
               </p>
             </div>
-            <button onClick={handleSync} className="px-3 py-2 bg-blue-600 text-white rounded text-sm shrink-0">
-              Sync New Elements from Manifest
-            </button>
+            <div className="flex gap-2 shrink-0">
+              <select
+                value={previewRole}
+                onChange={(e) => setPreviewRole(e.target.value)}
+                className="border rounded px-2 py-2 text-sm"
+              >
+                <option value="">Preview as role…</option>
+                {roles.filter((r) => r.name !== 'SUPER_ADMIN').map((r) => (
+                  <option key={r.id || r.name} value={r.name}>{r.label || r.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => previewRole && window.open(`/settings/ui-control/preview?roleName=${encodeURIComponent(previewRole)}`, '_blank')}
+                disabled={!previewRole}
+                className="px-3 py-2 bg-indigo-600 text-white rounded text-sm disabled:opacity-50"
+              >
+                Open Preview
+              </button>
+              <button onClick={handleSync} className="px-3 py-2 bg-blue-600 text-white rounded text-sm">
+                Sync New Elements from Manifest
+              </button>
+            </div>
           </div>
 
           <div className="flex gap-2 border-b">
@@ -400,6 +431,14 @@ export default function UiControlCenterPage() {
 }
 
 function VisibilityPanel({ element, roles, users, selectedUserId, setSelectedUserId, onQueueOverride }) {
+  const [labelRoleName, setLabelRoleName] = useState('');
+  const [labelText, setLabelText] = useState('');
+  const applyLabel = () => {
+    if (!labelRoleName) return;
+    const existing = element.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === labelRoleName);
+    const currentlyVisible = existing ? existing.isVisible : element.defaultVisible;
+    onQueueOverride(element.id, 'ROLE', labelRoleName, undefined, currentlyVisible, labelText.trim() || null);
+  };
   const findRoleOverride = (roleName) =>
     element.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === roleName);
   const findUserOverride = (userId) =>
@@ -466,6 +505,34 @@ function VisibilityPanel({ element, roles, users, selectedUserId, setSelectedUse
             <input type="checkbox" checked={(findUserOverride(selectedUserId)?.isVisible) ?? element.defaultVisible} onChange={toggleUser} />
             Visible to this person
           </label>
+        )}
+      </div>
+
+      <div>
+        <div className="text-xs font-medium text-gray-500 mb-1">Rename for a specific role</div>
+        <select
+          value={labelRoleName}
+          onChange={(e) => {
+            setLabelRoleName(e.target.value);
+            setLabelText(findRoleOverride(e.target.value)?.customLabel || '');
+          }}
+          className="border rounded px-2 py-1 text-xs w-full mb-2"
+        >
+          <option value="">— Select a role —</option>
+          {roles.filter((r) => r.name !== 'SUPER_ADMIN').map((r) => (
+            <option key={r.id || r.name} value={r.name}>{r.label || r.name}</option>
+          ))}
+        </select>
+        {labelRoleName && (
+          <div className="flex gap-2">
+            <input
+              className="border rounded px-2 py-1 text-xs flex-1"
+              placeholder="Custom label (blank = use real name)"
+              value={labelText}
+              onChange={(e) => setLabelText(e.target.value)}
+            />
+            <button onClick={applyLabel} className="text-xs px-2 py-1 bg-indigo-600 text-white rounded">Apply</button>
+          </div>
         )}
       </div>
     </div>
