@@ -7,6 +7,7 @@ import { UiControlProvider } from '@/context/UiControlContext';
 import Header from './Header';
 import { isAuthenticated } from '@/lib/auth';
 import { isTestSessionEnabled, onTestSessionChange, installTestSessionFetchInterceptor } from '@/lib/testSession';
+import PreviewBanner from '@/components/PreviewBanner';
 
 export default function AppLayout({ children }) {
   const router = useRouter();
@@ -41,6 +42,8 @@ export default function AppLayout({ children }) {
 
   return (
     <UiControlProvider>
+    <>
+    <PreviewBanner />
     <div className="flex min-h-screen bg-gray-50">
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -73,6 +76,7 @@ export default function AppLayout({ children }) {
         </main>
       </div>
     </div>
+    </>
     </UiControlProvider>
   );
 }

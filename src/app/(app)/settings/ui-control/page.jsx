@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import api from '@/lib/api';
 import { UI_CONTROL_MANIFEST } from '@/lib/uiControlManifest';
+import { startPreview } from '@/lib/previewSession';
 import SortableList from '@/components/SortableList';
 
 const overrideKey = (elementId, scopeType, roleName, userId) =>
@@ -282,11 +283,19 @@ export default function UiControlCenterPage() {
                 ))}
               </select>
               <button
-                onClick={() => previewRole && window.open(`/settings/ui-control/preview?roleName=${encodeURIComponent(previewRole)}`, '_blank')}
+                onClick={async () => {
+                  if (!previewRole) return;
+                  if (!confirm(`Switch this tab to a live preview as ${previewRole}? You'll be logged in as that role with Test Mode forced on. Click "Exit Preview" in the banner to return.`)) return;
+                  try {
+                    await startPreview(previewRole);
+                  } catch (err) {
+                    alert(err.message || 'Failed to start preview');
+                  }
+                }}
                 disabled={!previewRole}
                 className="px-3 py-2 bg-indigo-600 text-white rounded text-sm disabled:opacity-50"
               >
-                Open Preview
+                Preview Live
               </button>
               <button onClick={handleSync} className="px-3 py-2 bg-blue-600 text-white rounded text-sm">
                 Sync New Elements from Manifest
