@@ -527,6 +527,19 @@ function InlineDesignControls({ el, roleName, pendingOverrides, queueOverride, s
           ))}
         </select>
       )}
+      {effectiveParent === '__ROOT__' && (
+        <input
+          type="number"
+          className="border rounded px-1 py-0.5 text-xs w-16"
+          placeholder="Position"
+          title="Lower numbers appear first, alongside sections and other promoted tabs"
+          defaultValue={pending?.sortOrderOverride ?? savedOverride?.sortOrderOverride ?? ''}
+          onBlur={(e) => {
+            const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
+            queueOverride(el.id, 'ROLE', roleName, undefined, effectiveVisible, undefined, val);
+          }}
+        />
+      )}
     </div>
   );
 }
