@@ -288,8 +288,8 @@ export default function UiControlCenterPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2 space-y-4">
+      <div className="">
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-semibold">UI Control Center</h1>
@@ -497,28 +497,10 @@ export default function UiControlCenterPage() {
           )}
         </div>
 
-        <div className="col-span-1">
-          {!selectedElement && (
-            <div className="text-sm text-gray-400 border rounded p-4">
-              Click any section, item, or page element on the left to control who can see it.
-            </div>
-          )}
-          {selectedElement && (
-            <VisibilityPanel
-              element={selectedElement}
-              roles={roles}
-              users={users}
-              selectedUserId={selectedUserId}
-              setSelectedUserId={setSelectedUserId}
-              onQueueOverride={queueOverride}
-            />
-          )}
-        </div>
-      </div>
+              </div>
     </div>
   );
 }
-
 function TopLevelOrderPanel({ structure, previewRole, pendingOverrides, queueOverride }) {
   const [selected, setSelected] = useState(() => new Set());
   useEffect(() => { setSelected(new Set()); }, [previewRole]);
@@ -699,111 +681,3 @@ function InlineDesignControls({ el, roleName, pendingOverrides, queueOverride, s
   );
 }
 
-function VisibilityPanel({ element, roles, users, selectedUserId, setSelectedUserId, onQueueOverride }) {
-  const [labelRoleName, setLabelRoleName] = useState('');
-  const [labelText, setLabelText] = useState('');
-  const applyLabel = () => {
-    if (!labelRoleName) return;
-    const existing = element.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === labelRoleName);
-    const currentlyVisible = existing ? existing.isVisible : element.defaultVisible;
-    onQueueOverride(element.id, 'ROLE', labelRoleName, undefined, currentlyVisible, labelText.trim() || null);
-  };
-  const findRoleOverride = (roleName) =>
-    element.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === roleName);
-  const findUserOverride = (userId) =>
-    element.overrides?.find((o) => o.scopeType === 'USER' && o.userId === userId);
-
-  const toggleRole = (role) => {
-    if (role.name === 'SUPER_ADMIN') return; // never hideable — backend bypasses this anyway
-    const existing = findRoleOverride(role.name);
-    const currentlyVisible = existing ? existing.isVisible : element.defaultVisible;
-    onQueueOverride(element.id, 'ROLE', role.name, undefined, !currentlyVisible);
-  };
-
-  const toggleUser = () => {
-    if (!selectedUserId) return;
-    const existing = findUserOverride(selectedUserId);
-    const currentlyVisible = existing ? existing.isVisible : element.defaultVisible;
-    onQueueOverride(element.id, 'USER', undefined, selectedUserId, !currentlyVisible);
-  };
-
-  return (
-    <div className="border rounded p-4 space-y-3 sticky top-4">
-      <div>
-        <div className="text-sm font-semibold">{element.label}</div>
-        <div className="text-xs text-gray-400">{element.key}</div>
-      </div>
-
-      <div>
-        <div className="text-xs font-medium text-gray-500 mb-1">By Role</div>
-        <div className="space-y-1 max-h-64 overflow-y-auto">
-          {roles.map((r) => {
-            const isSuperAdmin = r.name === 'SUPER_ADMIN';
-            const ov = findRoleOverride(r.name);
-            const visible = isSuperAdmin ? true : (ov ? ov.isVisible : element.defaultVisible);
-            return (
-              <label
-                key={r.id || r.name}
-                className={`flex items-center gap-2 text-sm ${isSuperAdmin ? 'text-gray-400' : ''}`}
-                title={isSuperAdmin ? 'Super Admin can always see everything — this cannot be hidden.' : undefined}
-              >
-                <input
-                  type="checkbox"
-                  checked={visible}
-                  disabled={isSuperAdmin}
-                  onChange={() => !isSuperAdmin && toggleRole(r)}
-                />
-                {r.label || r.name}
-                {isSuperAdmin && <span className="text-xs">(always visible)</span>}
-              </label>
-            );
-          })}
-        </div>
-      </div>
-
-      <div>
-        <div className="text-xs font-medium text-gray-500 mb-1">Override for one specific person</div>
-        <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} className="border rounded px-2 py-1 text-xs w-full mb-2">
-          <option value="">— Select a user —</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>{u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email} ({u.email})</option>
-          ))}
-        </select>
-        {selectedUserId && (
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={(findUserOverride(selectedUserId)?.isVisible) ?? element.defaultVisible} onChange={toggleUser} />
-            Visible to this person
-          </label>
-        )}
-      </div>
-
-      <div>
-        <div className="text-xs font-medium text-gray-500 mb-1">Rename for a specific role</div>
-        <select
-          value={labelRoleName}
-          onChange={(e) => {
-            setLabelRoleName(e.target.value);
-            setLabelText(findRoleOverride(e.target.value)?.customLabel || '');
-          }}
-          className="border rounded px-2 py-1 text-xs w-full mb-2"
-        >
-          <option value="">— Select a role —</option>
-          {roles.filter((r) => r.name !== 'SUPER_ADMIN').map((r) => (
-            <option key={r.id || r.name} value={r.name}>{r.label || r.name}</option>
-          ))}
-        </select>
-        {labelRoleName && (
-          <div className="flex gap-2">
-            <input
-              className="border rounded px-2 py-1 text-xs flex-1"
-              placeholder="Custom label (blank = use real name)"
-              value={labelText}
-              onChange={(e) => setLabelText(e.target.value)}
-            />
-            <button onClick={applyLabel} className="text-xs px-2 py-1 bg-indigo-600 text-white rounded">Apply</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
