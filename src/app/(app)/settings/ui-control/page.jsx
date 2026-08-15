@@ -352,6 +352,21 @@ export default function UiControlCenterPage() {
                         {section.label}
                       </button>
                         {previewRole && <InlineDesignControls el={section} roleName={previewRole} pendingOverrides={pendingOverrides} queueOverride={queueOverride} />}
+                        {previewRole && section.items && section.items.length > 0 && (
+                          <button
+                            onClick={() => {
+                              section.items.forEach((it) => {
+                                const saved = it.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === previewRole);
+                                const currentlyVisible = saved ? saved.isVisible : it.defaultVisible;
+                                queueOverride(it.id, 'ROLE', previewRole, undefined, currentlyVisible, undefined, undefined, '__ROOT__');
+                              });
+                            }}
+                            className="text-xs px-2 py-1 bg-purple-600 text-white rounded"
+                            title={`Promote all ${section.items.length} items in this section to top-level tabs, for ${previewRole} only`}
+                          >
+                            Promote all to top-level
+                          </button>
+                        )}
                       <button onClick={() => deleteElement(section.id)} className="text-xs text-red-500">Remove</button>
                     </div>
 
