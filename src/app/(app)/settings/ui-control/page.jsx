@@ -393,20 +393,44 @@ export default function UiControlCenterPage() {
                             <button onClick={() => setSelectedElement(item)} className={`text-sm text-left ${selectedElement?.id === item.id ? 'text-blue-600 font-medium' : ''}`}>
                               {item.label} <span className="text-xs text-gray-400">({item.page})</span>
                             </button>
-                            {previewRole && <InlineDesignControls el={item} roleName={previewRole} pendingOverrides={pendingOverrides} queueOverride={queueOverride} sections={structure} />}
+                            {previewRole && <InlineDesignControls el={item} roleName={previewRole} pendingOverrides={pendingOverrides} queueOverride={queueOverride} />}
                             <div className="flex items-center gap-1 shrink-0">
                               <button disabled={index === 0} onClick={() => previewRole ? moveItemWithinSectionForRole(section, index, index - 1, previewRole) : moveItemWithinSection(section, index, index - 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move up">▲</button>
                               <button disabled={index === itemsArr.length - 1} onClick={() => previewRole ? moveItemWithinSectionForRole(section, index, index + 1, previewRole) : moveItemWithinSection(section, index, index + 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move down">▼</button>
-                              <select
-                                value=""
-                                onChange={(e) => { if (e.target.value) moveItemToSection(item.id, e.target.value); }}
-                                className="text-xs border rounded px-1 py-0.5"
-                              >
-                                <option value="">Move to…</option>
-                                {structure.filter((s) => s.key !== section.key).map((s) => (
-                                  <option key={s.key} value={s.key}>{s.label}</option>
-                                ))}
-                              </select>
+                              {previewRole ? (
+                                (() => {
+                                  const key = overrideKey(item.id, 'ROLE', previewRole);
+                                  const pending = pendingOverrides[key];
+                                  const saved = item.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === previewRole);
+                                  const effectiveParent = pending?.parentKeyOverride !== undefined ? pending.parentKeyOverride : (saved?.parentKeyOverride || '');
+                                  const effectiveVisible = pending?.isVisible !== undefined ? pending.isVisible : (saved ? saved.isVisible : item.defaultVisible);
+                                  return (
+                                    <select
+                                      value={effectiveParent}
+                                      onChange={(e) => queueOverride(item.id, 'ROLE', previewRole, undefined, effectiveVisible, undefined, undefined, e.target.value || null)}
+                                      className="text-xs border rounded px-1 py-0.5"
+                                      title={`Where this item appears for ${previewRole}`}
+                                    >
+                                      <option value="">(default section)</option>
+                                      <option value="__ROOT__">— Top-level tab —</option>
+                                      {structure.filter((s) => s.key !== section.key).map((s) => (
+                                        <option key={s.key} value={s.key}>{s.label}</option>
+                                      ))}
+                                    </select>
+                                  );
+                                })()
+                              ) : (
+                                <select
+                                  value=""
+                                  onChange={(e) => { if (e.target.value) moveItemToSection(item.id, e.target.value); }}
+                                  className="text-xs border rounded px-1 py-0.5"
+                                >
+                                  <option value="">Move to…</option>
+                                  {structure.filter((s) => s.key !== section.key).map((s) => (
+                                    <option key={s.key} value={s.key}>{s.label}</option>
+                                  ))}
+                                </select>
+                              )}
                               <button onClick={() => deleteElement(item.id)} className="text-xs text-red-500">Remove</button>
                             </div>
                           </div>
@@ -596,13 +620,12 @@ function TopLevelOrderPanel({ structure, previewRole, pendingOverrides, queueOve
   );
 }
 
-function InlineDesignControls({ el, roleName, pendingOverrides, queueOverride, sections }) {
+function InlineDesignControls({ el, roleName, pendingOverrides, queueOverride }) {
   const key = overrideKey(el.id, 'ROLE', roleName);
   const pending = pendingOverrides[key];
   const savedOverride = el.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === roleName);
   const effectiveVisible = pending?.isVisible !== undefined ? pending.isVisible : (savedOverride ? savedOverride.isVisible : el.defaultVisible);
   const effectiveLabel = pending?.customLabel !== undefined ? pending.customLabel : (savedOverride?.customLabel || '');
-  const effectiveParent = pending?.parentKeyOverride !== undefined ? pending.parentKeyOverride : (savedOverride?.parentKeyOverride || '');
   const [labelInput, setLabelInput] = useState(effectiveLabel || '');
   useEffect(() => { setLabelInput(effectiveLabel || ''); }, [effectiveLabel]);
   return (
@@ -626,33 +649,6 @@ function InlineDesignControls({ el, roleName, pendingOverrides, queueOverride, s
           }
         }}
       />
-      {sections && (
-        <select
-          value={effectiveParent}
-          onChange={(e) => queueOverride(el.id, 'ROLE', roleName, undefined, effectiveVisible, undefined, undefined, e.target.value || null)}
-          className="text-xs border rounded px-1 py-0.5"
-          title="Where this item appears for this role"
-        >
-          <option value="">(default section)</option>
-          <option value="__ROOT__">— Top-level tab (no section) —</option>
-          {sections.map((s) => (
-            <option key={s.key} value={s.key}>{s.label}</option>
-          ))}
-        </select>
-      )}
-      {effectiveParent === '__ROOT__' && (
-        <input
-          type="number"
-          className="border rounded px-1 py-0.5 text-xs w-16"
-          placeholder="Position"
-          title="Lower numbers appear first, alongside sections and other promoted tabs"
-          defaultValue={pending?.sortOrderOverride ?? savedOverride?.sortOrderOverride ?? ''}
-          onBlur={(e) => {
-            const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
-            queueOverride(el.id, 'ROLE', roleName, undefined, effectiveVisible, undefined, val);
-          }}
-        />
-      )}
     </div>
   );
 }
