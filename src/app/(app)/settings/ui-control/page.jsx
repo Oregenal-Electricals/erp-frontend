@@ -147,6 +147,29 @@ export default function UiControlCenterPage() {
     items.splice(toIndex, 0, moved);
     reorderItemsInSection(section.key, items);
   };
+  const getRoleEffectiveOrder = (el, roleName) => {
+    const key = overrideKey(el.id, 'ROLE', roleName, undefined);
+    const pending = pendingOverrides[key];
+    if (pending?.sortOrderOverride !== undefined && pending.sortOrderOverride !== null) return pending.sortOrderOverride;
+    const saved = el.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === roleName);
+    if (saved?.sortOrderOverride !== undefined && saved?.sortOrderOverride !== null) return saved.sortOrderOverride;
+    return el.sortOrder ?? 0;
+  };
+  const sortItemsForRole = (items, roleName) => {
+    if (!roleName) return items;
+    return [...items].sort((a, b) => getRoleEffectiveOrder(a, roleName) - getRoleEffectiveOrder(b, roleName));
+  };
+  const moveItemWithinSectionForRole = (section, fromIndex, toIndex, roleName) => {
+    const sorted = sortItemsForRole(section.items, roleName);
+    const items = [...sorted];
+    const [moved] = items.splice(fromIndex, 1);
+    items.splice(toIndex, 0, moved);
+    items.forEach((it, idx) => {
+      const saved = it.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === roleName);
+      const currentlyVisible = saved ? saved.isVisible : it.defaultVisible;
+      queueOverride(it.id, 'ROLE', roleName, undefined, currentlyVisible, undefined, idx);
+    });
+  };
 
   const moveItemToSection = (draggedItemId, targetSectionKey) => {
     if (!draggedItemId || !targetSectionKey) return;
@@ -203,7 +226,7 @@ export default function UiControlCenterPage() {
     }
   };
 
-  const queueOverride = (elementId, scopeType, roleName, userId, isVisible, customLabel) => {
+  const queueOverride = (elementId, scopeType, roleName, userId, isVisible, customLabel, sortOrderOverride) => {
     const key = overrideKey(elementId, scopeType, roleName, userId);
     setPendingOverrides((prev) => {
       const existing = prev[key] || {};
@@ -213,6 +236,7 @@ export default function UiControlCenterPage() {
           elementId, scopeType, roleName, userId,
           isVisible: isVisible !== undefined ? isVisible : existing.isVisible,
           customLabel: customLabel !== undefined ? customLabel : existing.customLabel,
+          sortOrderOverride: sortOrderOverride !== undefined ? sortOrderOverride : existing.sortOrderOverride,
         },
       };
     });
@@ -226,6 +250,7 @@ export default function UiControlCenterPage() {
         scopeType, roleName, userId,
         isVisible: isVisible !== undefined ? isVisible : overrides[idx]?.isVisible,
         customLabel: customLabel !== undefined ? customLabel : overrides[idx]?.customLabel,
+        sortOrderOverride: sortOrderOverride !== undefined ? sortOrderOverride : overrides[idx]?.sortOrderOverride,
       };
       if (idx >= 0) overrides[idx] = { ...overrides[idx], ...newOv };
       else overrides.push(newOv);
@@ -340,7 +365,7 @@ export default function UiControlCenterPage() {
                       }}
                     >
                       <SortableList
-                        items={section.items || []}
+                        items={sortItemsForRole(section.items || [], previewRole)}
                         dropZoneId={section.key}
                         onReorder={(newItems) => reorderItemsInSection(section.key, newItems)}
                         onExternalDrop={(draggedId) => moveItemToSection(draggedId, section.key)}
@@ -352,8 +377,8 @@ export default function UiControlCenterPage() {
                             </button>
                             {previewRole && <InlineDesignControls el={item} roleName={previewRole} pendingOverrides={pendingOverrides} queueOverride={queueOverride} />}
                             <div className="flex items-center gap-1 shrink-0">
-                              <button disabled={index === 0} onClick={() => moveItemWithinSection(section, index, index - 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move up">▲</button>
-                              <button disabled={index === itemsArr.length - 1} onClick={() => moveItemWithinSection(section, index, index + 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move down">▼</button>
+                              <button disabled={index === 0} onClick={() => previewRole ? moveItemWithinSectionForRole(section, index, index - 1, previewRole) : moveItemWithinSection(section, index, index - 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move up">▲</button>
+                              <button disabled={index === itemsArr.length - 1} onClick={() => previewRole ? moveItemWithinSectionForRole(section, index, index + 1, previewRole) : moveItemWithinSection(section, index, index + 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move down">▼</button>
                               <select
                                 value=""
                                 onChange={(e) => { if (e.target.value) moveItemToSection(item.id, e.target.value); }}
