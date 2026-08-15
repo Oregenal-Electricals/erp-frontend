@@ -329,7 +329,7 @@ export default function UiControlCenterPage() {
               </button>
             </div>
           </div>
-          {previewRole && <PromotedItemsPanel structure={structure} previewRole={previewRole} pendingOverrides={pendingOverrides} queueOverride={queueOverride} />}
+          {previewRole && <TopLevelOrderPanel structure={structure} previewRole={previewRole} pendingOverrides={pendingOverrides} queueOverride={queueOverride} />}
 
           <div className="flex gap-2 border-b">
             <button onClick={() => setTab('sidebar')} className={`px-3 py-2 text-sm ${tab === 'sidebar' ? 'border-b-2 border-blue-600 font-medium' : 'text-gray-500'}`}>
@@ -484,31 +484,44 @@ export default function UiControlCenterPage() {
   );
 }
 
-function PromotedItemsPanel({ structure, previewRole, pendingOverrides, queueOverride }) {
+function TopLevelOrderPanel({ structure, previewRole, pendingOverrides, queueOverride }) {
   const allItems = structure.flatMap((s) => s.items || []);
-  const getEffective = (item) => {
+
+  const getEffectiveItem = (item) => {
     const key = overrideKey(item.id, 'ROLE', previewRole);
     const pending = pendingOverrides[key];
     const saved = item.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === previewRole);
     const parent = pending?.parentKeyOverride !== undefined ? pending.parentKeyOverride : (saved?.parentKeyOverride || '');
-    const sortOrder = pending?.sortOrderOverride ?? saved?.sortOrderOverride ?? 1000;
+    const sortOrder = pending?.sortOrderOverride ?? saved?.sortOrderOverride ?? item.sortOrder ?? 0;
     const visible = pending?.isVisible !== undefined ? pending.isVisible : (saved ? saved.isVisible : item.defaultVisible);
     return { parent, sortOrder, visible };
   };
-  const promoted = allItems
-    .map((item) => ({ item, eff: getEffective(item) }))
-    .filter((x) => x.eff.parent === '__ROOT__')
-    .sort((a, b) => a.eff.sortOrder - b.eff.sortOrder);
+  const getEffectiveSection = (section) => {
+    const key = overrideKey(section.id, 'ROLE', previewRole);
+    const pending = pendingOverrides[key];
+    const saved = section.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === previewRole);
+    const sortOrder = pending?.sortOrderOverride ?? saved?.sortOrderOverride ?? section.sortOrder ?? 0;
+    const visible = pending?.isVisible !== undefined ? pending.isVisible : (saved ? saved.isVisible : section.defaultVisible);
+    return { sortOrder, visible };
+  };
 
-  if (promoted.length === 0) return null;
+  const promotedItems = allItems
+    .map((item) => ({ type: 'item', obj: item, eff: getEffectiveItem(item) }))
+    .filter((x) => x.eff.parent === '__ROOT__');
+
+  const sectionEntries = structure.map((section) => ({ type: 'section', obj: section, eff: getEffectiveSection(section) }));
+
+  const combined = [...sectionEntries, ...promotedItems].sort((a, b) => a.eff.sortOrder - b.eff.sortOrder);
+
+  if (combined.length === 0) return null;
 
   const renumber = (orderedList) => {
     orderedList.forEach((x, idx) => {
-      queueOverride(x.item.id, 'ROLE', previewRole, undefined, x.eff.visible, undefined, 1000 + idx * 10);
+      queueOverride(x.obj.id, 'ROLE', previewRole, undefined, x.eff.visible, undefined, idx);
     });
   };
   const move = (index, direction) => {
-    const next = [...promoted];
+    const next = [...combined];
     const swapWith = index + direction;
     if (swapWith < 0 || swapWith >= next.length) return;
     [next[index], next[swapWith]] = [next[swapWith], next[index]];
@@ -518,15 +531,19 @@ function PromotedItemsPanel({ structure, previewRole, pendingOverrides, queueOve
   return (
     <div className="border-2 border-purple-200 bg-purple-50 rounded p-3 mb-3">
       <div className="text-xs font-semibold text-purple-700 mb-2">
-        Promoted top-level tabs for {previewRole} — use the arrows to reorder, positions are assigned automatically (never collides with real sections).
+        Top-level order for {previewRole} — sections and promoted tabs together. Use the arrows to move anything anywhere; numbers 0,1,2… renumber automatically.
       </div>
-      <div className="space-y-1">
-        {promoted.map((x, idx) => (
-          <div key={x.item.id} className="flex items-center justify-between bg-white rounded px-2 py-1 text-sm">
-            <span>{x.item.label} <span className="text-xs text-gray-400">({x.item.page})</span></span>
+      <div className="space-y-1 max-h-72 overflow-y-auto">
+        {combined.map((x, idx) => (
+          <div key={x.obj.id} className="flex items-center justify-between bg-white rounded px-2 py-1 text-sm">
+            <span>
+              {x.type === 'section' ? '📁 ' : '📄 '}
+              {x.obj.label}
+              {x.type === 'item' && <span className="text-xs text-gray-400"> ({x.obj.page})</span>}
+            </span>
             <div className="flex gap-1">
               <button disabled={idx === 0} onClick={() => move(idx, -1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move up">▲</button>
-              <button disabled={idx === promoted.length - 1} onClick={() => move(idx, 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move down">▼</button>
+              <button disabled={idx === combined.length - 1} onClick={() => move(idx, 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move down">▼</button>
             </div>
           </div>
         ))}
