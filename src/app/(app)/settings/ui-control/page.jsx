@@ -485,8 +485,10 @@ export default function UiControlCenterPage() {
 }
 
 function TopLevelOrderPanel({ structure, previewRole, pendingOverrides, queueOverride }) {
-  const allItems = structure.flatMap((s) => s.items || []);
+  const [selected, setSelected] = useState(() => new Set());
+  useEffect(() => { setSelected(new Set()); }, [previewRole]);
 
+  const allItems = structure.flatMap((s) => s.items || []);
   const getEffectiveItem = (item) => {
     const key = overrideKey(item.id, 'ROLE', previewRole);
     const pending = pendingOverrides[key];
@@ -504,15 +506,11 @@ function TopLevelOrderPanel({ structure, previewRole, pendingOverrides, queueOve
     const visible = pending?.isVisible !== undefined ? pending.isVisible : (saved ? saved.isVisible : section.defaultVisible);
     return { sortOrder, visible };
   };
-
   const promotedItems = allItems
     .map((item) => ({ type: 'item', obj: item, eff: getEffectiveItem(item) }))
     .filter((x) => x.eff.parent === '__ROOT__');
-
   const sectionEntries = structure.map((section) => ({ type: 'section', obj: section, eff: getEffectiveSection(section) }));
-
   const combined = [...sectionEntries, ...promotedItems].sort((a, b) => a.eff.sortOrder - b.eff.sortOrder);
-
   if (combined.length === 0) return null;
 
   const renumber = (orderedList) => {
@@ -527,20 +525,66 @@ function TopLevelOrderPanel({ structure, previewRole, pendingOverrides, queueOve
     [next[index], next[swapWith]] = [next[swapWith], next[index]];
     renumber(next);
   };
+  const toggleSelect = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const moveSelected = (target) => {
+    if (selected.size === 0) return;
+    const selectedEntries = combined.filter((x) => selected.has(x.obj.id));
+    const rest = combined.filter((x) => !selected.has(x.obj.id));
+    let next;
+    if (target === 'top') {
+      next = [...selectedEntries, ...rest];
+    } else if (target === 'bottom') {
+      next = [...rest, ...selectedEntries];
+    } else if (target === 'up') {
+      const firstSelectedIdx = combined.findIndex((x) => selected.has(x.obj.id));
+      const restBefore = rest.filter((x) => combined.indexOf(x) < firstSelectedIdx);
+      const insertAt = Math.max(0, restBefore.length - 1);
+      next = [...rest.slice(0, insertAt), ...selectedEntries, ...rest.slice(insertAt)];
+    } else if (target === 'down') {
+      const selectedIds = [...selected];
+      const lastSelectedIdx = combined.map((x) => x.obj.id).lastIndexOf(selectedIds[selectedIds.length - 1]);
+      const restBefore = rest.filter((x) => combined.indexOf(x) < lastSelectedIdx);
+      const insertAt = Math.min(rest.length, restBefore.length + 1);
+      next = [...rest.slice(0, insertAt), ...selectedEntries, ...rest.slice(insertAt)];
+    }
+    renumber(next);
+  };
 
   return (
     <div className="border-2 border-purple-200 bg-purple-50 rounded p-3 mb-3">
-      <div className="text-xs font-semibold text-purple-700 mb-2">
-        Top-level order for {previewRole} — sections and promoted tabs together. Use the arrows to move anything anywhere; numbers 0,1,2… renumber automatically.
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-xs font-semibold text-purple-700">
+          Top-level order for {previewRole} — check several to move them together as one group.
+        </div>
+        {selected.size > 0 && (
+          <div className="flex gap-1">
+            <span className="text-xs text-purple-600 self-center mr-1">{selected.size} selected</span>
+            <button onClick={() => moveSelected('top')} className="text-xs px-2 py-1 bg-purple-600 text-white rounded">To top</button>
+            <button onClick={() => moveSelected('up')} className="text-xs px-2 py-1 bg-purple-600 text-white rounded">Move up</button>
+            <button onClick={() => moveSelected('down')} className="text-xs px-2 py-1 bg-purple-600 text-white rounded">Move down</button>
+            <button onClick={() => moveSelected('bottom')} className="text-xs px-2 py-1 bg-purple-600 text-white rounded">To bottom</button>
+            <button onClick={() => setSelected(new Set())} className="text-xs px-2 py-1 border rounded">Clear</button>
+          </div>
+        )}
       </div>
       <div className="space-y-1 max-h-72 overflow-y-auto">
         {combined.map((x, idx) => (
-          <div key={x.obj.id} className="flex items-center justify-between bg-white rounded px-2 py-1 text-sm">
-            <span>
-              {x.type === 'section' ? '📁 ' : '📄 '}
-              {x.obj.label}
-              {x.type === 'item' && <span className="text-xs text-gray-400"> ({x.obj.page})</span>}
-            </span>
+          <div key={x.obj.id} className={`flex items-center justify-between rounded px-2 py-1 text-sm ${selected.has(x.obj.id) ? 'bg-purple-100' : 'bg-white'}`}>
+            <label className="flex items-center gap-2 flex-1 cursor-pointer">
+              <input type="checkbox" checked={selected.has(x.obj.id)} onChange={() => toggleSelect(x.obj.id)} />
+              <span>
+                {x.type === 'section' ? '📁 ' : '📄 '}
+                {x.obj.label}
+                {x.type === 'item' && <span className="text-xs text-gray-400"> ({x.obj.page})</span>}
+              </span>
+            </label>
             <div className="flex gap-1">
               <button disabled={idx === 0} onClick={() => move(idx, -1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move up">▲</button>
               <button disabled={idx === combined.length - 1} onClick={() => move(idx, 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move down">▼</button>
