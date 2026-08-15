@@ -309,6 +309,17 @@ export default function UiControlCenterPage() {
                   <option key={r.id || r.name} value={r.name}>{r.label || r.name}</option>
                 ))}
               </select>
+              <select
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                className="border rounded px-2 py-2 text-sm"
+                title="Override visibility/label for one specific person, on top of their role"
+              >
+                <option value="">Override for person…</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}</option>
+                ))}
+              </select>
               <button
                 onClick={async () => {
                   if (!previewRole) return;
@@ -352,7 +363,7 @@ export default function UiControlCenterPage() {
                       <button onClick={() => setSelectedElement(section)} className={`text-sm font-semibold text-left ${selectedElement?.id === section.id ? 'text-blue-600' : ''}`}>
                         {section.label}
                       </button>
-                        {previewRole && <InlineDesignControls el={section} roleName={previewRole} pendingOverrides={pendingOverrides} queueOverride={queueOverride} />}
+                        {previewRole && <InlineDesignControls el={section} roleName={previewRole} pendingOverrides={pendingOverrides} queueOverride={queueOverride} selectedUserId={selectedUserId} users={users} />}
                         {previewRole && section.items && section.items.length > 0 && (
                           <button
                             onClick={() => {
@@ -393,7 +404,7 @@ export default function UiControlCenterPage() {
                             <button onClick={() => setSelectedElement(item)} className={`text-sm text-left ${selectedElement?.id === item.id ? 'text-blue-600 font-medium' : ''}`}>
                               {item.label} <span className="text-xs text-gray-400">({item.page})</span>
                             </button>
-                            {previewRole && <InlineDesignControls el={item} roleName={previewRole} pendingOverrides={pendingOverrides} queueOverride={queueOverride} />}
+                            {previewRole && <InlineDesignControls el={item} roleName={previewRole} pendingOverrides={pendingOverrides} queueOverride={queueOverride} selectedUserId={selectedUserId} users={users} />}
                             <div className="flex items-center gap-1 shrink-0">
                               <button disabled={index === 0} onClick={() => previewRole ? moveItemWithinSectionForRole(section, index, index - 1, previewRole) : moveItemWithinSection(section, index, index - 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move up">▲</button>
                               <button disabled={index === itemsArr.length - 1} onClick={() => previewRole ? moveItemWithinSectionForRole(section, index, index + 1, previewRole) : moveItemWithinSection(section, index, index + 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move down">▼</button>
@@ -620,7 +631,7 @@ function TopLevelOrderPanel({ structure, previewRole, pendingOverrides, queueOve
   );
 }
 
-function InlineDesignControls({ el, roleName, pendingOverrides, queueOverride }) {
+function InlineDesignControls({ el, roleName, pendingOverrides, queueOverride, selectedUserId, users }) {
   const key = overrideKey(el.id, 'ROLE', roleName);
   const pending = pendingOverrides[key];
   const savedOverride = el.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === roleName);
@@ -628,27 +639,62 @@ function InlineDesignControls({ el, roleName, pendingOverrides, queueOverride })
   const effectiveLabel = pending?.customLabel !== undefined ? pending.customLabel : (savedOverride?.customLabel || '');
   const [labelInput, setLabelInput] = useState(effectiveLabel || '');
   useEffect(() => { setLabelInput(effectiveLabel || ''); }, [effectiveLabel]);
+
+  const userKey = selectedUserId ? overrideKey(el.id, 'USER', undefined, selectedUserId) : null;
+  const userPending = userKey ? pendingOverrides[userKey] : null;
+  const savedUserOverride = selectedUserId ? el.overrides?.find((o) => o.scopeType === 'USER' && o.userId === selectedUserId) : null;
+  const userEffectiveVisible = userPending?.isVisible !== undefined ? userPending.isVisible : (savedUserOverride ? savedUserOverride.isVisible : effectiveVisible);
+  const userEffectiveLabel = userPending?.customLabel !== undefined ? userPending.customLabel : (savedUserOverride?.customLabel || '');
+  const [userLabelInput, setUserLabelInput] = useState(userEffectiveLabel || '');
+  useEffect(() => { setUserLabelInput(userEffectiveLabel || ''); }, [userEffectiveLabel]);
+  const personName = selectedUserId ? (users.find((u) => u.id === selectedUserId)?.name || 'this person') : '';
+
   return (
-    <div className="flex items-center gap-2 ml-2 shrink-0 bg-purple-50 border border-purple-200 rounded px-2 py-1">
-      <label className="flex items-center gap-1 text-xs" title="Visible to this role">
+    <div className="flex items-center gap-2 ml-2 shrink-0">
+      <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded px-2 py-1">
+        <label className="flex items-center gap-1 text-xs" title="Visible to this role">
+          <input
+            type="checkbox"
+            checked={effectiveVisible}
+            onChange={() => queueOverride(el.id, 'ROLE', roleName, undefined, !effectiveVisible)}
+          />
+          Visible
+        </label>
         <input
-          type="checkbox"
-          checked={effectiveVisible}
-          onChange={() => queueOverride(el.id, 'ROLE', roleName, undefined, !effectiveVisible)}
+          className="border rounded px-1 py-0.5 text-xs w-28"
+          placeholder={el.label}
+          value={labelInput}
+          onChange={(e) => setLabelInput(e.target.value)}
+          onBlur={() => {
+            if (labelInput !== (effectiveLabel || '')) {
+              queueOverride(el.id, 'ROLE', roleName, undefined, effectiveVisible, labelInput.trim() || null);
+            }
+          }}
         />
-        Visible
-      </label>
-      <input
-        className="border rounded px-1 py-0.5 text-xs w-28"
-        placeholder={el.label}
-        value={labelInput}
-        onChange={(e) => setLabelInput(e.target.value)}
-        onBlur={() => {
-          if (labelInput !== (effectiveLabel || '')) {
-            queueOverride(el.id, 'ROLE', roleName, undefined, effectiveVisible, labelInput.trim() || null);
-          }
-        }}
-      />
+      </div>
+      {selectedUserId && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+          <label className="flex items-center gap-1 text-xs" title={`Visible to ${personName} specifically`}>
+            <input
+              type="checkbox"
+              checked={userEffectiveVisible}
+              onChange={() => queueOverride(el.id, 'USER', undefined, selectedUserId, !userEffectiveVisible)}
+            />
+            👤
+          </label>
+          <input
+            className="border rounded px-1 py-0.5 text-xs w-24"
+            placeholder={effectiveLabel || el.label}
+            value={userLabelInput}
+            onChange={(e) => setUserLabelInput(e.target.value)}
+            onBlur={() => {
+              if (userLabelInput !== (userEffectiveLabel || '')) {
+                queueOverride(el.id, 'USER', undefined, selectedUserId, userEffectiveVisible, userLabelInput.trim() || null);
+              }
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
