@@ -329,6 +329,7 @@ export default function UiControlCenterPage() {
               </button>
             </div>
           </div>
+          {previewRole && <PromotedItemsPanel structure={structure} previewRole={previewRole} pendingOverrides={pendingOverrides} queueOverride={queueOverride} />}
 
           <div className="flex gap-2 border-b">
             <button onClick={() => setTab('sidebar')} className={`px-3 py-2 text-sm ${tab === 'sidebar' ? 'border-b-2 border-blue-600 font-medium' : 'text-gray-500'}`}>
@@ -478,6 +479,57 @@ export default function UiControlCenterPage() {
             />
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function PromotedItemsPanel({ structure, previewRole, pendingOverrides, queueOverride }) {
+  const allItems = structure.flatMap((s) => s.items || []);
+  const getEffective = (item) => {
+    const key = overrideKey(item.id, 'ROLE', previewRole);
+    const pending = pendingOverrides[key];
+    const saved = item.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === previewRole);
+    const parent = pending?.parentKeyOverride !== undefined ? pending.parentKeyOverride : (saved?.parentKeyOverride || '');
+    const sortOrder = pending?.sortOrderOverride ?? saved?.sortOrderOverride ?? 1000;
+    const visible = pending?.isVisible !== undefined ? pending.isVisible : (saved ? saved.isVisible : item.defaultVisible);
+    return { parent, sortOrder, visible };
+  };
+  const promoted = allItems
+    .map((item) => ({ item, eff: getEffective(item) }))
+    .filter((x) => x.eff.parent === '__ROOT__')
+    .sort((a, b) => a.eff.sortOrder - b.eff.sortOrder);
+
+  if (promoted.length === 0) return null;
+
+  const renumber = (orderedList) => {
+    orderedList.forEach((x, idx) => {
+      queueOverride(x.item.id, 'ROLE', previewRole, undefined, x.eff.visible, undefined, 1000 + idx * 10);
+    });
+  };
+  const move = (index, direction) => {
+    const next = [...promoted];
+    const swapWith = index + direction;
+    if (swapWith < 0 || swapWith >= next.length) return;
+    [next[index], next[swapWith]] = [next[swapWith], next[index]];
+    renumber(next);
+  };
+
+  return (
+    <div className="border-2 border-purple-200 bg-purple-50 rounded p-3 mb-3">
+      <div className="text-xs font-semibold text-purple-700 mb-2">
+        Promoted top-level tabs for {previewRole} — use the arrows to reorder, positions are assigned automatically (never collides with real sections).
+      </div>
+      <div className="space-y-1">
+        {promoted.map((x, idx) => (
+          <div key={x.item.id} className="flex items-center justify-between bg-white rounded px-2 py-1 text-sm">
+            <span>{x.item.label} <span className="text-xs text-gray-400">({x.item.page})</span></span>
+            <div className="flex gap-1">
+              <button disabled={idx === 0} onClick={() => move(idx, -1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move up">▲</button>
+              <button disabled={idx === promoted.length - 1} onClick={() => move(idx, 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move down">▼</button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
