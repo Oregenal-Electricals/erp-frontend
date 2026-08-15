@@ -324,12 +324,14 @@ export default function MrpPage() {
             </div>
 
             {allocResult && (
-              <div className={`rounded-xl p-4 ${allocResult.feasible ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                {allocResult.feasible ? (
-                  <div>
+              <div className="space-y-3">
+                {allocResult.createdWorkOrders && allocResult.createdWorkOrders.length > 0 && (
+                  <div className="rounded-xl p-4 bg-green-50 border border-green-200">
                     <div className="font-bold text-green-700 mb-2">✅ Work Orders created and released</div>
                     <table className="w-full text-xs">
-                      <thead className="text-green-600 uppercase"><tr>{['WO Number','Sales Order','Product','Build Qty'].map(h=><th key={h} className="text-left px-2 py-1">{h}</th>)}</tr></thead>
+                      <thead className="text-green-600 uppercase">
+                        <tr>{['WO Number', 'Sales Order', 'Product', 'Build Qty', 'Status'].map(h => <th key={h} className="text-left px-2 py-1">{h}</th>)}</tr>
+                      </thead>
                       <tbody className="divide-y divide-green-100">
                         {allocResult.createdWorkOrders.map(w => (
                           <tr key={w.woId} className="bg-white">
@@ -337,28 +339,52 @@ export default function MrpPage() {
                             <td className="px-2 py-1">{w.soNumber}</td>
                             <td className="px-2 py-1">{w.productCode}</td>
                             <td className="px-2 py-1 font-bold">{w.buildQty}</td>
+                            <td className="px-2 py-1">
+                              {w.partial ? (
+                                <span className="text-orange-600 font-medium">
+                                  Partial — {w.remainingPending} of {w.requestedQty} still pending
+                                </span>
+                              ) : (
+                                <span className="text-green-600 font-medium">Full</span>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                ) : (
-                  <div>
-                    <div className="font-bold text-red-700 mb-2">❌ Not enough raw material for these quantities combined — nothing was created</div>
+                )}
+
+                {allocResult.skipped && allocResult.skipped.length > 0 && (
+                  <div className="rounded-xl p-4 bg-red-50 border border-red-200">
+                    <div className="font-bold text-red-700 mb-2">⚠ Skipped — no material currently available</div>
                     <table className="w-full text-xs">
-                      <thead className="text-red-500 uppercase"><tr>{['Item','Total Needed','Available','Shortfall'].map(h=><th key={h} className="text-left px-2 py-1">{h}</th>)}</tr></thead>
+                      <thead className="text-red-500 uppercase">
+                        <tr>{['Sales Order', 'Item', 'Requested Qty', 'Reason'].map(h => <th key={h} className="text-left px-2 py-1">{h}</th>)}</tr>
+                      </thead>
                       <tbody className="divide-y divide-red-100">
-                        {allocResult.shortages.map((s,i) => (
+                        {allocResult.skipped.map((s, i) => (
                           <tr key={i} className="bg-white">
+                            <td className="px-2 py-1">{s.soNumber}</td>
                             <td className="px-2 py-1 font-mono">{s.itemCode} — {s.itemName}</td>
-                            <td className="px-2 py-1">{s.totalNeeded} {s.uom}</td>
-                            <td className="px-2 py-1">{s.available} {s.uom}</td>
-                            <td className="px-2 py-1 font-bold text-red-600">{s.shortfall} {s.uom}</td>
+                            <td className="px-2 py-1 font-bold">{s.requestedQty}</td>
+                            <td className="px-2 py-1 text-red-600">{s.reason}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                    <div className="text-xs text-red-500 mt-2">Reduce the build quantities above so the totals fit, then run allocation again.</div>
+                    <div className="text-xs text-red-500 mt-2">These stay pending — run allocation again once more stock arrives.</div>
+                  </div>
+                )}
+
+                {allocResult.note && (
+                  <div className="text-xs text-gray-500 px-1">{allocResult.note}</div>
+                )}
+
+                {(!allocResult.createdWorkOrders || allocResult.createdWorkOrders.length === 0) &&
+                  (!allocResult.skipped || allocResult.skipped.length === 0) && (
+                  <div className="rounded-xl p-4 bg-gray-50 border border-gray-200 text-gray-500 text-sm">
+                    No result to show.
                   </div>
                 )}
               </div>
