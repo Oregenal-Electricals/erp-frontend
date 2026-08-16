@@ -222,11 +222,10 @@ export default function BomDetailPage() {
 
   async function handleCreateRouting() {
     setCreatingRouting(true); setSetupError('');
-    const approvedStages = stages.filter(s => s.status === 'APPROVED');
     const body = {
       finalProductId: bom.productId,
       routingName: `${bom.product?.name || bom.product?.code} Standard Routing`,
-      stages: approvedStages.map(s => ({ stageName: s.bomNumber.split('-').pop(), bomId: s.id })),
+      stages: stages.map(s => ({ stageName: s.bomNumber.split('-').pop(), bomId: s.id })),
     };
     const res = await fetch(`${API}/routing`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
@@ -368,7 +367,14 @@ export default function BomDetailPage() {
               {bom.status === 'DRAFT' && (
                 <>
                   <button onClick={openAdd} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-sm">+ Add Item</button>
-                  <button onClick={handleVerify} className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 text-sm">Verify BOM</button>
+                  <button
+                    onClick={handleVerify}
+                    disabled={stages.length > 0 && !routings.some(r => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId)}
+                    title={stages.length > 0 && !routings.some(r => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId) ? 'Create the production routing first' : ''}
+                    className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Verify BOM
+                  </button>
                 </>
               )}
               {bom.status === 'VERIFIED' && (
