@@ -268,7 +268,7 @@ export default function BomDetailPage() {
           ))}
         </div>
 
-        {bom.status === 'DRAFT' && bom.bomType === 'MASTER' && (
+        {bom.bomType === 'MASTER' && (bom.status === 'DRAFT' || stages.length > 0) && (
           <div className="bg-white rounded-xl shadow-sm border-2 border-blue-200 p-5 mb-6">
             <h2 className="font-semibold text-gray-800 mb-1">Set Up Production</h2>
             <p className="text-xs text-gray-500 mb-4">Build out the production routing while this BOM is still in draft — stages and the routing move through Verify/Approve together with the BOM once you're ready.</p>
@@ -276,21 +276,25 @@ export default function BomDetailPage() {
             {setupError && <div className="mb-3 bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{setupError}</div>}
 
             {stages.length === 0 ? (
-              <div>
-                <div className="text-sm font-medium text-gray-700 mb-2">Step 1: Name each production stage</div>
-                <div className="space-y-2 mb-3">
-                  {Object.keys(stageNames).map(section => (
-                    <div key={section} className="flex items-center gap-3">
-                      <span className="text-xs text-gray-500 w-56 truncate" title={section}>{section}</span>
-                      <span className="text-gray-300">→</span>
-                      <input className="border rounded px-2 py-1 text-sm w-40" value={stageNames[section]} onChange={e => setStageNames(prev => ({ ...prev, [section]: e.target.value }))} />
-                    </div>
-                  ))}
+              bom.status === 'DRAFT' ? (
+                <div>
+                  <div className="text-sm font-medium text-gray-700 mb-2">Step 1: Name each production stage</div>
+                  <div className="space-y-2 mb-3">
+                    {Object.keys(stageNames).map(section => (
+                      <div key={section} className="flex items-center gap-3">
+                        <span className="text-xs text-gray-500 w-56 truncate" title={section}>{section}</span>
+                        <span className="text-gray-300">→</span>
+                        <input className="border rounded px-2 py-1 text-sm w-40" value={stageNames[section]} onChange={e => setStageNames(prev => ({ ...prev, [section]: e.target.value }))} />
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={handleGenerateStages} disabled={generatingStages || Object.keys(stageNames).length === 0} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
+                    {generatingStages ? 'Generating...' : 'Generate Production Stages'}
+                  </button>
                 </div>
-                <button onClick={handleGenerateStages} disabled={generatingStages || Object.keys(stageNames).length === 0} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
-                  {generatingStages ? 'Generating...' : 'Generate Production Stages'}
-                </button>
-              </div>
+              ) : (
+                <div className="text-sm text-gray-500">No production stages were set up for this BOM.</div>
+              )
             ) : (
               <div>
                 <div className="text-sm font-medium text-green-700 mb-2">✓ Step 1 done — {stages.length} stage{stages.length > 1 ? 's' : ''} generated</div>
