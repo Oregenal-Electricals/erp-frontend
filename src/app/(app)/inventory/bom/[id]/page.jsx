@@ -78,6 +78,12 @@ export default function BomDetailPage() {
 
   function getUserName(userId) {
     if (!userId) return '—';
+    // Check the names the BOM itself already resolved for creator/verifier
+    // /approver first - works for any viewer regardless of whether they
+    // have USER_VIEW permission for the general directory. Fall back to
+    // the /users list (used for the person-override picker elsewhere).
+    const fromBom = bom?.approvalUserNames?.[userId];
+    if (fromBom) return `${fromBom.firstName || ''} ${fromBom.lastName || ''}`.trim() || fromBom.email;
     const u = users.find((x) => x.id === userId);
     if (!u) return userId;
     return u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
