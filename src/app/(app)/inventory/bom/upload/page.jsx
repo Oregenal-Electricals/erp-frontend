@@ -114,6 +114,37 @@ export default function BomUploadPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.message || 'Import failed'); setConfirming(false); return; }
       setResult(data);
+      // Save a copy of the original uploaded file for future reference -
+      // the raw bytes only exist in this browser tab's memory (the parse
+      // step never persists them server-side), so this is the one place
+      // they can still be captured before they're gone for good.
+      if (file && data.bomId) {
+        try {
+          const reader = new FileReader();
+          reader.onload = async (ev) => {
+            const base64 = ev.target.result.split(',')[1];
+            await fetch(`${API}/documents`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+              body: JSON.stringify({
+                title: `BOM Upload Source - ${data.bomNumber || file.name}`,
+                category: 'GENERAL',
+                fileName: file.name,
+                fileSize: file.size,
+                fileData: base64,
+                mimeType: file.type || 'application/octet-stream',
+                referenceType: 'BOM',
+                referenceId: data.bomId,
+                referenceNumber: data.bomNumber,
+              }),
+            });
+          };
+          reader.readAsDataURL(file);
+        } catch (e) {
+          // Never let a failed archive-copy upload block the BOM import
+          // itself, which already succeeded by this point.
+        }
+      }
     } catch (e) {
       setError('Import failed - please try again.');
     }
