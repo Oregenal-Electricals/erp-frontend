@@ -550,27 +550,43 @@ export default function BomDetailPage() {
             of the item list, so acting on a BOM means actually scrolling
             through its items, stages, and routing first - not just
             clicking the moment the page loads. */}
-        {(bom.status === 'DRAFT' || bom.status === 'VERIFIED') && (
-          <div className="bg-white rounded-xl shadow-sm border-2 border-indigo-200 p-5 mt-6 flex items-center justify-between">
-            <div className="text-sm text-gray-600">You've reviewed the items{stages.length > 0 ? ', stages, and routing' : ''} above. Ready to act?</div>
-            <div className="flex gap-2">
-              {bom.status === 'DRAFT' && (
-                <button
-                  onClick={handleVerify}
-                  disabled={bom.bomType === 'MASTER' && !routings.some(r => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId)}
-                  title={bom.bomType === 'MASTER' && !routings.some(r => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId) ? 'Create the production routing first' : ''}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Verify BOM
-                </button>
-              )}
-              {bom.status === 'VERIFIED' && (
-                <button onClick={handleApprove} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">Approve BOM</button>
-              )}
-              <button onClick={() => { setShowQueryModal(true); setQueryError(''); }} className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600">Raise Query</button>
+        {(bom.status === 'DRAFT' || bom.status === 'VERIFIED') && (() => {
+          const hasOpenQuery = bom.queries?.some((q) => q.status === 'OPEN');
+          const needsRouting = bom.bomType === 'MASTER' && !routings.some((r) => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId);
+          const verifyBlockedReason = hasOpenQuery ? 'Resolve the open query first' : needsRouting ? 'Create the production routing first' : '';
+          const approveBlockedReason = hasOpenQuery ? 'Resolve the open query first' : '';
+          return (
+            <div className="bg-white rounded-xl shadow-sm border-2 border-indigo-200 p-5 mt-6 flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                You've reviewed the items{stages.length > 0 ? ', stages, and routing' : ''} above. Ready to act?
+                {hasOpenQuery && <span className="ml-2 text-amber-600 font-medium">An open query must be resolved first.</span>}
+              </div>
+              <div className="flex gap-2">
+                {bom.status === 'DRAFT' && (
+                  <button
+                    onClick={handleVerify}
+                    disabled={!!verifyBlockedReason}
+                    title={verifyBlockedReason}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Verify BOM
+                  </button>
+                )}
+                {bom.status === 'VERIFIED' && (
+                  <button
+                    onClick={handleApprove}
+                    disabled={!!approveBlockedReason}
+                    title={approveBlockedReason}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Approve BOM
+                  </button>
+                )}
+                <button onClick={() => { setShowQueryModal(true); setQueryError(''); }} className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600">Raise Query</button>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
         {/* Created / Verified / Approved - auto-filled from login, never
             manually typed. Always shown at the bottom of the BOM so the
             full chain of accountability is visible at a glance. */}
@@ -668,7 +684,7 @@ export default function BomDetailPage() {
               </div>
               <div className="p-5 border-t flex justify-end gap-3">
                 <button onClick={() => setShowQueryModal(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
-                <button onClick={handleRaiseQuery} className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm hover:bg-amber-600">Raise Query</button>
+                <button onClick={handleRaiseQuery} disabled={!queryTargetId || !queryMessage.trim()} className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed">Raise Query</button>
               </div>
             </div>
           </div>
