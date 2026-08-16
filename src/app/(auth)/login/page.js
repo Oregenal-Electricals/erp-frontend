@@ -23,7 +23,20 @@ export default function LoginPage() {
     try {
       const { data } = await api.post('/auth/login', { email, password });
       setAuth(data.accessToken, data.user);
-      router.push('/dashboard');
+      // Land on whatever "Dashboard" actually resolves to for this user -
+      // normally /dashboard, but a role/person can be configured (UI
+      // Control Center) to land somewhere else entirely (e.g. Production
+      // Dashboard for a Plant Head). Falls back to /dashboard silently on
+      // any failure so a broken sidebar fetch never blocks login itself.
+      let landingPage = '/dashboard';
+      try {
+        const sidebarRes = await api.get('/ui-control/my-sidebar');
+        const dashboardEntry = (sidebarRes.data || []).find((s) => s.key === 'sidebar.dashboard');
+        if (dashboardEntry?.page) landingPage = dashboardEntry.page;
+      } catch (e) {
+        // ignore - fall back to /dashboard
+      }
+      router.push(landingPage);
     } catch (err) {
       const msg = err.response?.data?.message;
       const errorText = Array.isArray(msg)
