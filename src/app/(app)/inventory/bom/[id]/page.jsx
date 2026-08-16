@@ -366,23 +366,7 @@ export default function BomDetailPage() {
             <h2 className="font-semibold text-gray-700">BOM Items</h2>
             <div className="flex gap-2">
               {bom.status === 'DRAFT' && (
-                <>
-                  <button onClick={openAdd} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-sm">+ Add Item</button>
-                  <button
-                    onClick={handleVerify}
-                    disabled={bom.bomType === 'MASTER' && !routings.some(r => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId)}
-                    title={bom.bomType === 'MASTER' && !routings.some(r => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId) ? 'Create the production routing first' : ''}
-                    className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Verify BOM
-                  </button>
-                </>
-              )}
-              {bom.status === 'VERIFIED' && (
-                <button onClick={handleApprove} className="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 text-sm">Approve BOM</button>
-              )}
-              {(bom.status === 'DRAFT' || bom.status === 'VERIFIED') && (
-                <button onClick={() => { setShowQueryModal(true); setQueryError(''); }} className="bg-amber-500 text-white px-3 py-1.5 rounded-lg hover:bg-amber-600 text-sm">Raise Query</button>
+                <button onClick={openAdd} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-sm">+ Add Item</button>
               )}
               {bom.status === 'APPROVED' && (
                 <button onClick={handleObsolete} className="bg-gray-500 text-white px-3 py-1.5 rounded-lg hover:bg-gray-600 text-sm">Mark Obsolete</button>
@@ -546,6 +530,31 @@ export default function BomDetailPage() {
                 <button onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
                 <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">{saving ? 'Saving...' : editItem ? 'Update Item' : 'Add Item'}</button>
               </div>
+            </div>
+          </div>
+        )}
+        {/* Verify / Approve / Raise Query live down here, not at the top
+            of the item list, so acting on a BOM means actually scrolling
+            through its items, stages, and routing first - not just
+            clicking the moment the page loads. */}
+        {(bom.status === 'DRAFT' || bom.status === 'VERIFIED') && (
+          <div className="bg-white rounded-xl shadow-sm border-2 border-indigo-200 p-5 mt-6 flex items-center justify-between">
+            <div className="text-sm text-gray-600">You've reviewed the items{stages.length > 0 ? ', stages, and routing' : ''} above. Ready to act?</div>
+            <div className="flex gap-2">
+              {bom.status === 'DRAFT' && (
+                <button
+                  onClick={handleVerify}
+                  disabled={bom.bomType === 'MASTER' && !routings.some(r => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId)}
+                  title={bom.bomType === 'MASTER' && !routings.some(r => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId) ? 'Create the production routing first' : ''}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Verify BOM
+                </button>
+              )}
+              {bom.status === 'VERIFIED' && (
+                <button onClick={handleApprove} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">Approve BOM</button>
+              )}
+              <button onClick={() => { setShowQueryModal(true); setQueryError(''); }} className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600">Raise Query</button>
             </div>
           </div>
         )}
