@@ -65,7 +65,7 @@ const PERMISSION_SECTIONS = [
     label: 'Inventory',
     tabs: [
       { label: 'Inv. Dashboard', perm: 'INVENTORY_DASHBOARD_VIEW' }, { label: 'Warehouses', perm: 'WAREHOUSE_VIEW' },
-      { label: 'BOM', perm: 'BOM_VIEW' }, { label: 'BOM Revisions', perm: 'BOM_REVISION_VIEW' },
+      { label: 'BOM', perm: 'BOM_VIEW' }, { label: 'BOM Revisions', perm: 'BOM_REVISION_VIEW' }, { label: 'BOM Verify', perm: 'BOM_VERIFY' }, { label: 'BOM Approve', perm: 'BOM_APPROVE' },
       { label: 'GRN', perm: 'GRN_VIEW' }, { label: 'IQC', perm: 'IQC_VIEW' },
       { label: 'Stock Ledger', perm: 'STOCK_LEDGER_VIEW' }, { label: 'Rejected Stock', perm: 'REJECTED_STOCK_VIEW' },
       { label: 'Rack & Bin', perm: 'RACK_BIN_VIEW' }, { label: 'Stock Putaway', perm: 'STOCK_PUTAWAY_VIEW' },
