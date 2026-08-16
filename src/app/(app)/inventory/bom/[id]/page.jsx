@@ -317,8 +317,12 @@ export default function BomDetailPage() {
                       if (existingRouting) {
                         return (
                           <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-                            <div>✅ Production Routing: <strong>{existingRouting.routingName}</strong> — {existingRouting.stages?.length || stages.length} stage{(existingRouting.stages?.length || stages.length) > 1 ? 's' : ''}</div>
+                            <div className="flex items-center gap-2">
+                              <span>✅ Production Routing: <strong>{existingRouting.routingName}</strong> — {existingRouting.stages?.length || stages.length} stage{(existingRouting.stages?.length || stages.length) > 1 ? 's' : ''}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[bom.status]}`}>{bom.status}</span>
+                            </div>
                             <div className="mt-1 font-medium">{stages.map(s => s.bomNumber.split('-').pop()).join(' → ')}</div>
+                            <div className="mt-1 text-xs text-green-600">Stages and routing move through Verify/Approve together with this BOM - both are currently {bom.status}.</div>
                           </div>
                         );
                       }
