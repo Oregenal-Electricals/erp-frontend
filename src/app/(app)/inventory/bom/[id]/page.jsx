@@ -63,6 +63,13 @@ export default function BomDetailPage() {
   }
 
   const [users, setUsers] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState('');
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('erp_user');
+      if (raw) setCurrentUserId(JSON.parse(raw).id || '');
+    } catch (e) { /* ignore */ }
+  }, []);
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [queryTargetId, setQueryTargetId] = useState('');
   const [queryMessage, setQueryMessage] = useState('');
@@ -627,7 +634,7 @@ export default function BomDetailPage() {
             <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
               <div className="p-5 border-b">
                 <h2 className="font-semibold text-gray-800">Raise a Query</h2>
-                <p className="text-xs text-gray-500 mt-1">Ask the creator or verifier a question before this BOM moves forward.</p>
+                <p className="text-xs text-gray-500 mt-1">Ask the creator, verifier, or approver a question - any of the three can ask any of the others.</p>
               </div>
               <div className="p-5 space-y-3">
                 {queryError && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{queryError}</div>}
@@ -635,8 +642,17 @@ export default function BomDetailPage() {
                   <label className="block text-sm text-gray-600 mb-1">Ask</label>
                   <select className="w-full border rounded-lg px-3 py-2 text-sm" value={queryTargetId} onChange={(e) => setQueryTargetId(e.target.value)}>
                     <option value="">Select who to ask…</option>
-                    {bom.createdBy && <option value={bom.createdBy}>{getUserName(bom.createdBy)} (Creator)</option>}
-                    {bom.verifiedBy && bom.verifiedBy !== bom.createdBy && <option value={bom.verifiedBy}>{getUserName(bom.verifiedBy)} (Verifier)</option>}
+                    {(() => {
+                      const seen = new Set();
+                      const candidates = [
+                        { id: bom.createdBy, label: 'Creator' },
+                        { id: bom.verifiedBy, label: 'Verifier' },
+                        { id: bom.approvedBy, label: 'Approver' },
+                      ];
+                      return candidates
+                        .filter((c) => c.id && c.id !== currentUserId && !seen.has(c.id) && seen.add(c.id))
+                        .map((c) => <option key={c.id} value={c.id}>{getUserName(c.id)} ({c.label})</option>);
+                    })()}
                   </select>
                 </div>
                 <div>
