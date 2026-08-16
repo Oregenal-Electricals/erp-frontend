@@ -226,7 +226,7 @@ export default function UiControlCenterPage() {
     }
   };
 
-  const queueOverride = (elementId, scopeType, roleName, userId, isVisible, customLabel, sortOrderOverride, parentKeyOverride) => {
+  const queueOverride = (elementId, scopeType, roleName, userId, isVisible, customLabel, sortOrderOverride, parentKeyOverride, customPage) => {
     const key = overrideKey(elementId, scopeType, roleName, userId);
     setPendingOverrides((prev) => {
       const existing = prev[key] || {};
@@ -238,6 +238,7 @@ export default function UiControlCenterPage() {
           customLabel: customLabel !== undefined ? customLabel : existing.customLabel,
           sortOrderOverride: sortOrderOverride !== undefined ? sortOrderOverride : existing.sortOrderOverride,
           parentKeyOverride: parentKeyOverride !== undefined ? parentKeyOverride : existing.parentKeyOverride,
+          customPage: customPage !== undefined ? customPage : existing.customPage,
         },
       };
     });
@@ -253,6 +254,7 @@ export default function UiControlCenterPage() {
         customLabel: customLabel !== undefined ? customLabel : overrides[idx]?.customLabel,
         sortOrderOverride: sortOrderOverride !== undefined ? sortOrderOverride : overrides[idx]?.sortOrderOverride,
         parentKeyOverride: parentKeyOverride !== undefined ? parentKeyOverride : overrides[idx]?.parentKeyOverride,
+        customPage: customPage !== undefined ? customPage : overrides[idx]?.customPage,
       };
       if (idx >= 0) overrides[idx] = { ...overrides[idx], ...newOv };
       else overrides.push(newOv);
@@ -625,6 +627,9 @@ function InlineDesignControls({ el, roleName, pendingOverrides, queueOverride, s
   const effectiveLabel = pending?.customLabel !== undefined ? pending.customLabel : (savedOverride?.customLabel || '');
   const [labelInput, setLabelInput] = useState(effectiveLabel || '');
   useEffect(() => { setLabelInput(effectiveLabel || ''); }, [effectiveLabel]);
+  const effectivePage = pending?.customPage !== undefined ? pending.customPage : (savedOverride?.customPage || '');
+  const [pageInput, setPageInput] = useState(effectivePage || '');
+  useEffect(() => { setPageInput(effectivePage || ''); }, [effectivePage]);
 
   const userKey = selectedUserId ? overrideKey(el.id, 'USER', undefined, selectedUserId) : null;
   const userPending = userKey ? pendingOverrides[userKey] : null;
@@ -657,6 +662,20 @@ function InlineDesignControls({ el, roleName, pendingOverrides, queueOverride, s
             }
           }}
         />
+        {el.key === 'sidebar.dashboard' && (
+          <input
+            className="border rounded px-1 py-0.5 text-xs w-32"
+            placeholder="/production/dashboard"
+            value={pageInput}
+            onChange={(e) => setPageInput(e.target.value)}
+            onBlur={() => {
+              if (pageInput !== (effectivePage || '')) {
+                queueOverride(el.id, 'ROLE', roleName, undefined, effectiveVisible, undefined, undefined, undefined, pageInput.trim() || null);
+              }
+            }}
+            title="Redirect Dashboard to a different page for this role (blank = normal /dashboard)"
+          />
+        )}
       </div>
       {selectedUserId && (
         <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded px-2 py-1">
