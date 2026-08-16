@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import api from '@/lib/api';
 import { UI_CONTROL_MANIFEST } from '@/lib/uiControlManifest';
-import { startPreview } from '@/lib/previewSession';
+import { startPreview, startPreviewUser } from '@/lib/previewSession';
 import SortableList from '@/components/SortableList';
 
 const overrideKey = (elementId, scopeType, roleName, userId) =>
@@ -301,7 +301,7 @@ export default function UiControlCenterPage() {
             <div className="flex gap-2 shrink-0">
               <select
                 value={previewRole}
-                onChange={(e) => setPreviewRole(e.target.value)}
+                onChange={(e) => { setPreviewRole(e.target.value); setSelectedUserId(''); }}
                 className="border rounded px-2 py-2 text-sm"
               >
                 <option value="">Preview as role…</option>
@@ -313,19 +313,26 @@ export default function UiControlCenterPage() {
                 value={selectedUserId}
                 onChange={(e) => setSelectedUserId(e.target.value)}
                 className="border rounded px-2 py-2 text-sm"
-                title="Override visibility/label for one specific person, on top of their role"
+                disabled={!previewRole}
+                title={previewRole ? `Pick one specific ${previewRole} to override or preview` : 'Pick a role first'}
               >
-                <option value="">Override for person…</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}</option>
+                <option value="">{previewRole ? 'Specific person…' : 'Pick a role first…'}</option>
+                {users.filter((u) => u.role === previewRole).map((u) => (
+                  <option key={u.id} value={u.id}>{u.email}</option>
                 ))}
               </select>
               <button
                 onClick={async () => {
                   if (!previewRole) return;
-                  if (!confirm(`Switch this tab to a live preview as ${previewRole}? You'll be logged in as that role with Test Mode forced on. Click "Exit Preview" in the banner to return.`)) return;
+                  const personEmail = selectedUserId ? users.find((u) => u.id === selectedUserId)?.email : null;
+                  const target = personEmail || previewRole;
+                  if (!confirm(`Switch this tab to a live preview as ${target}? You'll be logged in with Test Mode forced on. Click "Exit Preview" in the banner to return.`)) return;
                   try {
-                    await startPreview(previewRole);
+                    if (selectedUserId) {
+                      await startPreviewUser(selectedUserId, personEmail);
+                    } else {
+                      await startPreview(previewRole);
+                    }
                   } catch (err) {
                     alert(err.message || 'Failed to start preview');
                   }
@@ -334,9 +341,6 @@ export default function UiControlCenterPage() {
                 className="px-3 py-2 bg-indigo-600 text-white rounded text-sm disabled:opacity-50"
               >
                 Preview Live
-              </button>
-              <button onClick={handleSync} className="px-3 py-2 bg-blue-600 text-white rounded text-sm">
-                Sync New Elements from Manifest
               </button>
             </div>
           </div>

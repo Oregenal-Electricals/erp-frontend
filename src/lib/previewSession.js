@@ -50,6 +50,26 @@ export async function startPreview(roleName) {
   window.location.href = '/dashboard';
 }
 
+export async function startPreviewUser(userId, displayLabel) {
+  const realToken = localStorage.getItem('erp_token');
+  if (!realToken) throw new Error('No active session to preview from');
+  const res = await fetch(`${API}/auth/preview-login-user`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${realToken}` },
+    body: JSON.stringify({ userId }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Failed to start preview');
+  localStorage.setItem(REAL_TOKEN_BACKUP_KEY, realToken);
+  localStorage.setItem(REAL_USER_BACKUP_KEY, localStorage.getItem('erp_user') || '');
+  localStorage.setItem(PREVIEW_ROLE_KEY, displayLabel || data.user.email);
+  localStorage.setItem(PRIOR_TEST_MODE_KEY, isTestSessionEnabled() ? 'true' : 'false');
+  localStorage.setItem('erp_token', data.accessToken);
+  localStorage.setItem('erp_user', JSON.stringify(data.user));
+  setTestSessionEnabled(true);
+  window.location.href = '/dashboard';
+}
+
 export function exitPreview() {
   const realToken = localStorage.getItem(REAL_TOKEN_BACKUP_KEY);
   if (!realToken) return; // not actually in a preview - nothing to do
