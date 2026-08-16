@@ -359,7 +359,7 @@ export default function UiControlCenterPage() {
                 onReorder={reorderSections}
                 renderItem={(section) => (
                   <div className="flex-1 border rounded p-3 bg-white">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
                       <button onClick={() => setSelectedElement(section)} className={`w-40 shrink-0 text-sm font-semibold text-left truncate ${selectedElement?.id === section.id ? 'text-blue-600' : ''}`}>
                         {section.label}
                       </button>
@@ -400,12 +400,12 @@ export default function UiControlCenterPage() {
                         onExternalDrop={(draggedId) => moveItemToSection(draggedId, section.key)}
                         emptyLabel="Drag an item here, or use Move to below"
                         renderItem={(item, index, itemsArr) => (
-                          <div className="flex-1 flex items-center gap-2">
+                          <div className="flex-1 flex items-center gap-3">
                             <button onClick={() => setSelectedElement(item)} className={`w-40 shrink-0 text-sm text-left truncate ${selectedElement?.id === item.id ? 'text-blue-600 font-medium' : ''}`}>
                               {item.label} <span className="text-xs text-gray-400">({item.page})</span>
                             </button>
                             {previewRole && <InlineDesignControls el={item} roleName={previewRole} pendingOverrides={pendingOverrides} queueOverride={queueOverride} selectedUserId={selectedUserId} users={users} />}
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex items-center gap-2 shrink-0">
                               <button disabled={index === 0} onClick={() => previewRole ? moveItemWithinSectionForRole(section, index, index - 1, previewRole) : moveItemWithinSection(section, index, index - 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move up">▲</button>
                               <button disabled={index === itemsArr.length - 1} onClick={() => previewRole ? moveItemWithinSectionForRole(section, index, index + 1, previewRole) : moveItemWithinSection(section, index, index + 1)} className="text-xs px-1 text-gray-400 disabled:opacity-20" title="Move down">▼</button>
                               {previewRole ? (
