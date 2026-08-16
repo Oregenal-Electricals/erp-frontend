@@ -92,7 +92,7 @@ export default function BomDetailPage() {
   async function handleVerify() {
     if (!confirm('Verify this BOM? This confirms the routing and every step is correct before it moves to final approval.')) return;
     const res = await fetch(`${API}/boms/${id}/verify`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
-    if (res.ok) fetchBom();
+    if (res.ok) { fetchBom(); fetchChain(); }
     else { const d = await res.json(); alert(d.message || 'Failed to verify'); }
   }
 
@@ -180,8 +180,9 @@ export default function BomDetailPage() {
 
   async function handleApprove() {
     if (!confirm('Approve this BOM? Items cannot be modified after approval.')) return;
-    await fetch(`${API}/boms/${id}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
-    fetchBom();
+    const res = await fetch(`${API}/boms/${id}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) { fetchBom(); fetchChain(); }
+    else { const d = await res.json(); alert(d.message || 'Failed to approve'); }
   }
 
   async function handleObsolete() {
@@ -369,8 +370,8 @@ export default function BomDetailPage() {
                   <button onClick={openAdd} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-sm">+ Add Item</button>
                   <button
                     onClick={handleVerify}
-                    disabled={stages.length > 0 && !routings.some(r => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId)}
-                    title={stages.length > 0 && !routings.some(r => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId) ? 'Create the production routing first' : ''}
+                    disabled={bom.bomType === 'MASTER' && !routings.some(r => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId)}
+                    title={bom.bomType === 'MASTER' && !routings.some(r => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId) ? 'Create the production routing first' : ''}
                     className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Verify BOM
