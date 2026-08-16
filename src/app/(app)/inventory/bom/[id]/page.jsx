@@ -541,6 +541,99 @@ export default function BomDetailPage() {
             </div>
           </div>
         )}
+        {/* Created / Verified / Approved - auto-filled from login, never
+            manually typed. Always shown at the bottom of the BOM so the
+            full chain of accountability is visible at a glance. */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
+          <h2 className="font-semibold text-gray-700 mb-4">Approval Chain</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border rounded-lg p-3">
+              <div className="text-xs text-gray-500 mb-1">Created By</div>
+              <div className="text-sm font-medium text-gray-800">{getUserName(bom.createdBy)}</div>
+              <div className="text-xs text-gray-400 mt-1">{bom.createdAt ? new Date(bom.createdAt).toLocaleString() : '—'}</div>
+            </div>
+            <div className="border rounded-lg p-3">
+              <div className="text-xs text-gray-500 mb-1">Verified By</div>
+              <div className="text-sm font-medium text-gray-800">{bom.verifiedBy ? getUserName(bom.verifiedBy) : 'Pending'}</div>
+              <div className="text-xs text-gray-400 mt-1">{bom.verifiedAt ? new Date(bom.verifiedAt).toLocaleString() : '—'}</div>
+            </div>
+            <div className="border rounded-lg p-3">
+              <div className="text-xs text-gray-500 mb-1">Approved By</div>
+              <div className="text-sm font-medium text-gray-800">{bom.approvedBy ? getUserName(bom.approvedBy) : 'Pending'}</div>
+              <div className="text-xs text-gray-400 mt-1">{bom.approvedAt ? new Date(bom.approvedAt).toLocaleString() : '—'}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Query thread - every question and reply on this BOM, permanently
+            recorded, so management can trace back exactly what was asked
+            and answered if a complexity ever comes up later. */}
+        {bom.queries && bom.queries.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
+            <h2 className="font-semibold text-gray-700 mb-4">Queries &amp; Replies</h2>
+            <div className="space-y-3">
+              {bom.queries.map((q) => {
+                const raisedByName = q.raisedBy ? (q.raisedBy.firstName ? `${q.raisedBy.firstName} ${q.raisedBy.lastName || ''}`.trim() : q.raisedBy.email) : getUserName(q.raisedByUserId);
+                const raisedToName = q.raisedTo ? (q.raisedTo.firstName ? `${q.raisedTo.firstName} ${q.raisedTo.lastName || ''}`.trim() : q.raisedTo.email) : getUserName(q.raisedToUserId);
+                return (
+                  <div key={q.id} className="border rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-xs text-gray-500">{raisedByName} asked {raisedToName} · {new Date(q.createdAt).toLocaleString()}</div>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${q.status === 'OPEN' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>{q.status}</span>
+                    </div>
+                    <div className="text-sm text-gray-800 mb-2">{q.message}</div>
+                    {q.response && (
+                      <div className="bg-gray-50 rounded p-2 text-sm text-gray-700">
+                        <span className="text-xs text-gray-500">Reply: </span>{q.response}
+                      </div>
+                    )}
+                    {q.status === 'OPEN' && (
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          className="flex-1 border rounded px-2 py-1 text-sm"
+                          placeholder="Type a reply..."
+                          value={resolveDrafts[q.id] || ''}
+                          onChange={(e) => setResolveDrafts((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                        />
+                        <button onClick={() => handleResolveQuery(q.id)} className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">Reply</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {showQueryModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
+              <div className="p-5 border-b">
+                <h2 className="font-semibold text-gray-800">Raise a Query</h2>
+                <p className="text-xs text-gray-500 mt-1">Ask the creator or verifier a question before this BOM moves forward.</p>
+              </div>
+              <div className="p-5 space-y-3">
+                {queryError && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{queryError}</div>}
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Ask</label>
+                  <select className="w-full border rounded-lg px-3 py-2 text-sm" value={queryTargetId} onChange={(e) => setQueryTargetId(e.target.value)}>
+                    <option value="">Select who to ask…</option>
+                    {bom.createdBy && <option value={bom.createdBy}>{getUserName(bom.createdBy)} (Creator)</option>}
+                    {bom.verifiedBy && bom.verifiedBy !== bom.createdBy && <option value={bom.verifiedBy}>{getUserName(bom.verifiedBy)} (Verifier)</option>}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Question</label>
+                  <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} value={queryMessage} onChange={(e) => setQueryMessage(e.target.value)} />
+                </div>
+              </div>
+              <div className="p-5 border-t flex justify-end gap-3">
+                <button onClick={() => setShowQueryModal(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+                <button onClick={handleRaiseQuery} className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm hover:bg-amber-600">Raise Query</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AppLayout>
   );
