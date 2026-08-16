@@ -145,6 +145,21 @@ export default function BomDetailPage() {
 
   useEffect(() => { fetchBom(); fetchChain(); }, [fetchBom, fetchChain]);
 
+  // Light polling so a query raised or resolved by someone else shows up
+  // here without a manual page reload - this project has no real-time
+  // push infrastructure (websockets/SSE), so a periodic quiet refresh in
+  // the background is the simplest reliable way to stay current while
+  // the page is left open. Runs every 15s, silent (no loading spinner).
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch(`${API}/boms/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d) setBom(d); });
+      fetchChain();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [id, fetchChain]);
+
   useEffect(() => {
     if (!bom?.items || Object.keys(stageNames).length > 0) return;
     const sections = [...new Set(bom.items.map(i => i.section).filter(Boolean))];
