@@ -12,6 +12,7 @@ function getToken() {
 
 const STATUS_COLORS = {
   DRAFT: 'bg-yellow-100 text-yellow-700',
+  VERIFIED: 'bg-blue-100 text-blue-700',
   APPROVED: 'bg-green-100 text-green-700',
   OBSOLETE: 'bg-gray-100 text-gray-500',
 };
@@ -61,12 +62,73 @@ export default function BomDetailPage() {
     return section;
   }
 
+  const [users, setUsers] = useState([]);
+  const [showQueryModal, setShowQueryModal] = useState(false);
+  const [queryTargetId, setQueryTargetId] = useState('');
+  const [queryMessage, setQueryMessage] = useState('');
+  const [queryError, setQueryError] = useState('');
+  const [resolveDrafts, setResolveDrafts] = useState({});
+
+  function getUserName(userId) {
+    if (!userId) return '—';
+    const u = users.find((x) => x.id === userId);
+    if (!u) return userId;
+    return u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
+  }
+
   const fetchBom = useCallback(async () => {
     setLoading(true);
     const res = await fetch(`${API}/boms/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
     if (res.ok) setBom(await res.json());
     setLoading(false);
   }, [id]);
+
+  useEffect(() => {
+    fetch(`${API}/users`, { headers: { Authorization: `Bearer ${getToken()}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setUsers(d?.data || d?.items || d || []));
+  }, []);
+
+  async function handleVerify() {
+    if (!confirm('Verify this BOM? This confirms the routing and every step is correct before it moves to final approval.')) return;
+    const res = await fetch(`${API}/boms/${id}/verify`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) fetchBom();
+    else { const d = await res.json(); alert(d.message || 'Failed to verify'); }
+  }
+
+  async function handleRaiseQuery() {
+    setQueryError('');
+    if (!queryTargetId || !queryMessage.trim()) { setQueryError('Select who to ask and enter your question'); return; }
+    const res = await fetch(`${API}/boms/queries`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ bomId: id, raisedToUserId: queryTargetId, message: queryMessage.trim() }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setShowQueryModal(false); setQueryTargetId(''); setQueryMessage('');
+      fetchBom();
+    } else {
+      setQueryError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed to raise query');
+    }
+  }
+
+  async function handleResolveQuery(queryId) {
+    const response = resolveDrafts[queryId];
+    if (!response || !response.trim()) return;
+    const res = await fetch(`${API}/boms/queries/${queryId}/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ response: response.trim() }),
+    });
+    if (res.ok) {
+      setResolveDrafts((prev) => ({ ...prev, [queryId]: '' }));
+      fetchBom();
+    } else {
+      const d = await res.json();
+      alert(d.message || 'Failed to resolve query');
+    }
+  }
 
   useEffect(() => { fetchBom(); fetchChain(); }, [fetchBom, fetchChain]);
 
@@ -305,8 +367,14 @@ export default function BomDetailPage() {
               {bom.status === 'DRAFT' && (
                 <>
                   <button onClick={openAdd} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-sm">+ Add Item</button>
-                  <button onClick={handleApprove} className="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 text-sm">Approve BOM</button>
+                  <button onClick={handleVerify} className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 text-sm">Verify BOM</button>
                 </>
+              )}
+              {bom.status === 'VERIFIED' && (
+                <button onClick={handleApprove} className="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 text-sm">Approve BOM</button>
+              )}
+              {(bom.status === 'DRAFT' || bom.status === 'VERIFIED') && (
+                <button onClick={() => { setShowQueryModal(true); setQueryError(''); }} className="bg-amber-500 text-white px-3 py-1.5 rounded-lg hover:bg-amber-600 text-sm">Raise Query</button>
               )}
               {bom.status === 'APPROVED' && (
                 <button onClick={handleObsolete} className="bg-gray-500 text-white px-3 py-1.5 rounded-lg hover:bg-gray-600 text-sm">Mark Obsolete</button>
