@@ -25,7 +25,9 @@ export default function MrpPage() {
 
   const [warehouses, setWarehouses] = useState([]);
   const [planWarehouseId, setPlanWarehouseId] = useState('');
+  const [planView, setPlanView] = useState('bySo'); // 'bySo' | 'byFamily'
   const [planningBoard, setPlanningBoard] = useState(null);
+  const [familyBoard, setFamilyBoard] = useState(null);
   const [orderRanking, setOrderRanking] = useState([]);
   const [buildQtys, setBuildQtys] = useState({});
   const [allocResult, setAllocResult] = useState(null);
@@ -67,15 +69,19 @@ export default function MrpPage() {
   }
 
   async function loadPlanningBoard(warehouseId) {
-    if (!warehouseId) { setPlanningBoard(null); return; }
+    if (!warehouseId) { setPlanningBoard(null); setFamilyBoard(null); return; }
     setLoading(true); setAllocResult(null);
-    const res = await fetch(`${API}/mrp/planning-board?warehouseId=${warehouseId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
-    if (res.ok) {
-      const board = await res.json();
+    const [boardRes, familyRes] = await Promise.all([
+      fetch(`${API}/mrp/planning-board?warehouseId=${warehouseId}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/mrp/planning-board-by-family?warehouseId=${warehouseId}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+    ]);
+    if (boardRes.ok) {
+      const board = await boardRes.json();
       setPlanningBoard(board);
       setOrderRanking(board.map(so => so.soId));
-      setBuildQtys({});
     }
+    if (familyRes.ok) setFamilyBoard(await familyRes.json());
+    setBuildQtys({});
     setLoading(false);
   }
 
@@ -91,9 +97,24 @@ export default function MrpPage() {
   }
 
   async function handleRunAllocation() {
-    const allocations = Object.entries(buildQtys)
-      .map(([soItemId, qty]) => ({ soItemId, buildQty: parseFloat(qty) }))
-      .filter(a => a.buildQty > 0);
+    // Submit in the exact priority order currently on screen - this is what
+    // actually determines who gets scarce material first (see MrpService.
+    // runAllocation's own doc comment). Previously this used
+    // Object.entries(buildQtys) which is really just "order the user typed
+    // into the fields in", silently ignoring the ↑↓ ranking; fixed here
+    // since the family view's shared-pool preview numbers only mean
+    // anything if the real submission honors the same order they were
+    // computed in.
+    const orderedIds = planView === 'byFamily'
+      ? [
+          ...(familyBoard?.families || []).flatMap(f => f.members.map(m => m.soItemId)),
+          ...((familyBoard?.ungrouped || []).map(i => i.soItemId)),
+        ]
+      : rankedBoard.flatMap(so => so.items.map(i => i.soItemId));
+
+    const allocations = orderedIds
+      .filter(id => buildQtys[id] && parseFloat(buildQtys[id]) > 0)
+      .map(id => ({ soItemId: id, buildQty: parseFloat(buildQtys[id]) }));
     if (allocations.length === 0) { alert('Enter a build quantity for at least one item'); return; }
     setAllocRunning(true); setAllocResult(null);
     const res = await fetch(`${API}/mrp/run-allocation`, {
@@ -119,6 +140,54 @@ export default function MrpPage() {
   const rankedBoard = planningBoard
     ? orderRanking.map(id => planningBoard.find(so => so.soId === id)).filter(Boolean)
     : [];
+
+  // Shared row markup for the By Product Family view - family members and
+  // ungrouped items render identically (both are flat, so/customer info
+  // has to show inline here, unlike the By Sales Order view where it's
+  // shown once per SO group instead).
+  function renderFamilyItemRow(m) {
+    return (
+      <div key={m.soItemId} className="p-4 border-b last:border-b-0">
+        <div className="flex items-center gap-3 mb-2 flex-wrap">
+          <span className="font-mono font-bold text-blue-600 text-sm">{m.soNumber}</span>
+          <span className="text-sm text-gray-700">{m.customerName}</span>
+          <span className="font-mono text-sm text-gray-700">{m.itemCode}</span>
+          <span className="text-xs text-gray-400">
+            pending {m.pendingQty}{m.alreadyPlannedQty > 0 && ` (already planned ${m.alreadyPlannedQty})`}
+          </span>
+          <span className="text-xs text-gray-400">Due {new Date(m.deliveryDate).toLocaleDateString('en-IN')}</span>
+          <div className="ml-auto flex items-center gap-2">
+            <label className="text-xs text-gray-500">Build Qty</label>
+            <input type="number" max={m.remainingToPlan} className="w-24 border rounded px-2 py-1 text-sm"
+              value={buildQtys[m.soItemId] || ''}
+              onChange={e => {
+                const raw = e.target.value;
+                const clamped = raw === '' ? '' : String(Math.min(parseFloat(raw) || 0, m.remainingToPlan));
+                setBuildQtys(prev => ({ ...prev, [m.soItemId]: clamped }));
+              }} />
+          </div>
+        </div>
+        {m.rmRequirements.length > 0 && (
+          <table className="w-full text-xs bg-gray-50 rounded">
+            <thead className="text-gray-400 uppercase">
+              <tr>{['RM Item', 'Qty Needed', 'Status'].map(h => <th key={h} className="text-left px-2 py-1">{h}</th>)}</tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {m.rmRequirements.map(rm => (
+                <tr key={rm.itemCode}>
+                  <td className="px-2 py-1 font-mono">{rm.itemCode} — {rm.itemName}</td>
+                  <td className="px-2 py-1">{rm.totalNeeded} {rm.uom}</td>
+                  <td className={`px-2 py-1 font-bold ${rm.shortfall > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                    {rm.shortfall > 0 ? `Short ${rm.shortfall} ${rm.uom}` : 'Covered'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    );
+  }
 
   return (
     <AppLayout>
@@ -323,6 +392,22 @@ export default function MrpPage() {
               )}
             </div>
 
+            {planWarehouseId && (
+              <div className="flex gap-2">
+                <button onClick={() => setPlanView('bySo')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${planView === 'bySo' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  By Sales Order
+                </button>
+                <button onClick={() => setPlanView('byFamily')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${planView === 'byFamily' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  By Product Family
+                </button>
+                {planView === 'byFamily' && (
+                  <span className="text-xs text-gray-400 self-center ml-2">
+                    Groups Products that share the same upstream build - real shared-pool material availability, not independent guesses per customer.
+                  </span>
+                )}
+              </div>
+            )}
+
             {allocResult && (
               <div className="space-y-3">
                 {allocResult.createdWorkOrders && allocResult.createdWorkOrders.length > 0 && (
@@ -392,62 +477,121 @@ export default function MrpPage() {
 
             {loading && <div className="text-center py-12 text-gray-400">Loading open Sales Orders...</div>}
 
-            {!loading && planWarehouseId && rankedBoard.length === 0 && (
-              <div className="bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 p-16 text-center text-gray-400">
-                <div className="text-sm">No open Sales Orders need production right now</div>
-              </div>
-            )}
-
-            {rankedBoard.map((so, rank) => (
-              <div key={so.soId} className="bg-white rounded-xl border shadow-sm">
-                <div className="p-4 border-b flex items-center gap-3">
-                  <div className="flex flex-col gap-0.5">
-                    <button onClick={()=>moveOrder(so.soId,'up')} disabled={rank===0} className="text-gray-400 hover:text-blue-600 disabled:opacity-20 text-xs">▲</button>
-                    <button onClick={()=>moveOrder(so.soId,'down')} disabled={rank===rankedBoard.length-1} className="text-gray-400 hover:text-blue-600 disabled:opacity-20 text-xs">▼</button>
+            {planView === 'bySo' && (
+              <>
+                {!loading && planWarehouseId && rankedBoard.length === 0 && (
+                  <div className="bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 p-16 text-center text-gray-400">
+                    <div className="text-sm">No open Sales Orders need production right now</div>
                   </div>
-                  <span className="w-6 h-6 flex items-center justify-center bg-blue-600 text-white rounded-full text-xs font-bold">{rank+1}</span>
-                  <span className="font-mono font-bold text-blue-600">{so.soNumber}</span>
-                  <span className="text-gray-700">{so.customerName}</span>
-                  <span className="text-xs text-gray-400">Due {new Date(so.deliveryDate).toLocaleDateString('en-IN')}</span>
-                </div>
-                {so.items.map(item => (
-                  <div key={item.soItemId} className="p-4 border-b last:border-b-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="font-mono text-sm text-gray-700">{item.itemCode}</span>
-                      <span className="text-sm text-gray-500">{item.itemName}</span>
-                      <span className="text-xs text-gray-400">pending {item.pendingQty}{item.alreadyPlannedQty > 0 && ` (already planned ${item.alreadyPlannedQty})`}</span>
-                      {!item.hasBom && <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded text-xs">No approved BOM</span>}
-                      {item.hasBom && (
-                        <div className="ml-auto flex items-center gap-2">
-                          <label className="text-xs text-gray-500">Build Qty</label>
-                          <input type="number" max={item.remainingToPlan} className="w-24 border rounded px-2 py-1 text-sm"
-                            value={buildQtys[item.soItemId] || ''}
-                            onChange={e=>{
-                              const raw = e.target.value;
-                              const clamped = raw === '' ? '' : String(Math.min(parseFloat(raw) || 0, item.remainingToPlan));
-                              setBuildQtys(prev=>({...prev, [item.soItemId]: clamped}));
-                            }} />
-                        </div>
-                      )}
+                )}
+
+                {rankedBoard.map((so, rank) => (
+                  <div key={so.soId} className="bg-white rounded-xl border shadow-sm">
+                    <div className="p-4 border-b flex items-center gap-3">
+                      <div className="flex flex-col gap-0.5">
+                        <button onClick={()=>moveOrder(so.soId,'up')} disabled={rank===0} className="text-gray-400 hover:text-blue-600 disabled:opacity-20 text-xs">▲</button>
+                        <button onClick={()=>moveOrder(so.soId,'down')} disabled={rank===rankedBoard.length-1} className="text-gray-400 hover:text-blue-600 disabled:opacity-20 text-xs">▼</button>
+                      </div>
+                      <span className="w-6 h-6 flex items-center justify-center bg-blue-600 text-white rounded-full text-xs font-bold">{rank+1}</span>
+                      <span className="font-mono font-bold text-blue-600">{so.soNumber}</span>
+                      <span className="text-gray-700">{so.customerName}</span>
+                      <span className="text-xs text-gray-400">Due {new Date(so.deliveryDate).toLocaleDateString('en-IN')}</span>
                     </div>
-                    {item.hasBom && item.rmRequirements.length > 0 && (
-                      <table className="w-full text-xs bg-gray-50 rounded">
-                        <thead className="text-gray-400 uppercase"><tr>{['RM Item','Qty per Unit','Available Now'].map(h=><th key={h} className="text-left px-2 py-1">{h}</th>)}</tr></thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {item.rmRequirements.map(rm => (
-                            <tr key={rm.itemCode}>
-                              <td className="px-2 py-1 font-mono">{rm.itemCode} — {rm.itemName}</td>
-                              <td className="px-2 py-1">{rm.totalNeeded} {rm.uom}</td>
-                              <td className={`px-2 py-1 font-bold ${rm.available > 0 ? 'text-green-600' : 'text-red-500'}`}>{rm.available} {rm.uom}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
+                    {so.items.map(item => (
+                      <div key={item.soItemId} className="p-4 border-b last:border-b-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="font-mono text-sm text-gray-700">{item.itemCode}</span>
+                          <span className="text-sm text-gray-500">{item.itemName}</span>
+                          <span className="text-xs text-gray-400">pending {item.pendingQty}{item.alreadyPlannedQty > 0 && ` (already planned ${item.alreadyPlannedQty})`}</span>
+                          {!item.hasBom && <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded text-xs">No approved BOM</span>}
+                          {item.hasBom && (
+                            <div className="ml-auto flex items-center gap-2">
+                              <label className="text-xs text-gray-500">Build Qty</label>
+                              <input type="number" max={item.remainingToPlan} className="w-24 border rounded px-2 py-1 text-sm"
+                                value={buildQtys[item.soItemId] || ''}
+                                onChange={e=>{
+                                  const raw = e.target.value;
+                                  const clamped = raw === '' ? '' : String(Math.min(parseFloat(raw) || 0, item.remainingToPlan));
+                                  setBuildQtys(prev=>({...prev, [item.soItemId]: clamped}));
+                                }} />
+                            </div>
+                          )}
+                        </div>
+                        {item.hasBom && item.rmRequirements.length > 0 && (
+                          <table className="w-full text-xs bg-gray-50 rounded">
+                            <thead className="text-gray-400 uppercase"><tr>{['RM Item','Qty per Unit','Available Now'].map(h=><th key={h} className="text-left px-2 py-1">{h}</th>)}</tr></thead>
+                            <tbody className="divide-y divide-gray-200">
+                              {item.rmRequirements.map(rm => (
+                                <tr key={rm.itemCode}>
+                                  <td className="px-2 py-1 font-mono">{rm.itemCode} — {rm.itemName}</td>
+                                  <td className="px-2 py-1">{rm.totalNeeded} {rm.uom}</td>
+                                  <td className={`px-2 py-1 font-bold ${rm.available > 0 ? 'text-green-600' : 'text-red-500'}`}>{rm.available} {rm.uom}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 ))}
-              </div>
-            ))}
+              </>
+            )}
+
+            {planView === 'byFamily' && familyBoard && (
+              <>
+                {!loading && familyBoard.families.length === 0 && familyBoard.ungrouped.length === 0 && (
+                  <div className="bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 p-16 text-center text-gray-400">
+                    <div className="text-sm">No open Sales Orders need production right now</div>
+                  </div>
+                )}
+
+                {familyBoard.families.map(fam => (
+                  <div key={fam.familyId} className="bg-white rounded-xl border shadow-sm mb-4">
+                    <div className="p-4 border-b bg-indigo-50">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <span className="font-mono text-xs text-indigo-500">{fam.familyCode}</span>
+                          <span className="ml-2 font-bold text-indigo-900">{fam.familyName}</span>
+                        </div>
+                        <span className="text-xs text-indigo-600">
+                          {fam.memberCount} customer order{fam.memberCount === 1 ? '' : 's'} · {fam.totalRemainingToPlan} total units to plan
+                        </span>
+                      </div>
+                      {fam.sharedRmRequirements.length > 0 && (
+                        <table className="w-full text-xs bg-white rounded mt-2">
+                          <thead className="text-gray-400 uppercase">
+                            <tr>{['Shared RM Item', 'Total Needed (all customers)', 'Available Now'].map(h => <th key={h} className="text-left px-2 py-1">{h}</th>)}</tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {fam.sharedRmRequirements.map(rm => (
+                              <tr key={rm.itemCode}>
+                                <td className="px-2 py-1 font-mono">{rm.itemCode} — {rm.itemName}</td>
+                                <td className="px-2 py-1">{rm.totalNeeded} {rm.uom}</td>
+                                <td className={`px-2 py-1 font-bold ${rm.shortfall > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                  {rm.available} {rm.uom}{rm.shortfall > 0 && ` (short ${rm.shortfall})`}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                    {fam.members.map(m => renderFamilyItemRow(m))}
+                  </div>
+                ))}
+
+                {familyBoard.ungrouped.length > 0 && (
+                  <div className="bg-white rounded-xl border shadow-sm">
+                    <div className="p-4 border-b bg-gray-50">
+                      <span className="font-bold text-gray-700">Ungrouped items</span>
+                      <span className="ml-2 text-xs text-gray-400">not part of any Product Family</span>
+                    </div>
+                    {familyBoard.ungrouped.map(m => renderFamilyItemRow(m))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>
