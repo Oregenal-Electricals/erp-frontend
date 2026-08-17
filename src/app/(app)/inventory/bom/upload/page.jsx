@@ -17,6 +17,10 @@ export default function BomUploadPage() {
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState(null);
   const [testMode, setTestMode] = useState(false);
+  const [familyLinkChoice, setFamilyLinkChoice] = useState(null); // the selected match object, or null for "don't link"
+  const [newFamilyName, setNewFamilyName] = useState('');
+  const [linkingFamily, setLinkingFamily] = useState(false);
+  const [familyLinkMessage, setFamilyLinkMessage] = useState('');
 
   useEffect(() => {
     setTestMode(isTestSessionEnabled());
@@ -26,6 +30,7 @@ export default function BomUploadPage() {
   async function handleUpload() {
     if (!file) return;
     setParsing(true); setError(''); setPreview(null); setResult(null);
+    setFamilyLinkChoice(null); setNewFamilyName(''); setFamilyLinkMessage('');
     const formData = new FormData();
     formData.append('file', file);
     try {
@@ -64,6 +69,11 @@ export default function BomUploadPage() {
       sections[sectionIdx] = { ...sections[sectionIdx], items: sections[sectionIdx].items.filter((_, i) => i !== itemIdx) };
       return { ...p, sections };
     });
+  }
+
+  function selectFamilyMatch(match) {
+    setFamilyLinkChoice(match);
+    if (match && !match.familyId) setNewFamilyName(`${match.productName} Family`);
   }
   function mergeSectionInto(sourceIdx, targetIdx) {
     if (sourceIdx === targetIdx) return;
@@ -114,6 +124,44 @@ export default function BomUploadPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.message || 'Import failed'); setConfirming(false); return; }
       setResult(data);
+      // If the user confirmed a suggested Product Family match, perform the
+      // actual link now - this never happens silently/automatically; it
+      // only runs because the user explicitly picked a match and clicked
+      // Confirm Import with that selection still active.
+      if (familyLinkChoice && data.productId) {
+        setLinkingFamily(true);
+        try {
+          let targetFamilyId = familyLinkChoice.familyId;
+          if (!targetFamilyId) {
+            const famRes = await fetch(`${API}/product-families`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+              body: JSON.stringify({
+                code: `FAM-${familyLinkChoice.productCode}`.slice(0, 40),
+                name: newFamilyName || `${familyLinkChoice.productName} Family`,
+              }),
+            });
+            const famData = await famRes.json();
+            if (!famRes.ok) throw new Error(famData.message || 'Could not create Product Family');
+            targetFamilyId = famData.id;
+            await fetch(`${API}/product-families/${targetFamilyId}/products`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+              body: JSON.stringify({ productIds: [familyLinkChoice.productId, data.productId] }),
+            });
+          } else {
+            await fetch(`${API}/product-families/${targetFamilyId}/products`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+              body: JSON.stringify({ productIds: [data.productId] }),
+            });
+          }
+          setFamilyLinkMessage(`Linked to Product Family with ${familyLinkChoice.productCode}.`);
+        } catch (e) {
+          setFamilyLinkMessage(`Import succeeded, but linking to the Product Family failed: ${e.message || 'unknown error'}. You can link it manually from the Products page.`);
+        }
+        setLinkingFamily(false);
+      }
       // Save a copy of the original uploaded file for future reference -
       // the raw bytes only exist in this browser tab's memory (the parse
       // step never persists them server-side), so this is the one place
@@ -193,6 +241,8 @@ export default function BomUploadPage() {
             </span>{' '}
             items.
           </p>
+          {linkingFamily && <p className="text-xs text-gray-400 mt-2">Linking Product Family...</p>}
+          {familyLinkMessage && <p className="text-xs text-gray-500 mt-2">{familyLinkMessage}</p>}
           <button
             onClick={() => router.push(`/inventory/bom/${result.bomId}`)}
             className="mt-5 bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700"
@@ -303,6 +353,46 @@ export default function BomUploadPage() {
               </div>
             </div>
           </div>
+
+          {/* Product Family suggestion - only ever a suggestion, never automatic */}
+          {preview.possibleFamilyMatches && preview.possibleFamilyMatches.length > 0 && (
+            <div className="bg-white rounded-xl border shadow-sm p-5">
+              <h3 className="font-semibold text-gray-800 mb-1">Possible Product Family match</h3>
+              <p className="text-xs text-gray-500 mb-3">
+                This BOM&apos;s items (excluding Packaging) closely match {preview.possibleFamilyMatches.length === 1 ? 'an existing product' : 'existing products'} below.
+                If this is the same build for a different customer, link them so planning can see them as one family.
+              </p>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm text-gray-600">
+                  <input type="radio" name="familyMatch" checked={!familyLinkChoice} onChange={() => selectFamilyMatch(null)} />
+                  Don&apos;t link - this is a genuinely different product
+                </label>
+                {preview.possibleFamilyMatches.map((m) => (
+                  <label key={m.productId} className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="radio"
+                      name="familyMatch"
+                      checked={familyLinkChoice?.productId === m.productId}
+                      onChange={() => selectFamilyMatch(m)}
+                    />
+                    <span className="font-mono text-xs text-blue-600">{m.productCode}</span>
+                    {m.productName} - {m.matchPercent}% match
+                    {m.familyId ? <span className="text-xs text-green-600">(already in a family)</span> : <span className="text-xs text-gray-400">(no family yet)</span>}
+                  </label>
+                ))}
+              </div>
+              {familyLinkChoice && !familyLinkChoice.familyId && (
+                <div className="mt-3 pl-6">
+                  <label className="block text-xs text-gray-500 mb-1">New Product Family name</label>
+                  <input
+                    className="w-full max-w-sm border rounded-lg px-3 py-2 text-sm"
+                    value={newFamilyName}
+                    onChange={(e) => setNewFamilyName(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Sections */}
           {preview.sections.map((section, sIdx) => (
