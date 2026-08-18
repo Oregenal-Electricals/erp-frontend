@@ -32,7 +32,22 @@ export default function DummyDataPage() {
     setSessionPurging(true); setSessionMessage(''); setError('');
     try {
       const { data } = await api.delete('/dummy-data/purge-test-session');
-      setSessionMessage(`🗑️ ${data.message}${data.note ? ' — ' + data.note : ''}`);
+      if (data.totalDeleted > 0) {
+        setSessionMessageType('success');
+        setSessionMessage(
+          `🗑️ ${data.message}` +
+          (data.blockedTables?.length ? ` — ${data.blockedTables.length} table(s) still blocked: ${data.blockedTables.join(', ')}` : '')
+        );
+      } else if (data.blockedTables?.length > 0) {
+        setSessionMessageType('warning');
+        setSessionMessage(
+          `⚠️ Nothing was deleted. ${data.blockedTables.length} table(s) are blocked: ${data.blockedTables.join(', ')}. ` +
+          (data.note || 'A real (non-test) record depends on test-tagged rows in these tables.')
+        );
+      } else {
+        setSessionMessageType('info');
+        setSessionMessage('Nothing to purge — no Test Mode data found.');
+      }
       fetchData();
     } catch (err) {
       setError(err.response?.data?.message || 'Purge failed');
@@ -73,7 +88,15 @@ export default function DummyDataPage() {
               {sessionPurging ? 'Purging...' : `Delete All Test Mode Data${sessionSummary?.total ? ` (${sessionSummary.total})` : ''}`}
             </button>
           </div>
-          {sessionMessage && <div className="mx-5 mb-4 p-3 bg-green-50 border-2 border-green-300 rounded-lg text-green-700 text-sm font-medium">{sessionMessage}</div>}
+          {sessionMessage && (
+            <div className={`mx-5 mb-4 p-3 rounded-lg text-sm font-medium border-2 ${
+              sessionMessageType === 'success' ? 'bg-green-50 border-green-300 text-green-700' :
+              sessionMessageType === 'warning' ? 'bg-orange-50 border-orange-300 text-orange-700' :
+              'bg-gray-50 border-gray-200 text-gray-600'
+            }`}>
+              {sessionMessage}
+            </div>
+          )}
           {loading && (
             <div className="px-5 pb-4">
               <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
