@@ -49,6 +49,7 @@ export default function Sidebar({ onClose }) {
   const [hydrated, setHydrated] = useState(false);
   const [structure, setStructure] = useState(null); // null = loading
   const [user, setUser] = useState(null);
+  const [loadAttempt, setLoadAttempt] = useState(1);
 
   useEffect(() => {
     try {
@@ -66,13 +67,47 @@ export default function Sidebar({ onClose }) {
   useEffect(() => { setUser(getUser()); }, []);
 
   useEffect(() => {
-    api
-      .get('/ui-control/my-sidebar')
-      .then((res) => setStructure(res.data && res.data.length > 0 ? res.data : FALLBACK_STRUCTURE))
-      .catch(() => setStructure(FALLBACK_STRUCTURE));
+    let cancelled = false;
+    const MAX_ATTEMPTS = 3;
+    const RETRY_DELAY_MS = 3000;
+
+    // Render's free-tier backend can take longer to wake from a cold start
+    // than a single request's timeout - retrying here means a slow wake-up
+    // still ends in the real, full sidebar rather than silently showing
+    // the bare 2-item fallback below, which looked identical to a genuine
+    // data/permissions bug with no way to tell the difference.
+    async function loadSidebar(attempt) {
+      setLoadAttempt(attempt);
+      try {
+        const res = await api.get('/ui-control/my-sidebar');
+        if (!cancelled) setStructure(res.data && res.data.length > 0 ? res.data : FALLBACK_STRUCTURE);
+      } catch {
+        if (cancelled) return;
+        if (attempt < MAX_ATTEMPTS) {
+          setTimeout(() => loadSidebar(attempt + 1), RETRY_DELAY_MS);
+        } else {
+          setStructure(FALLBACK_STRUCTURE);
+        }
+      }
+    }
+    loadSidebar(1);
+    return () => { cancelled = true; };
   }, []);
 
-  if (!user || structure === null) return null;
+  if (!user) return null;
+
+  if (structure === null) {
+    return (
+      <nav className="w-64 bg-white border-r h-screen overflow-y-auto flex-shrink-0 flex items-center justify-center">
+        {loadAttempt > 1 && (
+          <div className="text-center px-4">
+            <div className="inline-block w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-2" />
+            <p className="text-xs text-gray-400">Reconnecting to server...</p>
+          </div>
+        )}
+      </nav>
+    );
+  }
 
   function toggleSection(key) {
     setOpenSections((prev) => {
