@@ -1,8 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import { getUser } from '@/lib/auth';
+import { isTestSessionEnabled, onTestSessionChange } from '@/lib/testSession';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
@@ -16,11 +17,17 @@ export default function BomUploadPage() {
   const [useExisting, setUseExisting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState(null);
-  const isTestUser = getUser()?.isTestUser === true;
+  const [manualTestMode, setManualTestMode] = useState(false);
+  const isTestUser = getUser()?.isTestUser === true || manualTestMode;
   const [familyLinkChoice, setFamilyLinkChoice] = useState(null); // the selected match object, or null for "don't link"
   const [newFamilyName, setNewFamilyName] = useState('');
   const [linkingFamily, setLinkingFamily] = useState(false);
   const [familyLinkMessage, setFamilyLinkMessage] = useState('');
+
+  useEffect(() => {
+    setManualTestMode(isTestSessionEnabled());
+    return onTestSessionChange(setManualTestMode);
+  }, []);
 
   async function handleUpload() {
     if (!file) return;

@@ -6,12 +6,14 @@ import Sidebar from './Sidebar';
 import { UiControlProvider } from '@/context/UiControlContext';
 import Header from './Header';
 import { isAuthenticated, getUser } from '@/lib/auth';
+import { isTestSessionEnabled, onTestSessionChange, installTestSessionFetchInterceptor } from '@/lib/testSession';
 import PreviewBanner from '@/components/PreviewBanner';
 
 export default function AppLayout({ children }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [manualTestMode, setManualTestMode] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -21,7 +23,14 @@ export default function AppLayout({ children }) {
     }
   }, [router]);
 
+  useEffect(() => {
+    installTestSessionFetchInterceptor();
+    setManualTestMode(isTestSessionEnabled());
+    return onTestSessionChange(setManualTestMode);
+  }, []);
+
   const isTestUser = ready && getUser()?.isTestUser === true;
+  const showTestBanner = isTestUser || manualTestMode;
 
   if (!ready) {
     return (
@@ -58,10 +67,12 @@ export default function AppLayout({ children }) {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 w-full">
-        {isTestUser && (
+        {showTestBanner && (
           <div className="bg-orange-500 text-white text-xs font-semibold px-4 py-1.5 flex items-center justify-center gap-1.5 shrink-0">
             <FlaskConical size={13} />
-            TEST ACCOUNT — everything you create here is always tagged as test data and won't affect real numbers
+            {isTestUser
+              ? "TEST ACCOUNT — everything you create here is always tagged as test data and won't affect real numbers"
+              : "TEST MODE ON — everything you create here is tagged as test data and won't affect real numbers"}
           </div>
         )}
         <Header onMenuClick={() => setSidebarOpen(true)} />
