@@ -1,19 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, User, Menu, FlaskConical } from 'lucide-react';
 import { getUser, clearAuth } from '@/lib/auth';
-import { isTestSessionEnabled, setTestSessionEnabled, onTestSessionChange } from '@/lib/testSession';
 
 export default function Header({ onMenuClick }) {
   const router = useRouter();
   const user = getUser();
-  const [testMode, setTestMode] = useState(false);
-
-  useEffect(() => {
-    setTestMode(isTestSessionEnabled());
-    return onTestSessionChange(setTestMode);
-  }, []);
 
   const handleLogout = () => {
     clearAuth();
@@ -38,16 +30,15 @@ export default function Header({ onMenuClick }) {
 
       {/* Right side */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => setTestSessionEnabled(!testMode)}
-          title="When on, everything you create is tagged as test data and won't affect real stock/dashboard numbers"
-          className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
-            testMode ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-          }`}
-        >
-          <FlaskConical size={13} />
-          <span className="hidden sm:block">Test Mode</span>
-        </button>
+        {user?.isTestUser && (
+          <span
+            title="This account is a dedicated test account — everything you create is always tagged as test data"
+            className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-orange-500 text-white"
+          >
+            <FlaskConical size={13} />
+            <span className="hidden sm:block">Test User</span>
+          </span>
+        )}
         <div className="w-px h-5 bg-gray-200" />
         <div className="flex items-center gap-2 text-sm text-gray-700">
           <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">

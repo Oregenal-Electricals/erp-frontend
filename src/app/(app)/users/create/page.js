@@ -12,7 +12,7 @@ export default function CreateUserPage() {
     employeeCode: '', password: '', role: '',
     additionalRoles: [],
     companyId: '', mustChangePwd: true,
-    assignedStage: '',
+    assignedStage: '', isTestUser: false,
   });
   const [companies, setCompanies] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -181,6 +181,18 @@ export default function CreateUserPage() {
                 className="w-4 h-4 accent-blue-600" />
               <label htmlFor="mustChangePwd" className="text-sm text-gray-700 cursor-pointer">
                 <span className="font-semibold">Force password change</span> on first login
+              </label>
+            </div>
+
+            <div className="col-span-2 flex items-center gap-3 p-3 bg-orange-50 border-2 border-orange-200 rounded-lg">
+              <input type="checkbox" name="isTestUser" id="isTestUser"
+                checked={form.isTestUser} onChange={handleChange}
+                className="w-4 h-4 accent-orange-500" />
+              <label htmlFor="isTestUser" className="text-sm text-gray-700 cursor-pointer">
+                <span className="font-semibold">This is a Test Account</span> — every entry this account
+                creates, in any module, is always auto-tagged as test data and never affects real numbers.
+                Log in as this account to test a role safely, then purge all its data in one click from
+                Settings → Test Mode Data.
               </label>
             </div>
           </div>

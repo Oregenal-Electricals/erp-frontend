@@ -61,17 +61,17 @@ export default function DummyDataPage() {
       <div className="p-6 max-w-7xl mx-auto">
         <PageHeader
           title="Test Mode Data Management"
-          subtitle="Delete everything created while Test Mode was on, across every module"
+          subtitle="Delete everything created by a Test Account or during a Preview session, across every module"
         />
 
-        {/* Test Mode Data (X-Test-Session header / Test Mode toggle) - the
-            real, comprehensive purge tool, computed live from the schema
+        {/* Test Mode Data (dedicated Test Account / Preview-session data) -
+            the real, comprehensive purge tool, computed live from the schema
             rather than a fixed list. This is the only purge tool on this
             page now - the old per-company Seed/Purge buttons and the
-            org-structure-only "Purge All Test Data" predate the Test Mode
-            feature and only ever touched a fixed set of 8 demo tables
+            org-structure-only "Purge All Test Data" predate this feature
+            and only ever touched a fixed set of 8 demo tables
             (Plant/Unit/Department/Branch/FinancialYear/User/ChangeRequest),
-            not the 150+ modules Test Mode can actually create data in -
+            not the 150+ modules test data can actually exist in -
             removed to avoid confusion with this one. */}
         <div className="mb-6 bg-white rounded-xl border-2 border-orange-200 overflow-hidden">
           <div className="px-5 py-4 flex items-center justify-between">

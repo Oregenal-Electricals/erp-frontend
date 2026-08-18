@@ -25,14 +25,17 @@ export default function EditUserPage() {
         role:         data.role,
         employeeCode: data.employeeCode || '',
         assignedStage: data.assignedStage || '',
+        isTestUser: !!data.isTestUser,
       }))
       .catch(() => setError('Failed to load user'))
       .finally(() => setLoading(false));
     api.get('/roles').then(({ data }) => setRoles(data?.data || data || []));
   }, [id]);
 
-  const handleChange = (e) =>
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setForm((prev) => ({ ...prev, [e.target.name]: val }));
+  };
 
   const handleSubmit = async () => {
     setError(''); setSuccess(''); setSaving(true);
@@ -132,6 +135,16 @@ export default function EditUserPage() {
                 <option value="Packaging">Packaging</option>
               </select>
               <p className="text-xs text-gray-500 mt-1">If set, this user's Work Orders list is filtered to only this stage. Supervisors and above always see every stage regardless of this setting.</p>
+            </div>
+
+            <div className="col-span-2 p-3 bg-orange-50 border-2 border-orange-200 rounded-lg flex items-center gap-3">
+              <input type="checkbox" name="isTestUser" id="isTestUser"
+                checked={!!form.isTestUser} onChange={handleChange}
+                className="w-4 h-4 accent-orange-500" />
+              <label htmlFor="isTestUser" className="text-sm text-gray-700 cursor-pointer">
+                <span className="font-semibold">This is a Test Account</span> — every entry this account
+                creates, in any module, is always auto-tagged as test data.
+              </label>
             </div>
 
             {/* Info box */}

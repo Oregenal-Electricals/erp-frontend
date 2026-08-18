@@ -1,8 +1,8 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
-import { isTestSessionEnabled, onTestSessionChange } from '@/lib/testSession';
+import { getUser } from '@/lib/auth';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
@@ -16,16 +16,11 @@ export default function BomUploadPage() {
   const [useExisting, setUseExisting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState(null);
-  const [testMode, setTestMode] = useState(false);
+  const isTestUser = getUser()?.isTestUser === true;
   const [familyLinkChoice, setFamilyLinkChoice] = useState(null); // the selected match object, or null for "don't link"
   const [newFamilyName, setNewFamilyName] = useState('');
   const [linkingFamily, setLinkingFamily] = useState(false);
   const [familyLinkMessage, setFamilyLinkMessage] = useState('');
-
-  useEffect(() => {
-    setTestMode(isTestSessionEnabled());
-    return onTestSessionChange(setTestMode);
-  }, []);
 
   async function handleUpload() {
     if (!file) return;
@@ -88,9 +83,9 @@ export default function BomUploadPage() {
   }
 
   async function handleConfirm() {
-    if (testMode) {
+    if (isTestUser) {
       const proceed = window.confirm(
-        'Test Mode is ON.\n\nAny new Product or Raw Material codes created by this upload will be prefixed TEST- and kept completely separate from real data. A later real upload of the same BOM (with Test Mode off) will create its own independent, real-coded copy - it will not reuse or be blocked by this test one.\n\nContinue?',
+        'This is a Test Account.\n\nAny new Product or Raw Material codes created by this upload will be prefixed TEST- and kept completely separate from real data. A later real upload of the same BOM (from a real account) will create its own independent, real-coded copy - it will not reuse or be blocked by this test one.\n\nContinue?',
       );
       if (!proceed) return;
     }
@@ -211,12 +206,12 @@ export default function BomUploadPage() {
         </p>
       </div>
 
-      {testMode && !result && (
+      {isTestUser && !result && (
         <div className="mb-4 p-3 bg-orange-50 border-2 border-orange-300 rounded-lg text-orange-800 text-sm">
-          <span className="font-semibold">Test Mode is ON.</span> New
+          <span className="font-semibold">This is a Test Account.</span> New
           Product/Raw Material codes from this upload will be prefixed TEST- and
           kept fully separate from real data - a later real upload of the same
-          BOM with Test Mode off creates its own independent real copy.
+          BOM from a real account creates its own independent real copy.
         </div>
       )}
 

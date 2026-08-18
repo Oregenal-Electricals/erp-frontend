@@ -75,7 +75,12 @@ export default function UsersPage() {
       key: 'name', label: 'Name',
       render: (r) => (
         <div>
-          <p className="font-medium text-gray-900">{r.firstName} {r.lastName}</p>
+          <p className="font-medium text-gray-900 flex items-center gap-1.5">
+            {r.firstName} {r.lastName}
+            {r.isTestUser && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">TEST</span>
+            )}
+          </p>
           <p className="text-xs text-gray-400">{r.email}</p>
         </div>
       ),
