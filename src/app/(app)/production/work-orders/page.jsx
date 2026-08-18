@@ -47,6 +47,12 @@ export default function WorkOrdersPage() {
   const [form, setForm] = useState({ productCode:'', productName:'', uom:'PCS', bomId:'', warehouseId:'', plannedQty:'', plannedStartDate:'', plannedEndDate:'', priority:'MEDIUM', remarks:'' });
   const [completeModal, setCompleteModal] = useState(null);
   const [completeForm, setCompleteForm] = useState({ completedQty:'', rejectedQty:'0' });
+  const [reassignModal, setReassignModal] = useState(null);
+  const [reassignNewQty, setReassignNewQty] = useState('');
+  const [reassignPreview, setReassignPreview] = useState(null);
+  const [reassignLoading, setReassignLoading] = useState(false);
+  const [reassignSaving, setReassignSaving] = useState(false);
+  const [reassignError, setReassignError] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -122,15 +128,17 @@ export default function WorkOrdersPage() {
   }
 
   async function fetchPendingApprovals() {
-    const [startRes, restartRes] = await Promise.all([
+    const [startRes, restartRes, reassignRes] = await Promise.all([
       fetch(`${API}/workflows/requests?documentType=WO_START&status=PENDING&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/workflows/requests?documentType=WO_RESTART&status=PENDING&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/workflows/requests?documentType=WO_REASSIGN_QTY&status=PENDING&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
-    const [startData, restartData] = await Promise.all([
+    const [startData, restartData, reassignData] = await Promise.all([
       startRes.ok ? startRes.json() : { data: [] },
       restartRes.ok ? restartRes.json() : { data: [] },
+      reassignRes.ok ? reassignRes.json() : { data: [] },
     ]);
-    setPendingApprovals([...(startData.data || []), ...(restartData.data || [])]);
+    setPendingApprovals([...(startData.data || []), ...(restartData.data || []), ...(reassignData.data || [])]);
   }
 
   async function handleApprovalAction(requestId, decision) {
@@ -145,6 +153,46 @@ export default function WorkOrdersPage() {
     setSaving(true);
     await handleAction(completeModal, 'complete', { completedQty: parseFloat(completeForm.completedQty), rejectedQty: parseFloat(completeForm.rejectedQty) || 0 });
     setCompleteModal(null); setSaving(false);
+  }
+
+  function openReassign(wo) {
+    setReassignModal(wo);
+    setReassignNewQty(String(wo.plannedQty));
+    setReassignPreview(null);
+    setReassignError('');
+  }
+
+  async function handlePreviewReassign() {
+    if (!reassignModal) return;
+    const qty = parseFloat(reassignNewQty);
+    if (isNaN(qty) || qty < 0) { setReassignError('Enter a valid quantity'); return; }
+    setReassignLoading(true); setReassignError(''); setReassignPreview(null);
+    const res = await fetch(`${API}/work-orders/${reassignModal.id}/reassign-preview?newPlannedQty=${qty}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    const data = await res.json();
+    if (res.ok) setReassignPreview(data);
+    else setReassignError(data.message || 'Preview failed');
+    setReassignLoading(false);
+  }
+
+  async function handleConfirmReassign() {
+    if (!reassignModal) return;
+    const qty = parseFloat(reassignNewQty);
+    setReassignSaving(true); setReassignError('');
+    const res = await fetch(`${API}/work-orders/${reassignModal.id}/reassign-qty`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ newPlannedQty: qty }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (data.pendingApproval) alert(data.message || 'Submitted for Plant Head approval');
+      setReassignModal(null);
+      fetchAll();
+      if (canSetPriority) fetchPendingApprovals();
+    } else {
+      setReassignError(data.message || 'Reassignment failed');
+    }
+    setReassignSaving(false);
   }
 
   async function handleExpand(id) {
@@ -223,7 +271,7 @@ export default function WorkOrdersPage() {
                 <div key={r.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-2.5 border border-amber-100">
                   <span className="text-sm">
                     <span className="font-mono font-bold text-blue-600">{r.documentNumber}</span>
-                    <span className="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-500">{r.documentType === 'WO_RESTART' ? 'Restart' : 'Start'}</span>
+                    <span className="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-500">{r.documentType === 'WO_RESTART' ? 'Restart' : r.documentType === 'WO_REASSIGN_QTY' ? 'Reassign Qty' : 'Start'}</span>
                     <span className="text-gray-400 ml-2">{r.remarks}</span>
                   </span>
                   <div className="flex gap-2">
@@ -316,6 +364,7 @@ export default function WorkOrdersPage() {
                     {wo.status === 'IN_PROGRESS' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'stop')}} className="px-2 py-1 text-xs bg-orange-500 text-white rounded">Stop</button>}
                     {wo.status === 'STOPPED' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'restart')}} className="px-2 py-1 text-xs bg-yellow-500 text-gray-900 rounded">Restart</button>}
                     {['DRAFT','RELEASED','IN_PROGRESS'].includes(wo.status) && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'cancel')}} className="px-2 py-1 text-xs bg-red-500 text-white rounded">Cancel</button>}
+                    {['DRAFT','RELEASED','IN_PROGRESS','STOPPED'].includes(wo.status) && <button onClick={e=>{e.stopPropagation();openReassign(wo)}} className="px-2 py-1 text-xs bg-indigo-500 text-white rounded">Reassign Qty</button>}
                     <span className="text-gray-400 text-xs">{expandedId===wo.id?'▲':'▼'}</span>
                   </div>
                 </div>
@@ -490,6 +539,68 @@ export default function WorkOrdersPage() {
               <div className="p-6 border-t flex justify-end gap-3">
                 <button onClick={()=>setCompleteModal(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
                 <button onClick={handleComplete} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm disabled:opacity-50">{saving?'Completing...':'Mark Complete'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {reassignModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-screen overflow-y-auto">
+              <div className="p-6 border-b flex justify-between sticky top-0 bg-white">
+                <div>
+                  <h2 className="text-lg font-bold">Reassign Quantity</h2>
+                  <p className="text-xs text-gray-400 font-mono">{reassignModal.woNumber}</p>
+                </div>
+                <button onClick={()=>setReassignModal(null)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="p-6 space-y-4">
+                {reassignError && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{reassignError}</div>}
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <span>Current: <b>{reassignModal.plannedQty}</b></span>
+                  <span>Completed: <b>{reassignModal.completedQty}</b> (floor)</span>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">New Planned Qty</label>
+                  <input type="number" min={reassignModal.completedQty} className="w-full border rounded-lg px-3 py-2 text-sm" value={reassignNewQty} onChange={e=>{setReassignNewQty(e.target.value); setReassignPreview(null);}} />
+                </div>
+                <button onClick={handlePreviewReassign} disabled={reassignLoading} className="px-4 py-2 border border-indigo-300 text-indigo-600 rounded-lg text-sm hover:bg-indigo-50 disabled:opacity-50">
+                  {reassignLoading ? 'Checking...' : 'Preview Material Impact'}
+                </button>
+
+                {reassignPreview && (
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    {reassignPreview.items.length === 0 ? (
+                      <p className="text-xs text-gray-400">No material issued yet for this Work Order — nothing to reconcile.</p>
+                    ) : (
+                      <>
+                        <p className="text-xs text-gray-500 mb-2">Material already issued for the current quantity, vs. what the new quantity actually needs. This is informational only — nothing here changes stock automatically.</p>
+                        <table className="w-full text-xs">
+                          <thead className="text-gray-400 uppercase"><tr>{['Item','Issued (current)','Needed (new)','Excess'].map(h=><th key={h} className="text-left px-2 py-1">{h}</th>)}</tr></thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {reassignPreview.items.map(i => (
+                              <tr key={i.itemCode}>
+                                <td className="px-2 py-1 font-mono">{i.itemCode} — {i.itemName}</td>
+                                <td className="px-2 py-1">{i.issuedForCurrentQty} {i.uom}</td>
+                                <td className="px-2 py-1">{i.neededForNewQty} {i.uom}</td>
+                                <td className={`px-2 py-1 font-bold ${i.excess>0?'text-orange-600':'text-gray-300'}`}>{i.excess>0?`+${i.excess} ${i.uom}`:'—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {reassignPreview.items.some(i=>i.excess>0) && (
+                          <p className="text-xs text-orange-600 mt-2">If this excess material is genuinely still available, return it via Stock Adjustment or Rejected Stock after confirming — this won&apos;t happen automatically.</p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
+                <button onClick={()=>setReassignModal(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                <button onClick={handleConfirmReassign} disabled={reassignSaving || !reassignPreview} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm disabled:opacity-50">
+                  {reassignSaving ? 'Submitting...' : 'Confirm Reassignment'}
+                </button>
               </div>
             </div>
           </div>
