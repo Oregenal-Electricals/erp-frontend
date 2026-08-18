@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import CustomFields from '@/components/custom-fields/CustomFields';
+import DeleteRequestModal from '@/components/DeleteRequestModal';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() {
@@ -39,6 +40,7 @@ export default function ProductsPage() {
   const [newFamilyForm, setNewFamilyForm] = useState({ code: '', name: '', description: '' });
   const [savingFamily, setSavingFamily] = useState(false);
   const [familyError, setFamilyError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const fetchStats = useCallback(async () => {
     const res = await fetch(`${API}/products/stats`, { headers: { Authorization: `Bearer ${getToken()}` } });
@@ -136,9 +138,9 @@ export default function ProductsPage() {
     setSaving(false);
   }
 
-  async function handleDeactivate(id) {
-    if (!confirm('Deactivate this product?')) return;
-    await fetch(`${API}/products/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${getToken()}` } });
+  async function handleDeleteRequestDone(result) {
+    setDeleteTarget(null);
+    if (result.pendingApproval) alert(result.message || 'Submitted for approval');
     fetchProducts(); fetchStats();
   }
 
@@ -245,7 +247,7 @@ export default function ProductsPage() {
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <button onClick={() => openEdit(p)} className="text-blue-600 hover:underline text-xs">Edit</button>
-                        {p.isActive && <button onClick={() => handleDeactivate(p.id)} className="text-red-500 hover:underline text-xs">Deactivate</button>}
+                        {p.isActive && <button onClick={() => setDeleteTarget(p)} className="text-red-500 hover:underline text-xs">Deactivate</button>}
                       </div>
                     </td>
                   </tr>
@@ -404,6 +406,16 @@ export default function ProductsPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {deleteTarget && (
+          <DeleteRequestModal
+            tableName="products"
+            recordId={deleteTarget.id}
+            recordLabel={`${deleteTarget.code} - ${deleteTarget.name}`}
+            onClose={() => setDeleteTarget(null)}
+            onDone={handleDeleteRequestDone}
+          />
         )}
       </div>
     </AppLayout>
