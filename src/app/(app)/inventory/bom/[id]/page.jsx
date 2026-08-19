@@ -221,8 +221,19 @@ export default function BomDetailPage() {
 
   async function handleGenerateStages() {
     setGeneratingStages(true); setSetupError('');
-    const sections = Object.keys(stageNames);
-    const body = { stages: sections.map(section => ({ stageName: stageNames[section], sections: [section] })) };
+    // Group by stage name, not by section - a source file can have several
+    // section headers that all belong to the same physical stage (e.g. two
+    // separate SMT sections for different boards). Sending each as its own
+    // stage would make two requests target the identical generated BOM
+    // number and collide; merging them into one stage with multiple
+    // `sections` entries is what the backend actually expects.
+    const grouped = {};
+    for (const section of Object.keys(stageNames)) {
+      const stageName = stageNames[section];
+      if (!grouped[stageName]) grouped[stageName] = [];
+      grouped[stageName].push(section);
+    }
+    const body = { stages: Object.keys(grouped).map(stageName => ({ stageName, sections: grouped[stageName] })) };
     const res = await fetch(`${API}/boms/${id}/generate-stages`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
       body: JSON.stringify(body),
