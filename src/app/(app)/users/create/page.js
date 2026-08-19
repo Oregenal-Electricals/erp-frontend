@@ -88,6 +88,7 @@ export default function CreateUserPage() {
               <select name="role" value={form.role} onChange={handleChange}
                 style={{ color: '#111827', backgroundColor: '#ffffff' }}
                 className={inputClass}>
+                <option value="">Select Role</option>
                 {roles.map((r) => <option key={r.id} value={r.name}>{r.label}</option>)}
               </select>
             </div>
