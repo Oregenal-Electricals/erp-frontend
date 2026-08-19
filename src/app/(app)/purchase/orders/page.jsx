@@ -162,7 +162,12 @@ export default function PurchaseOrdersPage() {
                     <td className="px-4 py-3 text-gray-700">₹{po.subtotal?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
                     <td className="px-4 py-3 text-gray-600">₹{po.totalTax?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
                     <td className="px-4 py-3 font-bold text-gray-900">₹{po.totalAmount?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
-                    <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[po.status]}`}>{po.status}</span></td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[po.status]}`}>{po.status}</span>
+                      {po.status === 'DRAFT' && po.priceApprovalReason && (
+                        <span className="ml-2 text-xs text-amber-600" title={po.priceApprovalReason}>⚠ price check</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <Link href={`/purchase/orders/${po.id}`} className="text-blue-600 hover:underline text-xs">View</Link>

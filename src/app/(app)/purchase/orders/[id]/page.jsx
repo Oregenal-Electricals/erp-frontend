@@ -134,6 +134,12 @@ export default function PurchaseOrderDetailPage() {
           ))}
         </div>
 
+        {isDraft && po.priceApprovalReason && (
+          <div className="mb-4 p-3 bg-amber-50 border-2 border-amber-300 rounded-lg text-amber-800 text-sm">
+            <span className="font-semibold">Needs approval before it can proceed:</span> {po.priceApprovalReason}
+          </div>
+        )}
+
         <div className="flex gap-2 mb-6">
           {isDraft && po.items?.length > 0 && (
             <button onClick={() => handleAction('approve')} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">Approve PO</button>
