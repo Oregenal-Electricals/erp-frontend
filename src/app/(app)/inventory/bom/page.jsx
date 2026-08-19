@@ -28,6 +28,12 @@ export default function BomListPage() {
   const [form, setForm] = useState({ productId: '', version: 'v1', description: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [newProductForm, setNewProductForm] = useState({ code: '', name: '', productType: 'FINISHED_GOOD' });
+  const [addingProduct, setAddingProduct] = useState(false);
+  const [addProductError, setAddProductError] = useState('');
 
   const fetchStats = useCallback(async () => {
     const res = await fetch(`${API}/boms/stats`, { headers: { Authorization: `Bearer ${getToken()}` } });
@@ -66,6 +72,30 @@ export default function BomListPage() {
     if (res.ok) { setShowModal(false); fetchBoms(); fetchStats(); }
     else setError(data.message || 'Failed');
     setSaving(false);
+  }
+
+  async function handleAddProduct() {
+    if (!newProductForm.code.trim() || !newProductForm.name.trim()) {
+      setAddProductError('Code and Name are required');
+      return;
+    }
+    setAddingProduct(true); setAddProductError('');
+    const res = await fetch(`${API}/products`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify(newProductForm),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setProducts((prev) => [...prev, data]);
+      setForm((f) => ({ ...f, productId: data.id }));
+      setProductSearch(`${data.code} — ${data.name}`);
+      setShowAddProductModal(false);
+      setNewProductForm({ code: '', name: '', productType: 'FINISHED_GOOD' });
+    } else {
+      setAddProductError(data.message || 'Failed to create product');
+    }
+    setAddingProduct(false);
   }
 
   async function handleObsolete(id) {
@@ -179,12 +209,43 @@ export default function BomListPage() {
               </div>
               <div className="p-6 space-y-4">
                 {error && <div className="bg-red-50 text-red-600 px-4 py-2 rounded text-sm">{error}</div>}
-                <div>
+                <div className="relative">
                   <label className="block text-sm text-gray-600 mb-1">Product *</label>
-                  <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.productId} onChange={e => setForm(f => ({ ...f, productId: e.target.value }))}>
-                    <option value="">— Select Product —</option>
-                    {products.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-                  </select>
+                  <input
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                    placeholder="Search by code or name..."
+                    value={productSearch}
+                    onChange={(e) => { setProductSearch(e.target.value); setForm((f) => ({ ...f, productId: '' })); setShowProductDropdown(true); }}
+                    onFocus={() => setShowProductDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowProductDropdown(false), 150)}
+                  />
+                  {showProductDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                      {products
+                        .filter((p) => !productSearch || `${p.code} ${p.name}`.toLowerCase().includes(productSearch.toLowerCase()))
+                        .slice(0, 30)
+                        .map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => { setForm((f) => ({ ...f, productId: p.id })); setProductSearch(`${p.code} — ${p.name}`); setShowProductDropdown(false); }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b last:border-b-0"
+                          >
+                            <span className="font-mono text-blue-600">{p.code}</span> — {p.name}
+                          </button>
+                        ))}
+                      {products.filter((p) => !productSearch || `${p.code} ${p.name}`.toLowerCase().includes(productSearch.toLowerCase())).length === 0 && (
+                        <div className="px-3 py-2 text-sm text-gray-400">No matching products</div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => { setShowProductDropdown(false); setNewProductForm((f) => ({ ...f, code: '', name: productSearch && !form.productId ? productSearch : '' })); setShowAddProductModal(true); }}
+                        className="w-full text-left px-3 py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 border-t"
+                      >
+                        + Add New Product
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Version</label>
@@ -198,6 +259,41 @@ export default function BomListPage() {
               <div className="p-6 border-t flex justify-end gap-3">
                 <button onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
                 <button onClick={handleCreate} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">{saving ? 'Creating...' : 'Create BOM'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showAddProductModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+              <div className="p-6 border-b flex justify-between items-center">
+                <h2 className="text-lg font-bold">Add New Product</h2>
+                <button onClick={() => setShowAddProductModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              </div>
+              <div className="p-6 space-y-4">
+                {addProductError && <div className="bg-red-50 text-red-600 px-4 py-2 rounded text-sm">{addProductError}</div>}
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Code *</label>
+                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newProductForm.code} onChange={(e) => setNewProductForm((f) => ({ ...f, code: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Name *</label>
+                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newProductForm.name} onChange={(e) => setNewProductForm((f) => ({ ...f, name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Product Type</label>
+                  <select className="w-full border rounded-lg px-3 py-2 text-sm" value={newProductForm.productType} onChange={(e) => setNewProductForm((f) => ({ ...f, productType: e.target.value }))}>
+                    <option value="FINISHED_GOOD">Finished Good</option>
+                    <option value="SEMI_FINISHED">Semi Finished</option>
+                    <option value="BY_PRODUCT">By Product</option>
+                  </select>
+                </div>
+                <p className="text-xs text-gray-400">Other details (category, UOM, brand, etc.) can be filled in later from Masters → Products.</p>
+              </div>
+              <div className="p-6 border-t flex justify-end gap-3">
+                <button onClick={() => setShowAddProductModal(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+                <button onClick={handleAddProduct} disabled={addingProduct} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">{addingProduct ? 'Creating...' : 'Create & Select'}</button>
               </div>
             </div>
           </div>
