@@ -17,7 +17,6 @@ export default function ProductsPage() {
   const [stats, setStats] = useState(null);
   const [categories, setCategories] = useState([]);
   const [uoms, setUoms] = useState([]);
-  const [families, setFamilies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [productType, setProductType] = useState('');
@@ -28,18 +27,12 @@ export default function ProductsPage() {
   const [editProduct, setEditProduct] = useState(null);
   const [form, setForm] = useState({
     code: '', name: '', description: '', productType: 'FINISHED_GOOD',
-    categoryId: '', familyId: '', uomId: '', hsnCode: '', gstRate: 18,
+    categoryId: '', uomId: '', hsnCode: '', gstRate: 18,
     brand: '', model: '', revision: '', drawingNumber: '',
     minOrderQty: '', leadTimeDays: '', specifications: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-
-  // Inline Product Family quick-create, triggered from the product form
-  const [showFamilyModal, setShowFamilyModal] = useState(false);
-  const [newFamilyForm, setNewFamilyForm] = useState({ code: '', name: '', description: '' });
-  const [savingFamily, setSavingFamily] = useState(false);
-  const [familyError, setFamilyError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const fetchStats = useCallback(async () => {
@@ -48,14 +41,12 @@ export default function ProductsPage() {
   }, []);
 
   const fetchDropdowns = useCallback(async () => {
-    const [catRes, uomRes, famRes] = await Promise.all([
+    const [catRes, uomRes] = await Promise.all([
       fetch(`${API}/items/categories?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/items/uom?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/product-families?limit=100&isActive=true`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (catRes.ok) { const d = await catRes.json(); setCategories(Array.isArray(d) ? d : (d.data || [])); }
     if (uomRes.ok) { const d = await uomRes.json(); setUoms(Array.isArray(d) ? d : (d.data || [])); }
-    if (famRes.ok) { const d = await famRes.json(); setFamilies(d.data || []); }
   }, []);
 
   const fetchProducts = useCallback(async () => {
@@ -79,7 +70,7 @@ export default function ProductsPage() {
   function resetForm() {
     return {
       code: '', name: '', description: '', productType: 'FINISHED_GOOD',
-      categoryId: '', familyId: '', uomId: '', hsnCode: '', gstRate: 18,
+      categoryId: '', uomId: '', hsnCode: '', gstRate: 18,
       brand: '', model: '', revision: '', drawingNumber: '',
       minOrderQty: '', leadTimeDays: '', specifications: '',
     };
@@ -97,7 +88,6 @@ export default function ProductsPage() {
     setForm({
       code: p.code, name: p.name, description: p.description || '',
       productType: p.productType, categoryId: p.categoryId || '',
-      familyId: p.familyId || '',
       uomId: p.uomId || '', hsnCode: p.hsnCode || '', gstRate: p.gstRate ?? 18,
       brand: p.brand || '', model: p.model || '', revision: p.revision || '',
       drawingNumber: p.drawingNumber || '', minOrderQty: p.minOrderQty || '',
@@ -122,7 +112,6 @@ export default function ProductsPage() {
       catch { body.specifications = {}; }
     } else delete body.specifications;
     if (!body.categoryId) delete body.categoryId;
-    if (!body.familyId) delete body.familyId;
     if (!body.uomId) delete body.uomId;
 
     const url = editProduct ? `${API}/products/${editProduct.id}` : `${API}/products`;
@@ -142,25 +131,6 @@ export default function ProductsPage() {
     setDeleteTarget(null);
     if (result.pendingApproval) alert(result.message || 'Submitted for approval');
     fetchProducts(); fetchStats();
-  }
-
-  async function handleCreateFamily() {
-    setSavingFamily(true); setFamilyError('');
-    const res = await fetch(`${API}/product-families`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify(newFamilyForm),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setFamilies(prev => [...prev, data]);
-      setForm(f => ({ ...f, familyId: data.id }));
-      setShowFamilyModal(false);
-      setNewFamilyForm({ code: '', name: '', description: '' });
-    } else {
-      setFamilyError(data.message || 'Could not create family');
-    }
-    setSavingFamily(false);
   }
 
   const typeColor = {
@@ -215,7 +185,7 @@ export default function ProductsPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
                 <tr>
-                  {['Code', 'Name', 'Type', 'Family', 'HSN', 'GST%', 'Brand', 'Revision', 'UOM', 'Status', 'Actions'].map(h => (
+                  {['Code', 'Name', 'Type', 'HSN', 'GST%', 'Brand', 'Revision', 'UOM', 'Status', 'Actions'].map(h => (
                     <th key={h} className="px-4 py-3 text-left">{h}</th>
                   ))}
                 </tr>
@@ -233,7 +203,6 @@ export default function ProductsPage() {
                       {p.drawingNumber && <div className="text-xs text-gray-400">DWG: {p.drawingNumber}</div>}
                     </td>
                     <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${typeColor[p.productType] || 'bg-gray-100'}`}>{p.productType.replace('_', ' ')}</span></td>
-                    <td className="px-4 py-3 text-gray-600">{p.family ? <span className="font-mono text-xs">{p.family.code}</span> : '—'}</td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-600">{p.hsnCode || '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{p.gstRate ?? '—'}%</td>
                     <td className="px-4 py-3 text-gray-600">{p.brand || '—'}</td>
@@ -302,16 +271,6 @@ export default function ProductsPage() {
                     </select>
                   </div>
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-sm text-gray-600">Product Family</label>
-                      <button type="button" onClick={() => setShowFamilyModal(true)} className="text-xs text-blue-600 hover:underline">+ New</button>
-                    </div>
-                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.familyId} onChange={e => setForm(f => ({ ...f, familyId: e.target.value }))}>
-                      <option value="">— None —</option>
-                      {families.map(fam => <option key={fam.id} value={fam.id}>{fam.code} - {fam.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
                     <label className="block text-sm text-gray-600 mb-1">UOM</label>
                     <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.uomId} onChange={e => setForm(f => ({ ...f, uomId: e.target.value }))}>
                       <option value="">— Select —</option>
@@ -367,41 +326,6 @@ export default function ProductsPage() {
                 <button onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
                 <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
                   {saving ? 'Saving...' : editProduct ? 'Update Product' : 'Create Product'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showFamilyModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-              <div className="p-6 border-b flex justify-between items-center">
-                <h2 className="text-lg font-bold">New Product Family</h2>
-                <button onClick={() => setShowFamilyModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-              </div>
-              <div className="p-6 space-y-4">
-                {familyError && <div className="bg-red-50 text-red-600 px-4 py-2 rounded text-sm">{familyError}</div>}
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Code *</label>
-                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newFamilyForm.code} onChange={e => setNewFamilyForm(f => ({ ...f, code: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Name *</label>
-                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newFamilyForm.name} onChange={e => setNewFamilyForm(f => ({ ...f, name: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Description</label>
-                  <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} value={newFamilyForm.description} onChange={e => setNewFamilyForm(f => ({ ...f, description: e.target.value }))} />
-                </div>
-                <p className="text-xs text-gray-400">
-                  Use this to group Products that share the same upstream build through Assembly - only Packaging differs between them.
-                </p>
-              </div>
-              <div className="p-6 border-t flex justify-end gap-3">
-                <button onClick={() => setShowFamilyModal(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
-                <button onClick={handleCreateFamily} disabled={savingFamily || !newFamilyForm.code || !newFamilyForm.name} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
-                  {savingFamily ? 'Creating...' : 'Create Family'}
                 </button>
               </div>
             </div>

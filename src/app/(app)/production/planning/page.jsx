@@ -91,7 +91,43 @@ export default function ProductionPlanningPage() {
   // ungrouped items render identically (both are flat, so/customer info
   // has to show inline here, unlike the By Sales Order view where it's
   // shown once per SO group instead).
-  function renderFamilyItemRow(m) {
+  //
+  // computeMaxBuildable answers the actual question this view exists for:
+  // if I commit some quantity to order #1, how much of the shared pool is
+  // genuinely left for order #2? It's a waterfall, not an independent
+  // per-order shortage check - each member in priority order (members
+  // already arrive sorted oldest-delivery-first from the backend) takes
+  // its share of the pool before the next one gets a look, and whatever
+  // the user has actually typed into Build Qty for an earlier member is
+  // what gets deducted (not its full max) - an earlier member left
+  // untouched hasn't claimed anything yet.
+  function computeMaxBuildable(fam) {
+    const remaining = new Map(fam.sharedRmRequirements.map(rm => [rm.itemCode, rm.available]));
+    const result = {};
+    for (const m of fam.members) {
+      let maxQty = m.remainingToPlan;
+      for (const rm of m.rmRequirements) {
+        if (!m.remainingToPlan) continue;
+        const perUnit = rm.totalNeeded / m.remainingToPlan;
+        if (perUnit <= 0) continue;
+        const avail = remaining.get(rm.itemCode) ?? 0;
+        maxQty = Math.min(maxQty, Math.floor(avail / perUnit));
+      }
+      maxQty = Math.max(0, maxQty);
+      result[m.soItemId] = maxQty;
+
+      const consumedQty = Math.min(parseFloat(buildQtys[m.soItemId]) || 0, maxQty);
+      for (const rm of m.rmRequirements) {
+        if (!m.remainingToPlan) continue;
+        const perUnit = rm.totalNeeded / m.remainingToPlan;
+        const currentAvail = remaining.get(rm.itemCode) ?? 0;
+        remaining.set(rm.itemCode, Math.max(0, currentAvail - perUnit * consumedQty));
+      }
+    }
+    return result;
+  }
+
+  function renderFamilyItemRow(m, maxBuildable) {
     return (
       <div key={m.soItemId} className="p-4 border-b last:border-b-0">
         <div className="flex items-center gap-3 mb-2 flex-wrap">
@@ -102,13 +138,19 @@ export default function ProductionPlanningPage() {
             pending {m.pendingQty}{m.alreadyPlannedQty > 0 && ` (already planned ${m.alreadyPlannedQty})`}
           </span>
           <span className="text-xs text-gray-400">Due {new Date(m.deliveryDate).toLocaleDateString('en-IN')}</span>
+          {maxBuildable !== undefined && (
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${maxBuildable >= m.remainingToPlan ? 'bg-green-100 text-green-700' : maxBuildable > 0 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+              Max buildable now: {maxBuildable}
+            </span>
+          )}
           <div className="ml-auto flex items-center gap-2">
             <label className="text-xs text-gray-500">Build Qty</label>
-            <input type="number" max={m.remainingToPlan} className="w-24 border rounded px-2 py-1 text-sm"
+            <input type="number" max={maxBuildable !== undefined ? maxBuildable : m.remainingToPlan} className="w-24 border rounded px-2 py-1 text-sm"
               value={buildQtys[m.soItemId] || ''}
               onChange={e => {
                 const raw = e.target.value;
-                const clamped = raw === '' ? '' : String(Math.min(parseFloat(raw) || 0, m.remainingToPlan));
+                const cap = maxBuildable !== undefined ? maxBuildable : m.remainingToPlan;
+                const clamped = raw === '' ? '' : String(Math.min(parseFloat(raw) || 0, cap));
                 setBuildQtys(prev => ({ ...prev, [m.soItemId]: clamped }));
               }} />
           </div>
@@ -323,13 +365,15 @@ export default function ProductionPlanningPage() {
               </div>
             )}
 
-            {familyBoard.families.map(fam => (
-              <div key={fam.familyId} className="bg-white rounded-xl border shadow-sm mb-4">
+            {familyBoard.families.map((fam, famIdx) => {
+              const maxBuildableMap = computeMaxBuildable(fam);
+              return (
+              <div key={famIdx} className="bg-white rounded-xl border shadow-sm mb-4">
                 <div className="p-4 border-b bg-indigo-50">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
-                      <span className="font-mono text-xs text-indigo-500">{fam.familyCode}</span>
-                      <span className="ml-2 font-bold text-indigo-900">{fam.familyName}</span>
+                      <span className="font-bold text-indigo-900">{fam.groupLabel}</span>
+                      <span className="ml-2 font-mono text-xs text-indigo-500">{fam.productCodes.join(', ')}</span>
                     </div>
                     <span className="text-xs text-indigo-600">
                       {fam.memberCount} customer order{fam.memberCount === 1 ? '' : 's'} · {fam.totalRemainingToPlan} total units to plan
@@ -354,9 +398,10 @@ export default function ProductionPlanningPage() {
                     </table>
                   )}
                 </div>
-                {fam.members.map(m => renderFamilyItemRow(m))}
+                {fam.members.map(m => renderFamilyItemRow(m, maxBuildableMap[m.soItemId]))}
               </div>
-            ))}
+              );
+            })}
 
             {familyBoard.ungrouped.length > 0 && (
               <div className="bg-white rounded-xl border shadow-sm">
