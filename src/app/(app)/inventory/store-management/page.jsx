@@ -6,6 +6,7 @@ const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 
 const TABS = [
+  { key: 'overview', label: 'Stock Overview' },
   { key: 'putaway', label: 'Putaway' },
   { key: 'issue', label: 'Issue to Production' },
   { key: 'transfers', label: 'Stage Transfers' },
@@ -14,7 +15,7 @@ const TABS = [
 ];
 
 export default function StoreManagementPage() {
-  const [activeTab, setActiveTab] = useState('putaway');
+  const [activeTab, setActiveTab] = useState('overview');
 
   return (
     <AppLayout>
@@ -40,6 +41,7 @@ export default function StoreManagementPage() {
           ))}
         </div>
 
+        {activeTab === 'overview' && <StockOverviewTab />}
         {activeTab === 'putaway' && <PutawayTab />}
         {activeTab === 'issue' && <IssueTab />}
         {activeTab === 'transfers' && <TransfersTab />}
@@ -47,6 +49,117 @@ export default function StoreManagementPage() {
         {activeTab === 'rejected' && <RejectedTab />}
       </div>
     </AppLayout>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Stock Overview — what's actually on the shelf right now: quantity, where
+// it sits, and whether it needs reordering. Deliberately no cost/price
+// anywhere here - a store person tracks quantity and location, not value.
+// ---------------------------------------------------------------------------
+function StockOverviewTab() {
+  const [warehouses, setWarehouses] = useState([]);
+  const [warehouseId, setWarehouseId] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API}/warehouses?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } })
+      .then(r => r.ok ? r.json() : { data: [] })
+      .then(d => setWarehouses(d.data || []));
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ limit: '500' });
+    if (warehouseId) params.set('warehouseId', warehouseId);
+    if (search) params.set('search', search);
+    const res = await fetch(`${API}/stock-ledger/balance?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) { const d = await res.json(); setRows(d.data || []); }
+    setLoading(false);
+  }, [warehouseId, search]);
+  useEffect(() => { load(); }, [load]);
+
+  function statusOf(row) {
+    if (row.availableQty <= 0) return 'OUT';
+    if (row.isLowStock) return 'LOW';
+    return 'OK';
+  }
+
+  const filteredRows = rows.filter(r => !statusFilter || statusOf(r) === statusFilter);
+  const counts = rows.reduce((acc, r) => { const s = statusOf(r); acc[s] = (acc[s] || 0) + 1; return acc; }, {});
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        <button onClick={() => setStatusFilter('')} className={`rounded-xl p-4 text-center border-2 ${statusFilter === '' ? 'border-gray-800' : 'border-transparent'} bg-gray-50`}>
+          <div className="text-2xl font-bold text-gray-800">{rows.length}</div>
+          <div className="text-xs text-gray-500 mt-1">Total Items</div>
+        </button>
+        <button onClick={() => setStatusFilter(statusFilter === 'LOW' ? '' : 'LOW')} className={`rounded-xl p-4 text-center border-2 ${statusFilter === 'LOW' ? 'border-amber-500' : 'border-transparent'} bg-amber-50`}>
+          <div className="text-2xl font-bold text-amber-700">{counts.LOW || 0}</div>
+          <div className="text-xs text-amber-600 mt-1">Low Stock</div>
+        </button>
+        <button onClick={() => setStatusFilter(statusFilter === 'OUT' ? '' : 'OUT')} className={`rounded-xl p-4 text-center border-2 ${statusFilter === 'OUT' ? 'border-red-500' : 'border-transparent'} bg-red-50`}>
+          <div className="text-2xl font-bold text-red-700">{counts.OUT || 0}</div>
+          <div className="text-xs text-red-600 mt-1">Out of Stock</div>
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl border p-3 flex gap-3 flex-wrap">
+        <select className="border rounded-lg px-3 py-2 text-sm" value={warehouseId} onChange={e => setWarehouseId(e.target.value)}>
+          <option value="">All Warehouses</option>
+          {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+        </select>
+        <input className="border rounded-lg px-3 py-2 text-sm flex-1 min-w-48" placeholder="Search item code or name..." value={search} onChange={e => setSearch(e.target.value)} />
+      </div>
+
+      <div className="bg-white rounded-xl border">
+        {loading ? (
+          <div className="text-center py-10 text-gray-400">Loading...</div>
+        ) : filteredRows.length === 0 ? (
+          <div className="text-center py-10 text-gray-400 text-sm">No items match</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+              <tr>{['Item Code', 'Item Name', 'Qty on Hand', 'Min Level', 'Status', 'Warehouse', 'Bin Locations'].map(h => <th key={h} className="text-left px-4 py-3">{h}</th>)}</tr>
+            </thead>
+            <tbody className="divide-y">
+              {filteredRows.map(row => {
+                const status = statusOf(row);
+                return (
+                  <tr key={row.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-mono text-blue-600">{row.itemCode}</td>
+                    <td className="px-4 py-3">{row.itemName}</td>
+                    <td className="px-4 py-3 font-bold">{row.availableQty}</td>
+                    <td className="px-4 py-3 text-gray-500">{row.minStockLevel ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${status === 'OUT' ? 'bg-red-100 text-red-700' : status === 'LOW' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                        {status === 'OUT' ? 'Out of Stock' : status === 'LOW' ? 'Low Stock' : 'OK'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{row.warehouse?.name}</td>
+                    <td className="px-4 py-3">
+                      {(row.bins || []).length === 0 ? (
+                        <span className="text-gray-400 text-xs">Not put away</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {row.bins.map((b, i) => (
+                            <span key={i} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-mono">{b.code}: {b.currentQty}</span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
   );
 }
 
