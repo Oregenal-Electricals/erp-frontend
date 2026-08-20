@@ -127,6 +127,22 @@ export default function ProductionPlanningPage() {
     return result;
   }
 
+  // Same core math as computeMaxBuildable, but for a single order with
+  // nothing to share a pool with - no waterfall needed since there's no
+  // one else competing for the same stock. Still worth showing, since
+  // "how much can I actually build right now" doesn't stop being useful
+  // just because this happens to be the only open order for this item.
+  function computeSingleOrderMaxBuildable(m) {
+    let maxQty = m.remainingToPlan;
+    for (const rm of m.rmRequirements) {
+      if (!m.remainingToPlan) continue;
+      const perUnit = rm.totalNeeded / m.remainingToPlan;
+      if (perUnit <= 0) continue;
+      maxQty = Math.min(maxQty, Math.floor(rm.available / perUnit));
+    }
+    return Math.max(0, maxQty);
+  }
+
   function renderFamilyItemRow(m, maxBuildable) {
     return (
       <div key={m.soItemId} className="p-4 border-b last:border-b-0">
@@ -409,7 +425,7 @@ export default function ProductionPlanningPage() {
                   <span className="font-bold text-gray-700">Ungrouped items</span>
                   <span className="ml-2 text-xs text-gray-400">not part of any Product Family</span>
                 </div>
-                {familyBoard.ungrouped.map(m => renderFamilyItemRow(m))}
+                {familyBoard.ungrouped.map(m => renderFamilyItemRow(m, computeSingleOrderMaxBuildable(m)))}
               </div>
             )}
           </>
