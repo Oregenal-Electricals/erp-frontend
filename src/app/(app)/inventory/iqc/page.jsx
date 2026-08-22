@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
 import { getUser } from '@/lib/auth';
 
@@ -211,7 +212,7 @@ export default function IqcPage() {
                 <div className="overflow-x-scroll" style={{ scrollbarWidth: 'auto' }}>
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                      <tr>{['Sr. No','Item Code','Item Name','UOM','Received','Accepted Qty','Rejected Qty','Rejection Reason'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
+                      <tr>{['Sr. No','Item Code','Item Name','UOM','Received','Accepted Qty','Rejected Qty','Rejection Reason','Checklist'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
                     </thead>
                     <tbody className="divide-y">
                       {inspectItems.map((item, idx) => (
@@ -237,6 +238,9 @@ export default function IqcPage() {
                             <input className="w-full border rounded px-2 py-1 text-xs" placeholder="Reason for rejection..."
                               value={item.rejectionReason || ''}
                               onChange={e => setInspectItems(prev => prev.map((it,i) => i===idx ? {...it, rejectionReason: e.target.value} : it))} />
+                          </td>
+                          <td className="px-3 py-3">
+                            <Link href={`/inventory/iqc/${item.id}`} className="text-blue-600 hover:underline text-xs whitespace-nowrap">Open Checklist →</Link>
                           </td>
                         </tr>
                       ))}
