@@ -6,6 +6,11 @@ const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 
 const CATEGORIES = ['Critical', 'Major', 'Minor'];
+const CATEGORY_COLORS = {
+  Critical: 'text-red-700',
+  Major: 'text-amber-700',
+  Minor: 'text-gray-600',
+};
 const emptyParam = (sNo) => ({ sNo, category: 'Major', parameterName: '', specification: '' });
 
 export default function IqcTemplatesPage() {
@@ -38,7 +43,7 @@ export default function IqcTemplatesPage() {
   }, []);
 
   function openNew() {
-    setForm({ name: '', docCode: '', revision: '', rawMaterialId: '', parameters: [emptyParam(1)] });
+    setForm({ name: '', docCode: '', revision: '', rawMaterialId: '', parameters: [emptyParam(1), emptyParam(2), emptyParam(3)] });
     setEditing('new');
     setError('');
   }
@@ -108,80 +113,102 @@ export default function IqcTemplatesPage() {
   if (form) {
     return (
       <AppLayout>
-        <div className="p-6 max-w-5xl mx-auto">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{editing === 'new' ? 'New Check Sheet Template' : `Edit — ${editing.name}`}</h1>
-              <p className="text-gray-500 text-sm mt-1">Add or remove specifications to match this material&apos;s check sheet</p>
-            </div>
-            <button onClick={() => { setEditing(null); setForm(null); }} className="text-sm text-gray-500 hover:underline">Cancel</button>
-          </div>
-          {error && <div className="mb-4 bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
-
-          <div className="bg-white rounded-xl border p-5 mb-4">
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Template Name *</label>
-                <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. 9W Inverter Bulb Heat Sink" />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Linked Raw Material (optional)</label>
-                <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.rawMaterialId} onChange={e => setForm(f => ({ ...f, rawMaterialId: e.target.value }))}>
-                  <option value="">— Not linked —</option>
-                  {rawMaterials.map(rm => <option key={rm.id} value={rm.id}>{rm.code} — {rm.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Doc Code</label>
-                <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.docCode} onChange={e => setForm(f => ({ ...f, docCode: e.target.value }))} placeholder="e.g. ORG/IQC/CH03-1" />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Revision</label>
-                <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.revision} onChange={e => setForm(f => ({ ...f, revision: e.target.value }))} placeholder="e.g. 01/08.08.2022" />
-              </div>
+        <div className="p-6 max-w-6xl mx-auto">
+          <div className="mb-4 flex items-center justify-between">
+            <h1 className="text-xl font-bold text-gray-900">{editing === 'new' ? 'New Check Sheet Template' : `Edit — ${editing.name}`}</h1>
+            <div className="flex gap-3">
+              <button onClick={() => { setEditing(null); setForm(null); }} className="px-3 py-1.5 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50">Cancel</button>
+              <button onClick={save} disabled={saving} className="px-4 py-1.5 bg-green-700 text-white rounded text-sm hover:bg-green-800 disabled:opacity-50">
+                {saving ? 'Saving...' : 'Save Template'}
+              </button>
             </div>
           </div>
+          {error && <div className="mb-3 bg-red-50 text-red-600 px-3 py-2 rounded text-sm border border-red-200">{error}</div>}
 
-          <div className="bg-white rounded-xl border">
-            <div className="p-4 border-b flex items-center justify-between">
-              <h2 className="font-bold text-gray-800">Parameters</h2>
-              <button onClick={addParamRow} className="text-sm text-blue-600 hover:underline">+ Add Row</button>
+          <div className="bg-white border-2 border-gray-400 shadow-sm font-mono text-xs">
+            <div className="border-b-2 border-gray-400 p-3 bg-gray-50">
+              <div className="text-sm font-bold text-gray-800 tracking-wide">OREGENAL ELECTRICALS INDIA PVT. LTD., MANESAR GURGAON</div>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-gray-500">IQC INSPECTION OF</span>
+                <input
+                  className="flex-1 border border-gray-300 px-2 py-1 bg-white font-bold text-gray-900 focus:outline-none focus:border-blue-500"
+                  value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="MATERIAL NAME" />
+                <span className="text-gray-500 whitespace-nowrap">Doc Code:</span>
+                <input
+                  className="w-40 border border-gray-300 px-2 py-1 bg-white text-gray-900 focus:outline-none focus:border-blue-500"
+                  value={form.docCode} onChange={e => setForm(f => ({ ...f, docCode: e.target.value }))}
+                  placeholder="ORG/IQC/CH00" />
+              </div>
+              <div className="flex items-center gap-4 mt-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500">Revision:</span>
+                  <input
+                    className="w-40 border border-gray-300 px-2 py-1 bg-white text-gray-900 focus:outline-none focus:border-blue-500"
+                    value={form.revision} onChange={e => setForm(f => ({ ...f, revision: e.target.value }))}
+                    placeholder="00/DD.MM.YYYY" />
+                </div>
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="text-gray-500 whitespace-nowrap">Linked Raw Material:</span>
+                  <select className="flex-1 border border-gray-300 px-2 py-1 bg-white text-gray-900 focus:outline-none focus:border-blue-500"
+                    value={form.rawMaterialId} onChange={e => setForm(f => ({ ...f, rawMaterialId: e.target.value }))}>
+                    <option value="">— Not linked —</option>
+                    {rawMaterials.map(rm => <option key={rm.id} value={rm.id}>{rm.code} — {rm.name}</option>)}
+                  </select>
+                </div>
+              </div>
             </div>
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                <tr>{['S.No', 'Category', 'Parameter', 'Specification', ''].map(h => <th key={h} className="text-left px-3 py-2">{h}</th>)}</tr>
+
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-200">
+                  <th className="border border-gray-400 px-2 py-1.5 text-gray-700 w-10">S.No</th>
+                  <th className="border border-gray-400 px-2 py-1.5 text-gray-700 w-28">Category</th>
+                  <th className="border border-gray-400 px-2 py-1.5 text-gray-700">Parameters to be Checked</th>
+                  <th className="border border-gray-400 px-2 py-1.5 text-gray-700 w-80">Specifications</th>
+                  <th className="border border-gray-400 px-2 py-1.5 text-gray-700 w-10"></th>
+                </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody>
                 {form.parameters.map((p, idx) => (
-                  <tr key={idx}>
-                    <td className="px-3 py-2 text-gray-500 w-12">{p.sNo}</td>
-                    <td className="px-3 py-2 w-32">
-                      <select className="w-full border rounded px-2 py-1 text-sm" value={p.category} onChange={e => updateParam(idx, 'category', e.target.value)}>
+                  <tr key={idx} className={idx % 2 === 1 ? 'bg-gray-50' : 'bg-white'}>
+                    <td className="border border-gray-300 text-center text-gray-500 align-top py-1">{p.sNo}</td>
+                    <td className="border border-gray-300 p-0 align-top">
+                      <select
+                        className={`w-full h-full px-2 py-1.5 bg-transparent focus:outline-none focus:bg-blue-50 font-bold ${CATEGORY_COLORS[p.category]}`}
+                        value={p.category} onChange={e => updateParam(idx, 'category', e.target.value)}>
                         {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </td>
-                    <td className="px-3 py-2">
-                      <input className="w-full border rounded px-2 py-1 text-sm" value={p.parameterName} onChange={e => updateParam(idx, 'parameterName', e.target.value)} placeholder="e.g. Outer Dia." />
+                    <td className="border border-gray-300 p-0 align-top">
+                      <input
+                        className="w-full px-2 py-1.5 bg-transparent focus:outline-none focus:bg-blue-50"
+                        value={p.parameterName} onChange={e => updateParam(idx, 'parameterName', e.target.value)}
+                        placeholder="e.g. Outer Dia." />
                     </td>
-                    <td className="px-3 py-2">
-                      <input className="w-full border rounded px-2 py-1 text-sm" value={p.specification} onChange={e => updateParam(idx, 'specification', e.target.value)} placeholder="e.g. 65±0.5MM" />
+                    <td className="border border-gray-300 p-0 align-top">
+                      <input
+                        className="w-full px-2 py-1.5 bg-transparent focus:outline-none focus:bg-blue-50"
+                        value={p.specification} onChange={e => updateParam(idx, 'specification', e.target.value)}
+                        placeholder="e.g. 65±0.5MM" />
                     </td>
-                    <td className="px-3 py-2 w-12">
+                    <td className="border border-gray-300 text-center align-top py-1">
                       {form.parameters.length > 1 && (
-                        <button onClick={() => removeParamRow(idx)} className="text-red-500 hover:text-red-700 text-xs">Remove</button>
+                        <button onClick={() => removeParamRow(idx)} className="text-red-500 hover:text-red-700 font-bold px-1">✕</button>
                       )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-
-          <div className="mt-4 flex justify-end gap-3">
-            <button onClick={() => { setEditing(null); setForm(null); }} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
-            <button onClick={save} disabled={saving} className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
-              {saving ? 'Saving...' : 'Save Template'}
+            <button onClick={addParamRow} className="w-full border border-t-0 border-gray-300 py-2 text-gray-500 hover:bg-gray-50 hover:text-blue-600">
+              + Add Row
             </button>
+
+            <div className="border-t-2 border-gray-400 p-3 bg-gray-50 flex justify-between text-gray-500">
+              <span>Prepd. By: _______________________</span>
+              <span>Checked By: _______________________</span>
+            </div>
           </div>
         </div>
       </AppLayout>
