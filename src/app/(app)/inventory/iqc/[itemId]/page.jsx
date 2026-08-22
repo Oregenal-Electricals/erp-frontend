@@ -49,6 +49,11 @@ export default function IqcItemInspectionPage() {
       const data = await res.json();
       setItem(data);
       setSampleSize(data.sampleSize != null ? String(data.sampleSize) : '');
+      // No template attached yet - auto-search using this item's own
+      // name, since templates are now named after the exact material
+      // (matching the Excel sheet name), so the right one should
+      // surface immediately without the person needing to type.
+      if (!data.templateId && data.itemName) setTemplateSearch(data.itemName);
       const initResults = {};
       (data.template?.parameters || []).forEach(p => { initResults[p.id] = { s1: '', s2: '', s3: '', s4: '', s5: '', remark: '' }; });
       setResults(initResults);
