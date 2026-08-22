@@ -422,7 +422,7 @@ export default function IqcTemplatesPage() {
             <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
               <div className="p-5 border-b">
                 <h2 className="font-bold text-gray-800">Review before importing — {importPreview.length} sheet(s) found</h2>
-                <p className="text-xs text-gray-500 mt-1">Each sheet becomes one template. Sheets with errors will be skipped.</p>
+                <p className="text-xs text-gray-500 mt-1">Each sheet becomes one template. Review and edit the name here if needed - it locks once imported. Sheets with errors will be skipped.</p>
               </div>
               <div className="p-5 overflow-y-auto flex-1">
                 {error && <div className="mb-3 bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
@@ -434,7 +434,14 @@ export default function IqcTemplatesPage() {
                     {importPreview.map((t, i) => (
                       <tr key={i}>
                         <td className="px-3 py-2 text-gray-500 text-xs">{t.sheetName}</td>
-                        <td className="px-3 py-2 font-medium text-gray-800">{t.name}</td>
+                        <td className="px-3 py-2">
+                          <input
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-sm font-medium text-gray-800 disabled:bg-gray-50 disabled:text-gray-400"
+                            value={t.name}
+                            disabled={!!t.error}
+                            onChange={e => setImportPreview(prev => prev.map((row, idx) => idx === i ? { ...row, name: e.target.value } : row))}
+                          />
+                        </td>
                         <td className="px-3 py-2 text-gray-600">{t.parameters.length}</td>
                         <td className="px-3 py-2">
                           {t.error ? (
