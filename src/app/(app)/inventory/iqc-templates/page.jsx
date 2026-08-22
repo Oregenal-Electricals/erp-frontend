@@ -25,6 +25,8 @@ export default function IqcTemplatesPage() {
   const [cloneName, setCloneName] = useState('');
 
   const [materialSuggestions, setMaterialSuggestions] = useState([]);
+  const [versionHistory, setVersionHistory] = useState(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [showMaterialSuggestions, setShowMaterialSuggestions] = useState(false);
 
   const [importPreview, setImportPreview] = useState(null);
@@ -104,6 +106,13 @@ export default function IqcTemplatesPage() {
     setSaving(false);
   }
 
+  async function openVersionHistory() {
+    setLoadingHistory(true); setVersionHistory([]);
+    const res = await fetch(`${API}/iqc/templates/${form.id}/history`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) setVersionHistory(await res.json());
+    setLoadingHistory(false);
+  }
+
   async function submitClone() {
     if (!cloneName.trim()) { setError('Give the new template a name'); return; }
     setSaving(true); setError('');
@@ -160,6 +169,9 @@ export default function IqcTemplatesPage() {
               {editing !== 'new' && <span className="ml-2 text-sm font-normal text-gray-400">(v{editing.version} — saving will create v{editing.version + 1})</span>}
             </h1>
             <div className="flex gap-3">
+              {editing !== 'new' && (
+                <button onClick={openVersionHistory} className="px-3 py-1.5 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50">Version History</button>
+              )}
               <button onClick={() => { setEditing(null); setForm(null); }} className="px-3 py-1.5 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50">Cancel</button>
               <button onClick={save} disabled={saving} className="px-4 py-1.5 bg-green-700 text-white rounded text-sm hover:bg-green-800 disabled:opacity-50">
                 {saving ? 'Saving...' : 'Save Template'}
@@ -260,6 +272,56 @@ export default function IqcTemplatesPage() {
             </div>
           </div>
         </div>
+
+        {versionHistory && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col">
+              <div className="p-5 border-b flex items-center justify-between">
+                <div>
+                  <h2 className="font-bold text-gray-800">Version History — {form.name}</h2>
+                  <p className="text-xs text-gray-500 mt-1">Each past version is frozen exactly as it was when it was current — editing never changes what an inspection actually used.</p>
+                </div>
+                <button onClick={() => setVersionHistory(null)} className="text-gray-400 hover:text-gray-600">✕</button>
+              </div>
+              <div className="p-5 overflow-y-auto flex-1 space-y-4">
+                {loadingHistory ? (
+                  <div className="text-center py-10 text-gray-400">Loading...</div>
+                ) : versionHistory.length === 0 ? (
+                  <div className="text-center py-10 text-gray-400 text-sm">No history found</div>
+                ) : (
+                  versionHistory.slice().reverse().map(v => (
+                    <div key={v.id} className={`border rounded-lg overflow-hidden ${v.isCurrent ? 'border-blue-400' : 'border-gray-200'}`}>
+                      <div className={`px-4 py-2 flex items-center justify-between ${v.isCurrent ? 'bg-blue-50' : 'bg-gray-50'}`}>
+                        <span className="font-bold text-gray-800">Version {v.version} {v.isCurrent && <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">Current</span>}</span>
+                        <span className="text-xs text-gray-500">{new Date(v.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                      </div>
+                      <table className="w-full text-xs font-mono">
+                        <thead>
+                          <tr className="bg-gray-100 text-gray-600">
+                            <th className="text-left px-2 py-1 w-10">S.No</th>
+                            <th className="text-left px-2 py-1 w-20">Category</th>
+                            <th className="text-left px-2 py-1">Parameter</th>
+                            <th className="text-left px-2 py-1">Specification</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {v.parameters.map(p => (
+                            <tr key={p.id}>
+                              <td className="px-2 py-1 text-gray-500">{p.sNo}</td>
+                              <td className="px-2 py-1">{p.category}</td>
+                              <td className="px-2 py-1">{p.parameterName}</td>
+                              <td className="px-2 py-1">{p.specification}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </AppLayout>
     );
   }
