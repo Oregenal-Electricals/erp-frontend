@@ -45,6 +45,16 @@ export default function ManpowerPage() {
   const [transferError, setTransferError] = useState('');
   const [transferring, setTransferring] = useState(false);
 
+  // Today's reconciliation dashboard - "of everyone HR says is
+  // present, where is everyone right now" (the core question this
+  // whole module exists to answer).
+  const [reconciliation, setReconciliation] = useState(null);
+  const [reconLoading, setReconLoading] = useState(true);
+  const [rosterModal, setRosterModal] = useState(null); // { title, employees }
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [timelineModal, setTimelineModal] = useState(null); // { employee, attendance, assignments }
+  const [timelineLoading, setTimelineLoading] = useState(false);
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     const [allocRes, userRes, relRes, ipRes] = await Promise.all([
@@ -63,7 +73,37 @@ export default function ManpowerPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const fetchReconciliation = useCallback(async () => {
+    setReconLoading(true);
+    const res = await fetch(`${API}/manpower/reconciliation`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) setReconciliation(await res.json());
+    setReconLoading(false);
+  }, []);
+
+  useEffect(() => { fetchAll(); fetchReconciliation(); }, [fetchAll, fetchReconciliation]);
+
+  async function openStageRoster(stageKey) {
+    setRosterLoading(true);
+    setRosterModal({ title: stageKey, employees: [] });
+    const res = await fetch(`${API}/manpower/roster?stageName=${encodeURIComponent(stageKey)}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) {
+      const data = await res.json();
+      setRosterModal({ title: stageKey, employees: data.map(a => ({ ...a.employee, assignment: a })) });
+    }
+    setRosterLoading(false);
+  }
+
+  function openUnallocated() {
+    setRosterModal({ title: 'Unallocated', employees: (reconciliation?.unallocatedEmployees || []).map(u => u.employee) });
+  }
+
+  async function openEmployeeTimeline(employeeId) {
+    setTimelineLoading(true);
+    setTimelineModal({ loading: true });
+    const res = await fetch(`${API}/manpower/employees/${employeeId}/timeline`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) setTimelineModal(await res.json());
+    setTimelineLoading(false);
+  }
 
   function userName(id) {
     const u = users.find(x => x.id === id);
@@ -72,15 +112,15 @@ export default function ManpowerPage() {
 
   async function handleSend() {
     setSendError('');
-    if (!sendForm.toUserId || !sendForm.count) { setSendError('Select a recipient and enter a count'); return; }
+    if (!sendForm.toUserId) { setSendError('Select a recipient'); return; }
     setSending(true);
     const res = await fetch(`${API}/manpower/allocations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify({ date: sendForm.date, level: 'HR_TO_PLANT', toUserId: sendForm.toUserId, count: parseInt(sendForm.count), remarks: sendForm.remarks || undefined }),
+      body: JSON.stringify({ date: sendForm.date, level: 'HR_TO_PLANT', toUserId: sendForm.toUserId, remarks: sendForm.remarks || undefined }),
     });
     const data = await res.json();
-    if (res.ok) { setSendForm(f => ({ ...f, toUserId: '', count: '', remarks: '' })); fetchAll(); }
+    if (res.ok) { setSendForm(f => ({ ...f, toUserId: '', remarks: '' })); fetchAll(); fetchReconciliation(); }
     else setSendError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed');
     setSending(false);
   }
@@ -183,9 +223,76 @@ export default function ManpowerPage() {
           <p className="text-gray-500 text-sm mt-1">HR → Plant Manager → Stage/Store/Quality Head → Line, with accept and query at every step.</p>
         </div>
 
+        {/* Today's reconciliation dashboard */}
+        <div className="bg-white rounded-xl border shadow-sm p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-gray-800">Today&apos;s Manpower</h2>
+            {reconciliation && <span className="text-xs text-gray-400">{reconciliation.date}</span>}
+          </div>
+          {reconLoading ? (
+            <div className="text-center py-6 text-gray-400 text-sm">Loading...</div>
+          ) : reconciliation ? (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+                <div className="bg-gray-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-gray-800">{reconciliation.hrPresent}</div>
+                  <div className="text-xs text-gray-500 mt-1">HR Present</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-green-700">{reconciliation.accounted}</div>
+                  <div className="text-xs text-gray-500 mt-1">Allocated / Accounted</div>
+                </div>
+                <button
+                  onClick={reconciliation.unallocated > 0 ? openUnallocated : undefined}
+                  disabled={reconciliation.unallocated === 0}
+                  className={`rounded-lg p-4 text-center ${reconciliation.unallocated > 0 ? 'bg-red-50 hover:bg-red-100 cursor-pointer' : 'bg-gray-50'}`}
+                >
+                  <div className={`text-2xl font-bold ${reconciliation.unallocated > 0 ? 'text-red-600' : 'text-gray-400'}`}>{reconciliation.unallocated}</div>
+                  <div className="text-xs text-gray-500 mt-1">Unallocated {reconciliation.unallocated > 0 && '— click to see who'}</div>
+                </button>
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-700">{reconciliation.accountedPercent}%</div>
+                  <div className="text-xs text-gray-500 mt-1">Accounted</div>
+                </div>
+              </div>
+
+              {reconciliation.unallocated > 0 && (
+                <div className="mb-5 bg-red-50 border border-red-200 rounded-lg p-3">
+                  <div className="text-sm font-semibold text-red-700 mb-2">🔴 Present but Unallocated</div>
+                  <div className="flex flex-wrap gap-2">
+                    {reconciliation.unallocatedEmployees.map(u => (
+                      <button key={u.employee.id} onClick={() => openEmployeeTimeline(u.employee.id)}
+                        className="text-xs bg-white border border-red-200 rounded-full px-3 py-1 hover:bg-red-100">
+                        {u.employee.employeeNumber} — {u.employee.firstName} {u.employee.lastName}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {reconciliation.stageBreakdown.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Stage Distribution</div>
+                  <div className="flex flex-wrap gap-2">
+                    {reconciliation.stageBreakdown.map(s => (
+                      <button key={s.key} onClick={() => openStageRoster(s.key)}
+                        className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border rounded-lg px-3 py-2 text-sm">
+                        <span className="text-gray-700">{s.key}</span>
+                        <span className="font-bold text-gray-900">{s.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-6 text-gray-400 text-sm">Could not load reconciliation</div>
+          )}
+        </div>
+
         {/* Send (HR -> Plant Manager) */}
         <div className="bg-white rounded-xl border shadow-sm p-5 mb-6">
-          <h2 className="font-semibold text-gray-800 mb-3">Send Today's Manpower to Plant Manager</h2>
+          <h2 className="font-semibold text-gray-800 mb-3">Send Today&apos;s Manpower to Plant Manager</h2>
           {sendError && <div className="mb-3 p-2 bg-red-50 text-red-600 rounded text-sm">{sendError}</div>}
           <div className="grid grid-cols-4 gap-3">
             <div>
@@ -201,7 +308,9 @@ export default function ManpowerPage() {
             </div>
             <div>
               <label className="block text-xs text-gray-600 mb-1">Total Count</label>
-              <input type="number" min="1" className="w-full border rounded-lg px-3 py-2 text-sm" value={sendForm.count} onChange={e => setSendForm(f => ({ ...f, count: e.target.value }))} />
+              <div className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500">
+                Auto-computed from today&apos;s Attendance
+              </div>
             </div>
             <div>
               <label className="block text-xs text-gray-600 mb-1">Remarks</label>
@@ -401,6 +510,86 @@ export default function ManpowerPage() {
               <div className="p-5 border-t flex justify-end gap-3">
                 <button onClick={() => setTransferFor(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
                 <button onClick={handleTransfer} disabled={transferring} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">{transferring ? 'Submitting...' : 'Submit'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Roster drill-down - "click Assembly -> see the 45 people" */}
+        {rosterModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+              <div className="p-5 border-b flex justify-between items-center">
+                <h2 className="font-bold">{rosterModal.title} — {rosterModal.employees.length} {rosterModal.employees.length === 1 ? 'person' : 'people'}</h2>
+                <button onClick={() => setRosterModal(null)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="p-5 overflow-y-auto flex-1">
+                {rosterLoading ? (
+                  <div className="text-center py-6 text-gray-400 text-sm">Loading...</div>
+                ) : rosterModal.employees.length === 0 ? (
+                  <div className="text-center py-6 text-gray-400 text-sm">No one here</div>
+                ) : (
+                  <div className="space-y-2">
+                    {rosterModal.employees.map(e => (
+                      <button key={e.id} onClick={() => openEmployeeTimeline(e.id)}
+                        className="w-full flex items-center justify-between bg-gray-50 hover:bg-gray-100 rounded-lg px-4 py-2.5 text-left">
+                        <span className="text-sm">
+                          <span className="font-mono text-xs text-gray-400">{e.employeeNumber}</span>
+                          <span className="ml-2 font-medium text-gray-800">{e.firstName} {e.lastName}</span>
+                        </span>
+                        <span className="text-xs text-blue-600">View →</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Employee daily timeline - Plant -> Stage -> Work Order -> Employee drill-down */}
+        {timelineModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+              <div className="p-5 border-b flex justify-between items-center">
+                <h2 className="font-bold">
+                  {timelineLoading || !timelineModal.employee ? 'Loading...' : `${timelineModal.employee.employeeNumber} — ${timelineModal.employee.firstName} ${timelineModal.employee.lastName}`}
+                </h2>
+                <button onClick={() => setTimelineModal(null)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="p-5 overflow-y-auto flex-1 space-y-4">
+                {timelineLoading || !timelineModal.employee ? (
+                  <div className="text-center py-6 text-gray-400 text-sm">Loading...</div>
+                ) : (
+                  <>
+                    <div className="text-sm">
+                      <span className="text-gray-500">Attendance:</span>{' '}
+                      <span className="font-medium">{timelineModal.attendance?.status || 'No record'}</span>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Today&apos;s Timeline</div>
+                      {timelineModal.assignments.length === 0 ? (
+                        <div className="text-sm text-gray-400">No assignments yet today — present but currently unallocated.</div>
+                      ) : (
+                        <div className="space-y-2">
+                          {timelineModal.assignments.map(a => (
+                            <div key={a.id} className="border-l-2 border-blue-300 pl-3">
+                              <div className="text-sm font-medium text-gray-800">
+                                {a.stageName || a.activityType} {a.workOrder && <span className="font-mono text-xs text-purple-600 ml-1">{a.workOrder.woNumber}</span>}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {new Date(a.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {' → '}
+                                {a.endTime ? new Date(a.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : <span className="text-green-600 font-medium">Running</span>}
+                              </div>
+                              {a.remarks && <div className="text-xs text-gray-400 mt-0.5">{a.remarks}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
