@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import { getUser } from '@/lib/auth';
 
@@ -15,6 +15,7 @@ const STATUS_COLORS = {
 };
 
 export default function IqcPage() {
+  const router = useRouter();
   const [inspections, setInspections] = useState([]);
   const [stats, setStats] = useState(null);
   const [pendingGrns, setPendingGrns] = useState([]);
@@ -24,11 +25,9 @@ export default function IqcPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [showInspectModal, setShowInspectModal] = useState(null);
-  const [inspectItems, setInspectItems] = useState([]);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [viewDetail, setViewDetail] = useState(null);
+
   async function handleView(id) {
     const res = await fetch(`${API}/iqc/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
     if (res.ok) setViewDetail(await res.json());
@@ -52,6 +51,12 @@ export default function IqcPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  function goToChecklist(items) {
+    if (!items || items.length === 0) return;
+    const target = items.find(i => i.currentStage !== 'CLOSED') || items[0];
+    router.push(`/inventory/iqc/${target.id}`);
+  }
+
   async function startInspectionDirect(grnId) {
     setError('');
     const user = getUser();
@@ -63,9 +68,7 @@ export default function IqcPage() {
     });
     const data = await res.json();
     if (res.ok) {
-      setShowInspectModal(data.id);
-      setInspectItems(data.items.map(i => ({ ...i })));
-      fetchAll();
+      goToChecklist(data.items);
     } else setError(data.message || 'Failed to start inspection');
   }
 
@@ -73,41 +76,8 @@ export default function IqcPage() {
     const res = await fetch(`${API}/iqc/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
     if (res.ok) {
       const data = await res.json();
-      setInspectItems(data.items.map(i => ({ ...i })));
-      setShowInspectModal(id);
+      goToChecklist(data.items);
     }
-  }
-
-  async function handleUpdateItems() {
-    setSaving(true); setError('');
-    const res = await fetch(`${API}/iqc/${showInspectModal}/items`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify({ items: inspectItems.map(i => ({ id: i.id, acceptedQty: parseFloat(i.acceptedQty)||0, rejectedQty: parseFloat(i.rejectedQty)||0, rejectionReason: i.rejectionReason })) }),
-    });
-    const data = await res.json();
-    if (res.ok) { setInspectItems(data.items); setError(''); }
-    else setError(data.message || 'Failed');
-    setSaving(false);
-  }
-
-  async function handleApprove() {
-    if (saving) return;
-    setSaving(true); setError('');
-    // Save items first
-    await handleUpdateItems();
-    const res = await fetch(`${API}/iqc/${showInspectModal}/approve`, {
-      method: 'POST', headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    const data = await res.json();
-    if (res.ok) { setShowInspectModal(null); fetchAll(); }
-    else if (typeof data.message === 'string' && data.message.toLowerCase().includes('already approved')) {
-      // A prior click already succeeded (e.g. accidental double-click) - this
-      // isn't really a failure, so close the modal and refresh instead of
-      // leaving the user staring at an error with active buttons.
-      setShowInspectModal(null); fetchAll();
-    } else setError(data.message || 'Failed');
-    setSaving(false);
   }
 
   return (
@@ -115,8 +85,10 @@ export default function IqcPage() {
       <div className="p-6 max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">IQC — Incoming Quality Control</h1>
-          <p className="text-gray-500 text-sm mt-1">Inspect received goods and record accepted / rejected quantities</p>
+          <p className="text-gray-500 text-sm mt-1">Inspect received goods against the material&apos;s checklist</p>
         </div>
+
+        {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm mb-4">{error}</div>}
 
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -184,7 +156,7 @@ export default function IqcPage() {
                     <td className="px-4 py-3 text-xs text-gray-600">{insp.inspectedBy || '—'}</td>
                     <td className="px-4 py-3 text-xs text-gray-500">{new Date(insp.inspectionDate || insp.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-3 text-center text-xs">{insp._count?.items}</td>
-                    <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[insp.status]}`}>{insp.status?.replace(/_/g,' ')}</span></td>
+                    <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[insp.status]}`}>{insp.status?.replace(/_/g, ' ')}</span></td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <button onClick={() => handleView(insp.id)} className="text-gray-600 hover:underline text-xs">View</button>
@@ -200,68 +172,6 @@ export default function IqcPage() {
           </div>
         </div>
 
-        {showInspectModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-screen overflow-y-auto">
-              <div className="p-6 border-b flex justify-between sticky top-0 bg-white">
-                <h2 className="text-lg font-bold">IQC Inspection — Enter Results</h2>
-                <button onClick={() => setShowInspectModal(null)} className="text-gray-400 text-xl">✕</button>
-              </div>
-              <div className="p-6">
-                {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm mb-4">{error}</div>}
-                <div className="overflow-x-scroll" style={{ scrollbarWidth: 'auto' }}>
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                      <tr>{['Sr. No','Item Code','Item Name','UOM','Received','Accepted Qty','Rejected Qty','Rejection Reason','Checklist'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {inspectItems.map((item, idx) => (
-                        <tr key={item.id}>
-                          <td className="px-3 py-3 text-gray-500">{idx + 1}</td>
-                          <td className="px-3 py-3 font-mono text-blue-600 text-xs">{item.itemCode}</td>
-                          <td className="px-3 py-3 text-xs">{item.itemName}</td>
-                          <td className="px-3 py-3 text-xs text-gray-500">{item.uom}</td>
-                          <td className="px-3 py-3 font-medium">{item.receivedQty}</td>
-                          <td className="px-3 py-3">
-                            <input type="number" step="0.01" min="0" max={item.receivedQty}
-                              className="w-24 border rounded px-2 py-1 text-sm text-green-700 font-medium"
-                              value={item.acceptedQty}
-                              onChange={e => { const v = parseFloat(e.target.value)||0; setInspectItems(prev => prev.map((it,i) => i===idx ? {...it, acceptedQty: v, rejectedQty: Math.max(0, it.receivedQty - v)} : it)); }} />
-                          </td>
-                          <td className="px-3 py-3">
-                            <input type="number" step="0.01" min="0" max={item.receivedQty}
-                              className="w-24 border rounded px-2 py-1 text-sm text-red-600 font-medium"
-                              value={item.rejectedQty}
-                              onChange={e => { const v = parseFloat(e.target.value)||0; setInspectItems(prev => prev.map((it,i) => i===idx ? {...it, rejectedQty: v} : it)); }} />
-                          </td>
-                          <td className="px-3 py-3">
-                            <input className="w-full border rounded px-2 py-1 text-xs" placeholder="Reason for rejection..."
-                              value={item.rejectionReason || ''}
-                              onChange={e => setInspectItems(prev => prev.map((it,i) => i===idx ? {...it, rejectionReason: e.target.value} : it))} />
-                          </td>
-                          <td className="px-3 py-3">
-                            <Link href={`/inventory/iqc/${item.id}`} className="text-blue-600 hover:underline text-xs whitespace-nowrap">Open Checklist →</Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm flex gap-6">
-                  <div>Total Received: <strong>{inspectItems.reduce((s,i) => s+(parseFloat(i.receivedQty)||0),0)}</strong></div>
-                  <div className="text-green-600">Total Accepted: <strong>{inspectItems.reduce((s,i) => s+(parseFloat(i.acceptedQty)||0),0)}</strong></div>
-                  <div className="text-red-500">Total Rejected: <strong>{inspectItems.reduce((s,i) => s+(parseFloat(i.rejectedQty)||0),0)}</strong></div>
-                </div>
-              </div>
-              <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
-                <button onClick={() => setShowInspectModal(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
-                <button onClick={handleUpdateItems} disabled={saving} className="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm disabled:opacity-50">Save Draft</button>
-                <button onClick={handleApprove} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm disabled:opacity-50">{saving ? 'Approving...' : 'Approve & Close IQC'}</button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {viewDetail && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-screen overflow-y-auto">
@@ -274,7 +184,7 @@ export default function IqcPage() {
               </div>
               <div className="p-6 space-y-4">
                 <div className="flex gap-6 text-sm">
-                  <div><span className="text-gray-500">Status:</span> <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[viewDetail.status]}`}>{viewDetail.status?.replace(/_/g,' ')}</span></div>
+                  <div><span className="text-gray-500">Status:</span> <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[viewDetail.status]}`}>{viewDetail.status?.replace(/_/g, ' ')}</span></div>
                   <div><span className="text-gray-500">Inspected By:</span> {viewDetail.inspectedBy || '—'}</div>
                   <div><span className="text-gray-500">Date:</span> {new Date(viewDetail.inspectionDate || viewDetail.createdAt).toLocaleDateString()}</div>
                 </div>
@@ -282,7 +192,7 @@ export default function IqcPage() {
                 <div className="overflow-x-scroll">
                   <table className="w-full text-sm border rounded-lg overflow-hidden">
                     <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                      <tr>{['Sr. No','Item Code','Item Name','UOM','Received','Accepted','Rejected','Reason'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
+                      <tr>{['Sr. No', 'Item Code', 'Item Name', 'UOM', 'Received', 'Accepted', 'Rejected', 'Reason', 'Checklist'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
                     </thead>
                     <tbody className="divide-y">
                       {(viewDetail.items || []).map((item, idx) => (
@@ -295,15 +205,18 @@ export default function IqcPage() {
                           <td className="px-3 py-2 text-xs text-green-600 font-medium">{item.acceptedQty}</td>
                           <td className="px-3 py-2 text-xs text-red-500 font-medium">{item.rejectedQty}</td>
                           <td className="px-3 py-2 text-xs text-gray-500">{item.rejectionReason || '—'}</td>
+                          <td className="px-3 py-2">
+                            <button onClick={() => { setViewDetail(null); router.push(`/inventory/iqc/${item.id}`); }} className="text-blue-600 hover:underline text-xs whitespace-nowrap">Open →</button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
                 <div className="p-3 bg-gray-50 rounded-lg text-sm flex gap-6">
-                  <div>Total Received: <strong>{(viewDetail.items || []).reduce((s,i) => s+(i.receivedQty||0),0)}</strong></div>
-                  <div className="text-green-600">Total Accepted: <strong>{(viewDetail.items || []).reduce((s,i) => s+(i.acceptedQty||0),0)}</strong></div>
-                  <div className="text-red-500">Total Rejected: <strong>{(viewDetail.items || []).reduce((s,i) => s+(i.rejectedQty||0),0)}</strong></div>
+                  <div>Total Received: <strong>{(viewDetail.items || []).reduce((s, i) => s + (i.receivedQty || 0), 0)}</strong></div>
+                  <div className="text-green-600">Total Accepted: <strong>{(viewDetail.items || []).reduce((s, i) => s + (i.acceptedQty || 0), 0)}</strong></div>
+                  <div className="text-red-500">Total Rejected: <strong>{(viewDetail.items || []).reduce((s, i) => s + (i.rejectedQty || 0), 0)}</strong></div>
                 </div>
               </div>
               <div className="p-6 border-t flex justify-end sticky bottom-0 bg-white">

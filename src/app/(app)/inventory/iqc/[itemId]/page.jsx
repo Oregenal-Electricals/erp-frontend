@@ -38,6 +38,9 @@ export default function IqcItemInspectionPage() {
   const [results, setResults] = useState({});
   const [outcome, setOutcome] = useState('PASS');
   const [decisionRemarks, setDecisionRemarks] = useState('');
+  const [acceptedQty, setAcceptedQty] = useState('');
+  const [rejectedQty, setRejectedQty] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const currentUser = getUser();
   const currentUserName = currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : '';
@@ -95,12 +98,22 @@ export default function IqcItemInspectionPage() {
 
   async function submit() {
     if (!decisionRemarks.trim()) { setError('A remark explaining this decision is required'); return; }
+    const acc = acceptedQty === '' ? undefined : parseFloat(acceptedQty);
+    const rej = rejectedQty === '' ? undefined : parseFloat(rejectedQty);
+    if (acc != null && rej != null && acc + rej > item.receivedQty) {
+      setError(`Accepted (${acc}) + Rejected (${rej}) cannot exceed received quantity (${item.receivedQty})`);
+      return;
+    }
+    if (rej != null && rej > 0 && !rejectionReason.trim()) {
+      setError('A rejection reason is required when any quantity is rejected');
+      return;
+    }
     setSaving(true); setError('');
     const parameterResults = Object.entries(results).map(([parameterId, r]) => ({ parameterId, ...r }));
     const res = await fetch(`${API}/iqc/items/${itemId}/stage-result`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify({ outcome, remarks: decisionRemarks, parameterResults }),
+      body: JSON.stringify({ outcome, remarks: decisionRemarks, acceptedQty: acc, rejectedQty: rej, rejectionReason: rejectionReason || undefined, parameterResults }),
     });
     const data = await res.json();
     if (res.ok) { setItem(data); setDecisionRemarks(''); load(); }
@@ -235,6 +248,22 @@ export default function IqcItemInspectionPage() {
                   <div className="flex gap-3">
                     <button onClick={() => setOutcome('PASS')} className={`px-4 py-1.5 border-2 ${outcome === 'PASS' ? 'border-green-600 bg-green-50 text-green-700 font-bold' : 'border-gray-300 text-gray-600'}`}>Pass</button>
                     <button onClick={() => setOutcome('FAIL')} className={`px-4 py-1.5 border-2 ${outcome === 'FAIL' ? 'border-red-600 bg-red-50 text-red-700 font-bold' : 'border-gray-300 text-gray-600'}`}>Fail</button>
+                  </div>
+                  <div className="flex gap-4">
+                    <div>
+                      <label className="block text-gray-500 mb-1">Accepted Qty (of {item.receivedQty} received)</label>
+                      <input type="number" min="0" max={item.receivedQty} className="w-32 border border-gray-300 px-2 py-1.5 text-green-700 font-bold"
+                        value={acceptedQty} onChange={e => setAcceptedQty(e.target.value)} placeholder={outcome === 'PASS' ? String(item.receivedQty) : '0'} />
+                    </div>
+                    <div>
+                      <label className="block text-gray-500 mb-1">Rejected Qty</label>
+                      <input type="number" min="0" max={item.receivedQty} className="w-32 border border-gray-300 px-2 py-1.5 text-red-600 font-bold"
+                        value={rejectedQty} onChange={e => setRejectedQty(e.target.value)} placeholder={outcome === 'FAIL' ? String(item.receivedQty) : '0'} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 mb-1">Rejection Reason {(rejectedQty && parseFloat(rejectedQty) > 0) ? '(required)' : '(if any)'}</label>
+                    <input className="w-full border border-gray-300 px-2 py-1.5" value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} placeholder="e.g. Dimensional mismatch on 5 pieces" />
                   </div>
                   <div>
                     <label className="block text-gray-500 mb-1">Remark (required — why this decision was made)</label>
