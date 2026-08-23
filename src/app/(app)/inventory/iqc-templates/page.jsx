@@ -166,7 +166,12 @@ export default function IqcTemplatesPage() {
           <div className="mb-4 flex items-center justify-between">
             <h1 className="text-xl font-bold text-gray-900">
               {editing === 'new' ? 'New Check Sheet Template' : `Edit — ${editing.name}`}
-              {editing !== 'new' && <span className="ml-2 text-sm font-normal text-gray-400">(v{editing.version} — saving will create v{editing.version + 1})</span>}
+              {editing !== 'new' && !editing.reviewed && (
+                <span className="ml-2 text-sm font-normal text-amber-600">(first review — name can still be changed; saving locks it in as v{editing.version})</span>
+              )}
+              {editing !== 'new' && editing.reviewed && (
+                <span className="ml-2 text-sm font-normal text-gray-400">(v{editing.version} — saving with real changes will create v{editing.version + 1}; saving unchanged does nothing)</span>
+              )}
             </h1>
             <div className="flex gap-3">
               {editing !== 'new' && (
@@ -189,15 +194,18 @@ export default function IqcTemplatesPage() {
                   <input
                     className="w-full border border-gray-300 px-2 py-1 bg-white font-bold text-gray-900 focus:outline-none focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                     value={form.name}
-                    disabled={editing !== 'new'}
+                    disabled={editing !== 'new' && editing.reviewed}
                     onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setShowMaterialSuggestions(true); }}
                     onFocus={() => setShowMaterialSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowMaterialSuggestions(false), 150)}
                     placeholder="Type to search materials, or type a new name" />
-                  {editing !== 'new' && (
-                    <p className="text-xs text-gray-400 mt-1 font-sans">Name is locked after the first save — only the checklist content can change on later versions.</p>
+                  {editing !== 'new' && editing.reviewed && (
+                    <p className="text-xs text-gray-400 mt-1 font-sans">Name is locked after the first review — only the checklist content can change on later versions.</p>
                   )}
-                  {editing === 'new' && showMaterialSuggestions && materialSuggestions.length > 0 && (
+                  {editing !== 'new' && !editing.reviewed && (
+                    <p className="text-xs text-amber-600 mt-1 font-sans">This is your first review of this imported template — you can still rename it before saving.</p>
+                  )}
+                  {(editing === 'new' || (editing !== 'new' && !editing.reviewed)) && showMaterialSuggestions && materialSuggestions.length > 0 && (
                     <div className="absolute z-10 top-full left-0 right-0 bg-white border border-gray-300 shadow-md max-h-48 overflow-y-auto font-sans">
                       {materialSuggestions.map(rm => (
                         <div key={rm.id}
@@ -380,6 +388,7 @@ export default function IqcTemplatesPage() {
                   <tr key={t.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-800">
                       {t.name} <span className="text-xs font-normal text-gray-400">v{t.version}</span>
+                      {!t.reviewed && <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Needs Review</span>}
                     </td>
                     <td className="px-4 py-3 text-gray-600">{t._count?.parameters ?? 0}</td>
                     <td className="px-4 py-3">
@@ -422,7 +431,7 @@ export default function IqcTemplatesPage() {
             <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
               <div className="p-5 border-b">
                 <h2 className="font-bold text-gray-800">Review before importing — {importPreview.length} sheet(s) found</h2>
-                <p className="text-xs text-gray-500 mt-1">Each sheet becomes one template. Review and edit the name here if needed - it locks once imported. Sheets with errors will be skipped.</p>
+                <p className="text-xs text-gray-500 mt-1">Each sheet becomes one template, named after its sheet name. You will get a chance to rename it on your first review after import. Sheets with errors will be skipped.</p>
               </div>
               <div className="p-5 overflow-y-auto flex-1">
                 {error && <div className="mb-3 bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
@@ -434,14 +443,7 @@ export default function IqcTemplatesPage() {
                     {importPreview.map((t, i) => (
                       <tr key={i}>
                         <td className="px-3 py-2 text-gray-500 text-xs">{t.sheetName}</td>
-                        <td className="px-3 py-2">
-                          <input
-                            className="w-full border border-gray-300 rounded px-2 py-1 text-sm font-medium text-gray-800 disabled:bg-gray-50 disabled:text-gray-400"
-                            value={t.name}
-                            disabled={!!t.error}
-                            onChange={e => setImportPreview(prev => prev.map((row, idx) => idx === i ? { ...row, name: e.target.value } : row))}
-                          />
-                        </td>
+                        <td className="px-3 py-2 font-medium text-gray-800">{t.name}</td>
                         <td className="px-3 py-2 text-gray-600">{t.parameters.length}</td>
                         <td className="px-3 py-2">
                           {t.error ? (
