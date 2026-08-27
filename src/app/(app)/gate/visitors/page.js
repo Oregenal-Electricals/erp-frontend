@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import PageHeader from '@/components/common/PageHeader';
 import api from '@/lib/api';
-import { Eye, UserPlus } from 'lucide-react';
+import { Eye } from 'lucide-react';
 
 const TYPE_COLORS = {
   TRUCK: 'bg-blue-100 text-blue-700', TEMPO: 'bg-green-100 text-green-700',
@@ -62,12 +62,6 @@ export default function VisitorsAndVehiclesPage() {
         <PageHeader
           title="Visitors & Vehicle Log"
           subtitle={activeTab === 'visitors' ? 'Registered visitors — new visitors are added via Check-in' : 'Auto-populated from Gate Inward, Visitor check-in, and other gate activity'}
-          action={activeTab === 'visitors' ? (
-            <button onClick={() => router.push('/gate/check-in')}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-              <UserPlus size={16} /> Check In Visitor
-            </button>
-          ) : null}
         />
 
         <div className="flex gap-1 mb-4 border-b border-gray-200">
