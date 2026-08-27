@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import PageHeader from '@/components/common/PageHeader';
 import api from '@/lib/api';
-import { Plus, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
 
 const TYPE_COLORS = {
   TRUCK: 'bg-blue-100 text-blue-700', TEMPO: 'bg-green-100 text-green-700',
@@ -33,14 +33,7 @@ export default function VehiclesPage() {
   return (
     <AppLayout>
       <div className="p-6 max-w-7xl mx-auto">
-      <PageHeader title="Vehicle Master" subtitle="Registered vehicles"
-        action={
-          <button onClick={() => router.push('/gate/vehicles/create')}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-            <Plus size={16} /> Register Vehicle
-          </button>
-        }
-      />
+      <PageHeader title="Vehicle Master" subtitle="Auto-populated from Gate Inward, Visitor check-in, and other gate activity" />
       <div className="mb-4">
         <input type="text" placeholder="Search vehicle number, owner..."
           value={search} onChange={(e) => setSearch(e.target.value)}
