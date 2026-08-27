@@ -8,8 +8,9 @@ import { clsx } from 'clsx';
 import { CheckCircle, XCircle, Send, Package } from 'lucide-react';
 
 const STATUS_STYLES = {
-  PENDING:       'bg-yellow-100 text-yellow-700',
+  PENDING:       'bg-yellow-100 text-yellow-700', // ARRIVED
   VERIFIED:      'bg-blue-100 text-blue-700',
+  GATE_IN:       'bg-indigo-100 text-indigo-700',
   SENT_TO_STORES:'bg-purple-100 text-purple-700',
   COMPLETED:     'bg-green-100 text-green-700',
   REJECTED:      'bg-red-100 text-red-700',
@@ -135,9 +136,15 @@ export default function GateInwardDetailPage() {
                 </button>
               )}
               {entry?.status === 'VERIFIED' && (
+                <button onClick={() => handleAction('gate-in', { remarks: 'Let in at gate' })} disabled={!!saving}
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                  <CheckCircle size={14} />{saving === 'gate-in' ? 'Letting in...' : 'Let Vehicle In (Gate-In)'}
+                </button>
+              )}
+              {entry?.status === 'GATE_IN' && (
                 <button onClick={() => handleAction('send-to-stores')} disabled={!!saving}
                   className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors">
-                  <Send size={14} />{saving === 'send-to-stores' ? 'Sending...' : 'Send to Stores'}
+                  <Send size={14} />{saving === 'send-to-stores' ? 'Sending...' : 'Direct to Store'}
                 </button>
               )}
               {entry?.status === 'SENT_TO_STORES' && (
@@ -201,12 +208,18 @@ export default function GateInwardDetailPage() {
               {entry?.verifiedBy && <div><dt className="text-xs text-gray-400">Verified By</dt><dd className="text-sm text-gray-800 mt-0.5">{entry?.verifiedBy?.firstName} {entry?.verifiedBy?.lastName}</dd></div>}
               {entry?.verifiedAt && <div><dt className="text-xs text-gray-400">Verified At</dt><dd className="text-sm text-gray-800 mt-0.5">{formatDate(entry.verifiedAt)}</dd></div>}
               <div><dt className="text-xs text-gray-400">Created</dt><dd className="text-sm text-gray-800 mt-0.5">{formatDate(entry?.createdAt)}</dd></div>
-              {entry?.vehicleLog && (
+              {(entry?.vehicleNumber || entry?.vehicleLog) && (
                 <div>
                   <dt className="text-xs text-gray-400">Vehicle</dt>
-                  <dd className="text-sm text-gray-800 mt-0.5 font-mono">{entry.vehicleLog.vehicle?.vehicleNumber} ({entry.vehicleLog.logNumber})</dd>
+                  <dd className="text-sm text-gray-800 mt-0.5 font-mono">
+                    {entry?.vehicleNumber || entry?.vehicleLog?.vehicle?.vehicleNumber}
+                    {entry?.vehicleLog && ` (${entry.vehicleLog.logNumber})`}
+                  </dd>
                 </div>
               )}
+              {entry?.driverName && <div><dt className="text-xs text-gray-400">Driver</dt><dd className="text-sm text-gray-800 mt-0.5">{entry.driverName}</dd></div>}
+              {entry?.gateInBy && <div><dt className="text-xs text-gray-400">Let In By</dt><dd className="text-sm text-gray-800 mt-0.5">{entry.gateInBy.firstName} {entry.gateInBy.lastName}</dd></div>}
+              {entry?.gateInAt && <div><dt className="text-xs text-gray-400">Gate-In Time</dt><dd className="text-sm text-gray-800 mt-0.5">{formatDate(entry.gateInAt)}</dd></div>}
               {entry?.remarks && <div><dt className="text-xs text-gray-400">Remarks</dt><dd className="text-sm text-gray-600 mt-0.5">{entry.remarks}</dd></div>}
             </dl>
           </div>

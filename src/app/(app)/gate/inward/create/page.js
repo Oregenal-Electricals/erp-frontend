@@ -13,6 +13,7 @@ export default function CreateGateInwardPage() {
   const [warning, setWarning] = useState('');
   const [form, setForm] = useState({
     plantId: '', vehicleLogId: '',
+    vehicleNumber: '', driverName: '',
     poId: '',
     supplierName: '', supplierMobile: '', supplierGstin: '',
     invoiceNumber: '', invoiceDate: '', invoiceAmount: '',
@@ -96,6 +97,8 @@ export default function CreateGateInwardPage() {
       if (payload.packageCount)  payload.packageCount   = parseInt(payload.packageCount);
       if (!payload.poId)          delete payload.poId;
       if (!payload.vehicleLogId)  delete payload.vehicleLogId;
+      if (!payload.vehicleNumber) delete payload.vehicleNumber;
+      if (!payload.driverName)    delete payload.driverName;
       if (!payload.invoiceDate)   delete payload.invoiceDate;
       if (!payload.invoiceAmount) delete payload.invoiceAmount;
       if (!payload.grossWeight)   delete payload.grossWeight;
@@ -188,6 +191,18 @@ export default function CreateGateInwardPage() {
                   <option key={v.id} value={v.id}>{v.vehicle?.vehicleNumber} — {v.logNumber}</option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className={labelClass}>Vehicle Number</label>
+              <input type="text" name="vehicleNumber" value={form.vehicleNumber} onChange={handleChange}
+                placeholder="MH12AB1234"
+                style={{ color: '#111827', backgroundColor: '#ffffff' }} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Driver Name</label>
+              <input type="text" name="driverName" value={form.driverName} onChange={handleChange}
+                placeholder="Ramesh Kumar"
+                style={{ color: '#111827', backgroundColor: '#ffffff' }} className={inputClass} />
             </div>
           </div>
           {/* Supplier Info */}
