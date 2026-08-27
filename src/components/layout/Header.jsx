@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { LogOut, User, Menu, FlaskConical } from 'lucide-react';
 import { getUser, clearAuth } from '@/lib/auth';
 import { isTestSessionEnabled, setTestSessionEnabled, onTestSessionChange } from '@/lib/testSession';
+import NotificationBell from './NotificationBell';
 
 const HEADER_TOGGLE_ROLES = new Set(['SUPER_ADMIN', 'ADMIN', 'CORPORATE_ADMIN']);
 
@@ -62,6 +63,8 @@ export default function Header({ onMenuClick }) {
             <span className="hidden sm:block">Test Mode</span>
           </button>
         )}
+        <div className="w-px h-5 bg-gray-200" />
+        <NotificationBell />
         <div className="w-px h-5 bg-gray-200" />
         <div className="flex items-center gap-2 text-sm text-gray-700">
           <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">

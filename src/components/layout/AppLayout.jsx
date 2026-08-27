@@ -8,6 +8,8 @@ import Header from './Header';
 import { isAuthenticated, getUser } from '@/lib/auth';
 import { isTestSessionEnabled, onTestSessionChange, installTestSessionFetchInterceptor } from '@/lib/testSession';
 import PreviewBanner from '@/components/PreviewBanner';
+import { NotificationProvider } from '@/context/NotificationContext';
+import NotificationPopupStack from '@/components/layout/NotificationPopupStack';
 
 export default function AppLayout({ children }) {
   const router = useRouter();
@@ -45,8 +47,10 @@ export default function AppLayout({ children }) {
 
   return (
     <UiControlProvider>
+    <NotificationProvider>
     <>
     <PreviewBanner />
+    <NotificationPopupStack />
     <div className="flex min-h-screen bg-gray-50">
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -82,6 +86,7 @@ export default function AppLayout({ children }) {
       </div>
     </div>
     </>
+    </NotificationProvider>
     </UiControlProvider>
   );
 }
