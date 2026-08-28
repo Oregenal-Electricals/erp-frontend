@@ -1,7 +1,9 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Bell, Check, CheckCheck } from 'lucide-react';
 import { useNotifications } from '@/context/NotificationContext';
+import { resolveNotificationRoute } from '@/lib/notificationRoutes';
 import api from '@/lib/api';
 
 const PRIORITY_DOT = {
@@ -23,6 +25,7 @@ function timeAgo(dateStr) {
 }
 
 export default function NotificationBell() {
+  const router = useRouter();
   const { unreadCount, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
@@ -52,6 +55,8 @@ export default function NotificationBell() {
   async function handleItemClick(n) {
     if (!n.isRead) await markRead(n.id);
     setOpen(false);
+    const route = resolveNotificationRoute(n);
+    if (route) router.push(route);
   }
 
   async function handleMarkAllRead() {
@@ -91,21 +96,27 @@ export default function NotificationBell() {
               <div className="p-8 text-center text-gray-400 text-sm">No notifications yet</div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {items.map(n => (
-                  <button
-                    key={n.id}
-                    onClick={() => handleItemClick(n)}
-                    className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex gap-2.5 ${!n.isRead ? 'bg-blue-50/50' : ''}`}
-                  >
-                    <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${PRIORITY_DOT[n.priority] || PRIORITY_DOT.MEDIUM}`} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium text-gray-800 truncate">{n.title}</span>
-                      <span className="block text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</span>
-                      <span className="block text-[11px] text-gray-400 mt-1">{timeAgo(n.createdAt)}</span>
-                    </span>
-                    {!n.isRead && <Check size={13} className="text-blue-400 shrink-0 mt-1.5" />}
-                  </button>
-                ))}
+                {items.map(n => {
+                  const hasRoute = !!resolveNotificationRoute(n);
+                  return (
+                    <button
+                      key={n.id}
+                      onClick={() => handleItemClick(n)}
+                      className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex gap-2.5 ${!n.isRead ? 'bg-blue-50/50' : ''}`}
+                    >
+                      <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${PRIORITY_DOT[n.priority] || PRIORITY_DOT.MEDIUM}`} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-gray-800 truncate">{n.title}</span>
+                        <span className="block text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</span>
+                        <span className="flex items-center gap-2 mt-1">
+                          <span className="text-[11px] text-gray-400">{timeAgo(n.createdAt)}</span>
+                          {hasRoute && <span className="text-[11px] text-blue-500">View →</span>}
+                        </span>
+                      </span>
+                      {!n.isRead && <Check size={13} className="text-blue-400 shrink-0 mt-1.5" />}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
