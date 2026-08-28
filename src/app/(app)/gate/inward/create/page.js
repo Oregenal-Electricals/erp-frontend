@@ -14,7 +14,7 @@ export default function CreateGateInwardPage() {
   const [form, setForm] = useState({
     plantId: '', vehicleLogId: '',
     vehicleNumber: '', driverName: '',
-    poId: '',
+    poId: '', poNumber: '',
     supplierName: '', supplierMobile: '', supplierGstin: '',
     invoiceNumber: '', invoiceDate: '', invoiceAmount: '',
     materialDescription: '', quantity: '', unit: 'NOS',
@@ -96,6 +96,7 @@ export default function CreateGateInwardPage() {
       if (payload.invoiceAmount) payload.invoiceAmount  = parseFloat(payload.invoiceAmount);
       if (payload.packageCount)  payload.packageCount   = parseInt(payload.packageCount);
       if (!payload.poId)          delete payload.poId;
+      if (!payload.poNumber)      delete payload.poNumber;
       if (!payload.vehicleLogId)  delete payload.vehicleLogId;
       if (!payload.vehicleNumber) delete payload.vehicleNumber;
       if (!payload.driverName)    delete payload.driverName;
@@ -168,6 +169,24 @@ export default function CreateGateInwardPage() {
                     {po.poNumber} — {po.vendor?.name} ({po.vendor?.code})
                   </div>
                 ))}
+              </div>
+            )}
+            {!form.poId && (
+              <div className="mt-2">
+                <label className="block text-xs text-gray-500 mb-1">
+                  Or type the PO number written on the delivery challan, if it wasn&apos;t found above
+                </label>
+                <input
+                  type="text"
+                  value={form.poNumber}
+                  onChange={e => setForm(p => ({ ...p, poNumber: e.target.value }))}
+                  placeholder="e.g. PO-25-26-0042 — leave blank for a genuine non-PO delivery"
+                  style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                  className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  If this number doesn&apos;t match a real PO in the system, the entry will go on hold and Purchase will be notified to resolve it — you won&apos;t need to do anything further.
+                </p>
               </div>
             )}
           </div>
