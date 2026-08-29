@@ -15,6 +15,8 @@ const STATUS_STYLES = {
   COMPLETED:     'bg-green-100 text-green-700',
   REJECTED:      'bg-red-100 text-red-700',
   GATE_HOLD_PO_NOT_FOUND: 'bg-red-100 text-red-700',
+  GATE_HOLD_PO_CANCELLED: 'bg-red-100 text-red-700',
+  GATE_HOLD_PO_CLOSED: 'bg-red-100 text-red-700',
 };
 
 export default function GateInwardDetailPage() {
@@ -25,7 +27,7 @@ export default function GateInwardDetailPage() {
   const [error, setError]     = useState('');
   const [saving, setSaving]   = useState('');
   const [showReject, setShowReject] = useState(false);
-  const [holdAction, setHoldAction] = useState(null); // 'identify' | 'non-po' | 'reject'
+  const [holdAction, setHoldAction] = useState(null); // 'identify' | 'non-po' | 'reject' | 'return-material' | 'approved-exception' | 'correct-po'
   const [holdRemarks, setHoldRemarks] = useState('');
   const [poOptions, setPoOptions] = useState([]);
   const [poSearch, setPoSearch] = useState('');
@@ -64,11 +66,12 @@ export default function GateInwardDetailPage() {
     } catch { /* ignore */ }
   };
 
-  const handleResolveHold = async (action, body) => {
-    setSaving(action);
+  const handleResolveHold = async (path, body) => {
+    const key = path.split('/').pop();
+    setSaving(key);
     setError('');
     try {
-      await api.patch(`/gate-inward/${id}/resolve-hold/${action}`, body);
+      await api.patch(`/gate-inward/${id}/${path}`, body);
       setHoldAction(null); setHoldRemarks(''); setSelectedPoId(''); setPoSearch(''); setPoOptions([]);
       fetchEntry();
     } catch (err) {
@@ -200,7 +203,7 @@ export default function GateInwardDetailPage() {
                     style={{ color: '#111827', backgroundColor: '#ffffff' }}
                     className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
                   <div className="flex gap-2">
-                    <button onClick={() => handleResolveHold('identify-po', { poId: selectedPoId, remarks: holdRemarks || undefined })}
+                    <button onClick={() => handleResolveHold('resolve-hold/identify-po', { poId: selectedPoId, remarks: holdRemarks || undefined })}
                       disabled={!selectedPoId || !!saving}
                       className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 disabled:opacity-50">
                       {saving === 'identify-po' ? 'Linking...' : 'Confirm PO'}
@@ -216,7 +219,7 @@ export default function GateInwardDetailPage() {
                     style={{ color: '#111827', backgroundColor: '#ffffff' }}
                     className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
                   <div className="flex gap-2">
-                    <button onClick={() => handleResolveHold('authorize-non-po', { remarks: holdRemarks })}
+                    <button onClick={() => handleResolveHold('resolve-hold/authorize-non-po', { remarks: holdRemarks })}
                       disabled={holdRemarks.trim().length < 5 || !!saving}
                       className="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-amber-700 disabled:opacity-50">
                       {saving === 'authorize-non-po' ? 'Authorizing...' : 'Confirm Authorization'}
@@ -232,10 +235,102 @@ export default function GateInwardDetailPage() {
                     style={{ color: '#111827', backgroundColor: '#ffffff' }}
                     className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
                   <div className="flex gap-2">
-                    <button onClick={() => handleResolveHold('reject', { rejectionReason: holdRemarks })}
+                    <button onClick={() => handleResolveHold('resolve-hold/reject', { rejectionReason: holdRemarks })}
                       disabled={holdRemarks.trim().length < 5 || !!saving}
                       className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700 disabled:opacity-50">
                       {saving === 'reject' ? 'Rejecting...' : 'Confirm Reject'}
+                    </button>
+                    <button onClick={() => setHoldAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Gate Hold — PO Cancelled/Closed (GATE-004/005) */}
+          {['GATE_HOLD_PO_CANCELLED', 'GATE_HOLD_PO_CLOSED'].includes(entry?.status) && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5">
+              <h3 className="text-sm font-bold text-red-700 mb-1 flex items-center gap-2">
+                <AlertTriangle size={16} /> GATE HOLD — PO {entry?.status === 'GATE_HOLD_PO_CANCELLED' ? 'CANCELLED' : 'CLOSED'}
+              </h3>
+              <p className="text-xs text-red-600 mb-4">
+                Referenced PO {entry?.poNumber} is {entry?.status === 'GATE_HOLD_PO_CANCELLED' ? 'CANCELLED' : 'CLOSED'}. Material is on hold at the gate — it cannot be verified, sent to Store, or receive a GRN until this is resolved. Only Purchase can resolve this. Security cannot reopen a PO.
+              </p>
+
+              {!holdAction ? (
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setHoldAction('correct-po')}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                    <Search size={14} /> Correct PO Reference
+                  </button>
+                  <button onClick={() => setHoldAction('approved-exception')}
+                    className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors">
+                    <CheckCircle size={14} /> Approved Exception
+                  </button>
+                  <button onClick={() => setHoldAction('return-material')}
+                    className="flex items-center gap-2 border-2 border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors">
+                    <XCircle size={14} /> Return Material
+                  </button>
+                </div>
+              ) : holdAction === 'correct-po' ? (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Search for the correct PO</label>
+                  <input type="text" value={poSearch} onChange={e => searchPos(e.target.value)}
+                    placeholder="Search by PO number or vendor..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" />
+                  {poOptions.length > 0 && (
+                    <div className="border rounded-lg mb-3 max-h-48 overflow-y-auto">
+                      {poOptions.map(po => (
+                        <div key={po.id} onClick={() => setSelectedPoId(po.id)}
+                          className={`px-3 py-2 text-sm cursor-pointer ${selectedPoId === po.id ? 'bg-blue-50 border-l-4 border-blue-500' : 'hover:bg-gray-50'}`}>
+                          {po.poNumber} — {po.vendor?.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={holdRemarks} onChange={e => setHoldRemarks(e.target.value)}
+                    placeholder="Why the original PO reference was wrong..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolveHold('resolve-status-hold/correct-po', { poId: selectedPoId, reason: holdRemarks })}
+                      disabled={!selectedPoId || holdRemarks.trim().length < 5 || !!saving}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 disabled:opacity-50">
+                      {saving === 'correct-po' ? 'Linking...' : 'Confirm PO'}
+                    </button>
+                    <button onClick={() => setHoldAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              ) : holdAction === 'approved-exception' ? (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Exception Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={holdRemarks} onChange={e => setHoldRemarks(e.target.value)}
+                    placeholder="Why this is approved despite the PO being cancelled/closed..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolveHold('resolve-status-hold/approved-exception', { reason: holdRemarks })}
+                      disabled={holdRemarks.trim().length < 5 || !!saving}
+                      className="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-amber-700 disabled:opacity-50">
+                      {saving === 'approved-exception' ? 'Authorizing...' : 'Confirm Exception'}
+                    </button>
+                    <button onClick={() => setHoldAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Return Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={holdRemarks} onChange={e => setHoldRemarks(e.target.value)}
+                    placeholder="Why this material is being returned to the vendor..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolveHold('resolve-status-hold/return-material', { reason: holdRemarks })}
+                      disabled={holdRemarks.trim().length < 5 || !!saving}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700 disabled:opacity-50">
+                      {saving === 'return-material' ? 'Returning...' : 'Confirm Return'}
                     </button>
                     <button onClick={() => setHoldAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
                   </div>
@@ -272,7 +367,7 @@ export default function GateInwardDetailPage() {
                   <CheckCircle size={14} />{saving === 'complete' ? 'Completing...' : 'Mark Complete'}
                 </button>
               )}
-              {!['COMPLETED','REJECTED','GATE_HOLD_PO_NOT_FOUND'].includes(entry?.status) && (
+              {!['COMPLETED','REJECTED','GATE_HOLD_PO_NOT_FOUND','GATE_HOLD_PO_CANCELLED','GATE_HOLD_PO_CLOSED'].includes(entry?.status) && (
                 <button onClick={() => setShowReject(!showReject)}
                   className="flex items-center gap-2 border-2 border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors">
                   <XCircle size={14} /> Reject
