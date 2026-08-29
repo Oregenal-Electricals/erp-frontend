@@ -5,7 +5,8 @@ import AppLayout from '@/components/layout/AppLayout';
 import PageHeader from '@/components/common/PageHeader';
 import api from '@/lib/api';
 import { clsx } from 'clsx';
-import { CheckCircle, XCircle, Send, Package, AlertTriangle, Search } from 'lucide-react';
+import { CheckCircle, XCircle, Send, Package, AlertTriangle, Search, Flag } from 'lucide-react';
+import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const STATUS_STYLES = {
   PENDING:       'bg-yellow-100 text-yellow-700', // ARRIVED
@@ -17,7 +18,12 @@ const STATUS_STYLES = {
   GATE_HOLD_PO_NOT_FOUND: 'bg-red-100 text-red-700',
   GATE_HOLD_PO_CANCELLED: 'bg-red-100 text-red-700',
   GATE_HOLD_PO_CLOSED: 'bg-red-100 text-red-700',
+  GATE_HOLD_VENDOR_MISMATCH: 'bg-red-100 text-red-700',
+  GATE_HOLD_MATERIAL_MISMATCH: 'bg-red-100 text-red-700',
 };
+
+const MISMATCH_HOLD_STATUSES = ['GATE_HOLD_VENDOR_MISMATCH', 'GATE_HOLD_MATERIAL_MISMATCH'];
+const ALL_HOLD_STATUSES = ['GATE_HOLD_PO_NOT_FOUND', 'GATE_HOLD_PO_CANCELLED', 'GATE_HOLD_PO_CLOSED', ...MISMATCH_HOLD_STATUSES];
 
 export default function GateInwardDetailPage() {
   const router = useRouter();
@@ -32,6 +38,14 @@ export default function GateInwardDetailPage() {
   const [poOptions, setPoOptions] = useState([]);
   const [poSearch, setPoSearch] = useState('');
   const [selectedPoId, setSelectedPoId] = useState('');
+  const [showFlagForm, setShowFlagForm] = useState(false);
+  const [flagType, setFlagType] = useState('MATERIAL');
+  const [flagExpected, setFlagExpected] = useState('');
+  const [flagActual, setFlagActual] = useState('');
+  const [flagRemarks, setFlagRemarks] = useState('');
+  const [mismatchAction, setMismatchAction] = useState(null); // 'correct' | 'exception' | 'reject'
+  const [mismatchValue, setMismatchValue] = useState('');
+  const [mismatchReason, setMismatchReason] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
 
   const fetchEntry = async () => {
@@ -80,6 +94,34 @@ export default function GateInwardDetailPage() {
     } finally { setSaving(''); }
   };
   const formatNum = (n) => n != null ? n.toLocaleString('en-IN') : '—';
+
+  const handleFlagMismatch = async () => {
+    setSaving('flag-mismatch');
+    setError('');
+    try {
+      await api.patch(`/gate-inward/${id}/flag-mismatch`, {
+        mismatchType: flagType, expectedValue: flagExpected, actualValue: flagActual, remarks: flagRemarks,
+      });
+      setShowFlagForm(false); setFlagExpected(''); setFlagActual(''); setFlagRemarks('');
+      fetchEntry();
+    } catch (err) {
+      const msg = err.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed');
+    } finally { setSaving(''); }
+  };
+
+  const handleResolveMismatch = async (action, body) => {
+    setSaving(action);
+    setError('');
+    try {
+      await api.patch(`/gate-inward/${id}/resolve-mismatch/${action}`, body);
+      setMismatchAction(null); setMismatchValue(''); setMismatchReason('');
+      fetchEntry();
+    } catch (err) {
+      const msg = err.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed');
+    } finally { setSaving(''); }
+  };
 
   if (loading) return <AppLayout>
       <div className="p-6 max-w-7xl mx-auto"><div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div></div>
@@ -339,6 +381,153 @@ export default function GateInwardDetailPage() {
             </div>
           )}
 
+          {/* Gate Hold — Vendor/Material Mismatch (GATE-006/007) */}
+          {MISMATCH_HOLD_STATUSES.includes(entry?.status) && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5">
+              <h3 className="text-sm font-bold text-red-700 mb-1 flex items-center gap-2">
+                <AlertTriangle size={16} /> GATE HOLD — {entry?.status === 'GATE_HOLD_VENDOR_MISMATCH' ? 'VENDOR' : 'MATERIAL'} MISMATCH
+              </h3>
+              <div className="text-xs text-red-600 mb-3 space-y-0.5">
+                <p>Expected: <span className="font-semibold">{entry?.mismatchExpectedValue}</span></p>
+                <p>Actual: <span className="font-semibold">{entry?.mismatchActualValue}</span></p>
+                <p className="mt-1">Material is on hold at the gate — it cannot be verified, sent to Store, or receive a GRN until this is resolved. Only Purchase, Corporate Admin, or Super Admin can resolve this.</p>
+              </div>
+
+              {!mismatchAction ? (
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setMismatchAction('correct')}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                    <Search size={14} /> Correct Reference
+                  </button>
+                  <button onClick={() => setMismatchAction('exception')}
+                    className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors">
+                    <CheckCircle size={14} /> Approved Exception
+                  </button>
+                  <button onClick={() => setMismatchAction('reject')}
+                    className="flex items-center gap-2 border-2 border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors">
+                    <XCircle size={14} /> Reject at Gate
+                  </button>
+                </div>
+              ) : mismatchAction === 'correct' ? (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Correct {entry?.status === 'GATE_HOLD_VENDOR_MISMATCH' ? 'Vendor Name' : 'Material Description'} <span className="text-red-500">*</span>
+                  </label>
+                  <input type="text" value={mismatchValue} onChange={e => setMismatchValue(e.target.value)}
+                    placeholder={entry?.status === 'GATE_HOLD_VENDOR_MISMATCH' ? 'Correct vendor name...' : 'Correct material description...'}
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={mismatchReason} onChange={e => setMismatchReason(e.target.value)}
+                    placeholder="Why the original value was wrong..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolveMismatch('correct-reference', { correctedValue: mismatchValue, reason: mismatchReason })}
+                      disabled={mismatchValue.trim().length < 2 || mismatchReason.trim().length < 5 || !!saving}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 disabled:opacity-50">
+                      {saving === 'correct-reference' ? 'Saving...' : 'Confirm Correction'}
+                    </button>
+                    <button onClick={() => setMismatchAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              ) : mismatchAction === 'exception' ? (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Exception Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={mismatchReason} onChange={e => setMismatchReason(e.target.value)}
+                    placeholder="Why this is approved despite the mismatch..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolveMismatch('approved-exception', { reason: mismatchReason })}
+                      disabled={mismatchReason.trim().length < 5 || !!saving}
+                      className="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-amber-700 disabled:opacity-50">
+                      {saving === 'approved-exception' ? 'Authorizing...' : 'Confirm Exception'}
+                    </button>
+                    <button onClick={() => setMismatchAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Rejection Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={mismatchReason} onChange={e => setMismatchReason(e.target.value)}
+                    placeholder="Why this material is being rejected at the gate..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolveMismatch('reject', { reason: mismatchReason })}
+                      disabled={mismatchReason.trim().length < 5 || !!saving}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700 disabled:opacity-50">
+                      {saving === 'reject' ? 'Rejecting...' : 'Confirm Reject'}
+                    </button>
+                    <button onClick={() => setMismatchAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Flag Mismatch — Gate's own action, available before Gate-In */}
+          {['PENDING', 'VERIFIED'].includes(entry?.status) && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              {!showFlagForm ? (
+                <button onClick={() => setShowFlagForm(true)}
+                  className="flex items-center gap-2 border-2 border-orange-300 text-orange-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-50 transition-colors">
+                  <Flag size={14} /> Flag Vendor/Material Mismatch
+                </button>
+              ) : (
+                <div>
+                  <h3 className="text-sm font-bold text-gray-700 mb-3">Flag a Mismatch</h3>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Type <span className="text-red-500">*</span></label>
+                      <select value={flagType} onChange={e => setFlagType(e.target.value)}
+                        style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                        className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="MATERIAL">Material Mismatch</option>
+                        <option value="VENDOR">Vendor Mismatch</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Expected Value <span className="text-red-500">*</span></label>
+                      <input type="text" value={flagExpected} onChange={e => setFlagExpected(e.target.value)}
+                        placeholder="What the PO/challan says..."
+                        style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                        className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Actual Value <span className="text-red-500">*</span></label>
+                      <input type="text" value={flagActual} onChange={e => setFlagActual(e.target.value)}
+                        placeholder="What actually arrived..."
+                        style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                        className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                    </div>
+                  </div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Remarks <span className="text-red-500">*</span></label>
+                  <input type="text" value={flagRemarks} onChange={e => setFlagRemarks(e.target.value)}
+                    placeholder="What you observed..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={handleFlagMismatch}
+                      disabled={flagExpected.trim().length < 2 || flagActual.trim().length < 2 || flagRemarks.trim().length < 5 || !!saving}
+                      className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-orange-700 disabled:opacity-50">
+                      {saving === 'flag-mismatch' ? 'Flagging...' : 'Stop & Flag Mismatch'}
+                    </button>
+                    <button onClick={() => setShowFlagForm(false)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Evidence / Photos */}
+          {entry?.id && (
+            <DocumentAttachments referenceType="GATE_INWARD_ENTRY" referenceId={entry.id} referenceNumber={entry.ginNumber} title="Evidence / Photos" />
+          )}
+
           {/* Actions */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h3 className="text-sm font-bold text-gray-700 mb-3">Actions</h3>
@@ -367,7 +556,7 @@ export default function GateInwardDetailPage() {
                   <CheckCircle size={14} />{saving === 'complete' ? 'Completing...' : 'Mark Complete'}
                 </button>
               )}
-              {!['COMPLETED','REJECTED','GATE_HOLD_PO_NOT_FOUND','GATE_HOLD_PO_CANCELLED','GATE_HOLD_PO_CLOSED'].includes(entry?.status) && (
+              {!['COMPLETED','REJECTED',...ALL_HOLD_STATUSES].includes(entry?.status) && (
                 <button onClick={() => setShowReject(!showReject)}
                   className="flex items-center gap-2 border-2 border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors">
                   <XCircle size={14} /> Reject
