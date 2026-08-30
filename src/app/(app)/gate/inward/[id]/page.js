@@ -25,7 +25,7 @@ const STATUS_STYLES = {
   GATE_HOLD_PACKAGE_COUNT_MISMATCH: 'bg-red-100 text-red-700',
 };
 
-const MISMATCH_HOLD_STATUSES = ['GATE_HOLD_VENDOR_MISMATCH', 'GATE_HOLD_MATERIAL_MISMATCH'];
+const MISMATCH_HOLD_STATUSES = ['GATE_HOLD_VENDOR_MISMATCH', 'GATE_HOLD_MATERIAL_MISMATCH', 'GATE_HOLD_VEHICLE_NUMBER_MISMATCH'];
 const DAMAGE_HOLD_STATUSES = ['GATE_HOLD_MATERIAL_DAMAGE', 'GATE_HOLD_PACKAGING_DAMAGE'];
 const ALL_HOLD_STATUSES = ['GATE_HOLD_PO_NOT_FOUND', 'GATE_HOLD_PO_CANCELLED', 'GATE_HOLD_PO_CLOSED', ...MISMATCH_HOLD_STATUSES, ...DAMAGE_HOLD_STATUSES, 'GATE_HOLD_PACKAGE_COUNT_MISMATCH'];
 
@@ -465,7 +465,7 @@ export default function GateInwardDetailPage() {
           {MISMATCH_HOLD_STATUSES.includes(entry?.status) && (
             <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5">
               <h3 className="text-sm font-bold text-red-700 mb-1 flex items-center gap-2">
-                <AlertTriangle size={16} /> GATE HOLD — {entry?.status === 'GATE_HOLD_VENDOR_MISMATCH' ? 'VENDOR' : 'MATERIAL'} MISMATCH
+                <AlertTriangle size={16} /> GATE HOLD — {entry?.status === 'GATE_HOLD_VENDOR_MISMATCH' ? 'VENDOR' : entry?.status === 'GATE_HOLD_VEHICLE_NUMBER_MISMATCH' ? 'VEHICLE NUMBER' : 'MATERIAL'} MISMATCH
               </h3>
               <div className="text-xs text-red-600 mb-3 space-y-0.5">
                 <p>Expected: <span className="font-semibold">{entry?.mismatchExpectedValue}</span></p>
@@ -491,10 +491,10 @@ export default function GateInwardDetailPage() {
               ) : mismatchAction === 'correct' ? (
                 <div className="bg-white rounded-lg p-4 border border-red-200">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Correct {entry?.status === 'GATE_HOLD_VENDOR_MISMATCH' ? 'Vendor Name' : 'Material Description'} <span className="text-red-500">*</span>
+                    Correct {entry?.status === 'GATE_HOLD_VENDOR_MISMATCH' ? 'Vendor Name' : entry?.status === 'GATE_HOLD_VEHICLE_NUMBER_MISMATCH' ? 'Vehicle Number' : 'Material Description'} <span className="text-red-500">*</span>
                   </label>
                   <input type="text" value={mismatchValue} onChange={e => setMismatchValue(e.target.value)}
-                    placeholder={entry?.status === 'GATE_HOLD_VENDOR_MISMATCH' ? 'Correct vendor name...' : 'Correct material description...'}
+                    placeholder={entry?.status === 'GATE_HOLD_VENDOR_MISMATCH' ? 'Correct vendor name...' : entry?.status === 'GATE_HOLD_VEHICLE_NUMBER_MISMATCH' ? 'Correct vehicle number...' : 'Correct material description...'}
                     style={{ color: '#111827', backgroundColor: '#ffffff' }}
                     className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" />
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Reason <span className="text-red-500">*</span></label>
@@ -566,6 +566,7 @@ export default function GateInwardDetailPage() {
                         className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm">
                         <option value="MATERIAL">Material Mismatch</option>
                         <option value="VENDOR">Vendor Mismatch</option>
+                        <option value="VEHICLE_NUMBER">Vehicle Number Mismatch</option>
                       </select>
                     </div>
                   </div>
