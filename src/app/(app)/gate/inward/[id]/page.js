@@ -26,13 +26,14 @@ const STATUS_STYLES = {
   GATE_HOLD_DOCUMENT_MISSING: 'bg-red-100 text-red-700',
 };
 
-const MISMATCH_HOLD_STATUSES = ['GATE_HOLD_VENDOR_MISMATCH', 'GATE_HOLD_MATERIAL_MISMATCH', 'GATE_HOLD_VEHICLE_NUMBER_MISMATCH', 'GATE_HOLD_CHALLAN_MISMATCH', 'GATE_HOLD_EXCESS_MATERIAL'];
+const MISMATCH_HOLD_STATUSES = ['GATE_HOLD_VENDOR_MISMATCH', 'GATE_HOLD_MATERIAL_MISMATCH', 'GATE_HOLD_VEHICLE_NUMBER_MISMATCH', 'GATE_HOLD_CHALLAN_MISMATCH', 'GATE_HOLD_EXCESS_MATERIAL', 'GATE_HOLD_MIXED_MATERIALS'];
 const MISMATCH_LABELS = {
   GATE_HOLD_VENDOR_MISMATCH: { header: 'VENDOR', field: 'Vendor Name', placeholder: 'Correct vendor name...' },
   GATE_HOLD_MATERIAL_MISMATCH: { header: 'MATERIAL', field: 'Material Description', placeholder: 'Correct material description...' },
   GATE_HOLD_VEHICLE_NUMBER_MISMATCH: { header: 'VEHICLE NUMBER', field: 'Vehicle Number', placeholder: 'Correct vehicle number...' },
   GATE_HOLD_CHALLAN_MISMATCH: { header: 'CHALLAN', field: 'Challan Number', placeholder: 'Correct challan number...' },
   GATE_HOLD_EXCESS_MATERIAL: { header: 'EXCESS MATERIAL', field: 'Correct Quantity', placeholder: 'Correct quantity...' },
+  GATE_HOLD_MIXED_MATERIALS: { header: 'MIXED MATERIALS', field: 'Corrected Material List', placeholder: 'Full corrected list of materials...' },
 };
 const DAMAGE_HOLD_STATUSES = ['GATE_HOLD_MATERIAL_DAMAGE', 'GATE_HOLD_PACKAGING_DAMAGE'];
 const ALL_HOLD_STATUSES = ['GATE_HOLD_PO_NOT_FOUND', 'GATE_HOLD_PO_CANCELLED', 'GATE_HOLD_PO_CLOSED', ...MISMATCH_HOLD_STATUSES, ...DAMAGE_HOLD_STATUSES, 'GATE_HOLD_PACKAGE_COUNT_MISMATCH', 'GATE_HOLD_DOCUMENT_MISSING'];
@@ -606,6 +607,7 @@ export default function GateInwardDetailPage() {
                         <option value="VEHICLE_NUMBER">Vehicle Number Mismatch</option>
                         <option value="CHALLAN">Challan Mismatch</option>
                         <option value="QUANTITY_EXCESS">Excess Material Suspected</option>
+                        <option value="MIXED_MATERIALS">Mixed Materials in Vehicle</option>
                       </select>
                     </div>
                   </div>
