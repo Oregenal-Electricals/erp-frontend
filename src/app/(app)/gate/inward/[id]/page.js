@@ -23,11 +23,19 @@ const STATUS_STYLES = {
   GATE_HOLD_MATERIAL_DAMAGE: 'bg-red-100 text-red-700',
   GATE_HOLD_PACKAGING_DAMAGE: 'bg-red-100 text-red-700',
   GATE_HOLD_PACKAGE_COUNT_MISMATCH: 'bg-red-100 text-red-700',
+  GATE_HOLD_DOCUMENT_MISSING: 'bg-red-100 text-red-700',
 };
 
-const MISMATCH_HOLD_STATUSES = ['GATE_HOLD_VENDOR_MISMATCH', 'GATE_HOLD_MATERIAL_MISMATCH', 'GATE_HOLD_VEHICLE_NUMBER_MISMATCH'];
+const MISMATCH_HOLD_STATUSES = ['GATE_HOLD_VENDOR_MISMATCH', 'GATE_HOLD_MATERIAL_MISMATCH', 'GATE_HOLD_VEHICLE_NUMBER_MISMATCH', 'GATE_HOLD_CHALLAN_MISMATCH', 'GATE_HOLD_EXCESS_MATERIAL'];
+const MISMATCH_LABELS = {
+  GATE_HOLD_VENDOR_MISMATCH: { header: 'VENDOR', field: 'Vendor Name', placeholder: 'Correct vendor name...' },
+  GATE_HOLD_MATERIAL_MISMATCH: { header: 'MATERIAL', field: 'Material Description', placeholder: 'Correct material description...' },
+  GATE_HOLD_VEHICLE_NUMBER_MISMATCH: { header: 'VEHICLE NUMBER', field: 'Vehicle Number', placeholder: 'Correct vehicle number...' },
+  GATE_HOLD_CHALLAN_MISMATCH: { header: 'CHALLAN', field: 'Challan Number', placeholder: 'Correct challan number...' },
+  GATE_HOLD_EXCESS_MATERIAL: { header: 'EXCESS MATERIAL', field: 'Correct Quantity', placeholder: 'Correct quantity...' },
+};
 const DAMAGE_HOLD_STATUSES = ['GATE_HOLD_MATERIAL_DAMAGE', 'GATE_HOLD_PACKAGING_DAMAGE'];
-const ALL_HOLD_STATUSES = ['GATE_HOLD_PO_NOT_FOUND', 'GATE_HOLD_PO_CANCELLED', 'GATE_HOLD_PO_CLOSED', ...MISMATCH_HOLD_STATUSES, ...DAMAGE_HOLD_STATUSES, 'GATE_HOLD_PACKAGE_COUNT_MISMATCH'];
+const ALL_HOLD_STATUSES = ['GATE_HOLD_PO_NOT_FOUND', 'GATE_HOLD_PO_CANCELLED', 'GATE_HOLD_PO_CLOSED', ...MISMATCH_HOLD_STATUSES, ...DAMAGE_HOLD_STATUSES, 'GATE_HOLD_PACKAGE_COUNT_MISMATCH', 'GATE_HOLD_DOCUMENT_MISSING'];
 
 export default function GateInwardDetailPage() {
   const router = useRouter();
@@ -65,6 +73,11 @@ export default function GateInwardDetailPage() {
   const [pkgCountAction, setPkgCountAction] = useState(null); // 'recount' | 'escalate' | 'approve' | 'reject'
   const [pkgCountValue, setPkgCountValue] = useState('');
   const [pkgCountReason, setPkgCountReason] = useState('');
+  const [showDocMissingForm, setShowDocMissingForm] = useState(false);
+  const [docMissingType, setDocMissingType] = useState('CHALLAN');
+  const [docMissingReason, setDocMissingReason] = useState('');
+  const [docMissingAction, setDocMissingAction] = useState(null); // 'exception' | 'reject'
+  const [docMissingResolveReason, setDocMissingResolveReason] = useState('');
 
   const fetchEntry = async () => {
     setLoading(true);
@@ -197,6 +210,30 @@ export default function GateInwardDetailPage() {
     try {
       await api.patch(`/gate-inward/${id}/resolve-package-count/${action}`, body);
       setPkgCountAction(null); setPkgCountValue(''); setPkgCountReason('');
+      fetchEntry();
+    } catch (err) {
+      const msg = err.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed');
+    } finally { setSaving(''); }
+  };
+  const handleFlagDocumentMissing = async () => {
+    setSaving('flag-document-missing');
+    setError('');
+    try {
+      await api.patch(`/gate-inward/${id}/flag-document-missing`, { documentType: docMissingType, reason: docMissingReason });
+      setShowDocMissingForm(false); setDocMissingReason('');
+      fetchEntry();
+    } catch (err) {
+      const msg = err.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed');
+    } finally { setSaving(''); }
+  };
+  const handleResolveDocumentMissing = async (action, body) => {
+    setSaving(action);
+    setError('');
+    try {
+      await api.patch(`/gate-inward/${id}/resolve-document-missing/${action}`, body);
+      setDocMissingAction(null); setDocMissingResolveReason('');
       fetchEntry();
     } catch (err) {
       const msg = err.response?.data?.message;
@@ -465,7 +502,7 @@ export default function GateInwardDetailPage() {
           {MISMATCH_HOLD_STATUSES.includes(entry?.status) && (
             <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5">
               <h3 className="text-sm font-bold text-red-700 mb-1 flex items-center gap-2">
-                <AlertTriangle size={16} /> GATE HOLD — {entry?.status === 'GATE_HOLD_VENDOR_MISMATCH' ? 'VENDOR' : entry?.status === 'GATE_HOLD_VEHICLE_NUMBER_MISMATCH' ? 'VEHICLE NUMBER' : 'MATERIAL'} MISMATCH
+                <AlertTriangle size={16} /> GATE HOLD — {MISMATCH_LABELS[entry?.status]?.header} MISMATCH
               </h3>
               <div className="text-xs text-red-600 mb-3 space-y-0.5">
                 <p>Expected: <span className="font-semibold">{entry?.mismatchExpectedValue}</span></p>
@@ -491,10 +528,10 @@ export default function GateInwardDetailPage() {
               ) : mismatchAction === 'correct' ? (
                 <div className="bg-white rounded-lg p-4 border border-red-200">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Correct {entry?.status === 'GATE_HOLD_VENDOR_MISMATCH' ? 'Vendor Name' : entry?.status === 'GATE_HOLD_VEHICLE_NUMBER_MISMATCH' ? 'Vehicle Number' : 'Material Description'} <span className="text-red-500">*</span>
+                    Correct {MISMATCH_LABELS[entry?.status]?.field} <span className="text-red-500">*</span>
                   </label>
                   <input type="text" value={mismatchValue} onChange={e => setMismatchValue(e.target.value)}
-                    placeholder={entry?.status === 'GATE_HOLD_VENDOR_MISMATCH' ? 'Correct vendor name...' : entry?.status === 'GATE_HOLD_VEHICLE_NUMBER_MISMATCH' ? 'Correct vehicle number...' : 'Correct material description...'}
+                    placeholder={MISMATCH_LABELS[entry?.status]?.placeholder}
                     style={{ color: '#111827', backgroundColor: '#ffffff' }}
                     className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" />
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Reason <span className="text-red-500">*</span></label>
@@ -567,6 +604,8 @@ export default function GateInwardDetailPage() {
                         <option value="MATERIAL">Material Mismatch</option>
                         <option value="VENDOR">Vendor Mismatch</option>
                         <option value="VEHICLE_NUMBER">Vehicle Number Mismatch</option>
+                        <option value="CHALLAN">Challan Mismatch</option>
+                        <option value="QUANTITY_EXCESS">Excess Material Suspected</option>
                       </select>
                     </div>
                   </div>
@@ -882,6 +921,102 @@ export default function GateInwardDetailPage() {
                       {saving === 'verify-package-count' ? 'Checking...' : 'Confirm Count'}
                     </button>
                     <button onClick={() => setShowPkgCountForm(false)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+
+          {/* Gate Hold — Document Missing (GATE-012) */}
+          {entry?.status === 'GATE_HOLD_DOCUMENT_MISSING' && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5">
+              <h3 className="text-sm font-bold text-red-700 mb-1 flex items-center gap-2">
+                <AlertTriangle size={16} /> GATE HOLD — DOCUMENT MISSING
+              </h3>
+              <div className="text-xs text-red-600 mb-3 space-y-0.5">
+                <p>Missing: <span className="font-semibold">{entry?.documentMissingType === 'BOTH' ? 'Challan and Invoice' : entry?.documentMissingType === 'CHALLAN' ? 'Challan' : 'Invoice'}</span></p>
+                <p className="mt-1">On hold pending decision from Purchase, Store, Corporate Admin, or Super Admin.</p>
+              </div>
+
+              {!docMissingAction ? (
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setDocMissingAction('exception')}
+                    className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors">
+                    <CheckCircle size={14} /> Accept With Undertaking
+                  </button>
+                  <button onClick={() => setDocMissingAction('reject')}
+                    className="flex items-center gap-2 border-2 border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors">
+                    <XCircle size={14} /> Reject
+                  </button>
+                </div>
+              ) : docMissingAction === 'exception' ? (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={docMissingResolveReason} onChange={e => setDocMissingResolveReason(e.target.value)}
+                    placeholder="Why this is accepted on undertaking the document will follow..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolveDocumentMissing('exception', { reason: docMissingResolveReason })}
+                      disabled={docMissingResolveReason.trim().length < 5 || !!saving}
+                      className="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-amber-700 disabled:opacity-50">
+                      {saving === 'exception' ? 'Saving...' : 'Confirm Acceptance'}
+                    </button>
+                    <button onClick={() => setDocMissingAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Rejection Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={docMissingResolveReason} onChange={e => setDocMissingResolveReason(e.target.value)}
+                    placeholder="Why this material is being rejected..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolveDocumentMissing('reject', { reason: docMissingResolveReason })}
+                      disabled={docMissingResolveReason.trim().length < 5 || !!saving}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700 disabled:opacity-50">
+                      {saving === 'reject' ? 'Rejecting...' : 'Confirm Reject'}
+                    </button>
+                    <button onClick={() => setDocMissingAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Flag Document Missing — Gate's own action, available before Gate-In */}
+          {['PENDING', 'VERIFIED'].includes(entry?.status) && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              {!showDocMissingForm ? (
+                <button onClick={() => setShowDocMissingForm(true)}
+                  className="flex items-center gap-2 border-2 border-orange-300 text-orange-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-50 transition-colors">
+                  <Flag size={14} /> Flag Document Missing
+                </button>
+              ) : (
+                <div>
+                  <h3 className="text-sm font-bold text-gray-700 mb-3">Flag Document Missing</h3>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Which document? <span className="text-red-500">*</span></label>
+                  <select value={docMissingType} onChange={e => setDocMissingType(e.target.value)}
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3">
+                    <option value="CHALLAN">Challan</option>
+                    <option value="INVOICE">Invoice</option>
+                    <option value="BOTH">Both</option>
+                  </select>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={docMissingReason} onChange={e => setDocMissingReason(e.target.value)}
+                    placeholder="What the driver said, or what you observed..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={handleFlagDocumentMissing}
+                      disabled={docMissingReason.trim().length < 5 || !!saving}
+                      className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-orange-700 disabled:opacity-50">
+                      {saving === 'flag-document-missing' ? 'Flagging...' : 'Stop & Flag Missing Document'}
+                    </button>
+                    <button onClick={() => setShowDocMissingForm(false)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
                   </div>
                 </div>
               )}
