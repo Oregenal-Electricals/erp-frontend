@@ -22,11 +22,12 @@ const STATUS_STYLES = {
   GATE_HOLD_MATERIAL_MISMATCH: 'bg-red-100 text-red-700',
   GATE_HOLD_MATERIAL_DAMAGE: 'bg-red-100 text-red-700',
   GATE_HOLD_PACKAGING_DAMAGE: 'bg-red-100 text-red-700',
+  GATE_HOLD_PACKAGE_COUNT_MISMATCH: 'bg-red-100 text-red-700',
 };
 
 const MISMATCH_HOLD_STATUSES = ['GATE_HOLD_VENDOR_MISMATCH', 'GATE_HOLD_MATERIAL_MISMATCH'];
 const DAMAGE_HOLD_STATUSES = ['GATE_HOLD_MATERIAL_DAMAGE', 'GATE_HOLD_PACKAGING_DAMAGE'];
-const ALL_HOLD_STATUSES = ['GATE_HOLD_PO_NOT_FOUND', 'GATE_HOLD_PO_CANCELLED', 'GATE_HOLD_PO_CLOSED', ...MISMATCH_HOLD_STATUSES, ...DAMAGE_HOLD_STATUSES];
+const ALL_HOLD_STATUSES = ['GATE_HOLD_PO_NOT_FOUND', 'GATE_HOLD_PO_CANCELLED', 'GATE_HOLD_PO_CLOSED', ...MISMATCH_HOLD_STATUSES, ...DAMAGE_HOLD_STATUSES, 'GATE_HOLD_PACKAGE_COUNT_MISMATCH'];
 
 export default function GateInwardDetailPage() {
   const router = useRouter();
@@ -59,6 +60,11 @@ export default function GateInwardDetailPage() {
   const [showReturnForm, setShowReturnForm] = useState(false);
   const [returnRemarks, setReturnRemarks] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+  const [showPkgCountForm, setShowPkgCountForm] = useState(false);
+  const [actualPackageCount, setActualPackageCount] = useState('');
+  const [pkgCountAction, setPkgCountAction] = useState(null); // 'recount' | 'escalate' | 'approve' | 'reject'
+  const [pkgCountValue, setPkgCountValue] = useState('');
+  const [pkgCountReason, setPkgCountReason] = useState('');
 
   const fetchEntry = async () => {
     setLoading(true);
@@ -173,6 +179,30 @@ export default function GateInwardDetailPage() {
     } finally { setSaving(''); }
   };
 
+  const handleVerifyPackageCount = async () => {
+    setSaving('verify-package-count');
+    setError('');
+    try {
+      await api.patch(`/gate-inward/${id}/verify-package-count`, { actualPackageCount: Number(actualPackageCount) });
+      setShowPkgCountForm(false); setActualPackageCount('');
+      fetchEntry();
+    } catch (err) {
+      const msg = err.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed');
+    } finally { setSaving(''); }
+  };
+  const handleResolvePackageCount = async (action, body) => {
+    setSaving(action);
+    setError('');
+    try {
+      await api.patch(`/gate-inward/${id}/resolve-package-count/${action}`, body);
+      setPkgCountAction(null); setPkgCountValue(''); setPkgCountReason('');
+      fetchEntry();
+    } catch (err) {
+      const msg = err.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed');
+    } finally { setSaving(''); }
+  };
   if (loading) return <AppLayout>
       <div className="p-6 max-w-7xl mx-auto"><div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div></div>
     </AppLayout>;
@@ -716,6 +746,141 @@ export default function GateInwardDetailPage() {
                       {saving === 'flag-damage' ? 'Flagging...' : 'Stop & Flag Damage'}
                     </button>
                     <button onClick={() => setShowDamageForm(false)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+
+          {/* Gate Hold — Package/Carton Count Mismatch (GATE-010) */}
+          {entry?.status === 'GATE_HOLD_PACKAGE_COUNT_MISMATCH' && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5">
+              <h3 className="text-sm font-bold text-red-700 mb-1 flex items-center gap-2">
+                <AlertTriangle size={16} /> GATE HOLD — PACKAGE COUNT MISMATCH
+              </h3>
+              <div className="text-xs text-red-600 mb-3 space-y-0.5">
+                <p>Declared: <span className="font-semibold">{entry?.packageCountExpected}</span> · Counted at gate: <span className="font-semibold">{entry?.packageCountActual}</span> · Difference: <span className="font-semibold">{entry?.packageCountDifference > 0 ? '+' : ''}{entry?.packageCountDifference}</span></p>
+                {entry?.packageCountEscalated && <p className="text-amber-700">Escalated to Purchase/Store for verification.</p>}
+                <p className="mt-1">On hold pending decision from Purchase, Store, Corporate Admin, or Super Admin. The declared package count on this entry is never edited to force a match.</p>
+              </div>
+
+              {!pkgCountAction ? (
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setPkgCountAction('recount')}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                    <Search size={14} /> Recount
+                  </button>
+                  <button onClick={() => setPkgCountAction('escalate')}
+                    className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors">
+                    Escalate to Purchase/Store
+                  </button>
+                  <button onClick={() => setPkgCountAction('approve')}
+                    className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors">
+                    <CheckCircle size={14} /> Approved Inward
+                  </button>
+                  <button onClick={() => setPkgCountAction('reject')}
+                    className="flex items-center gap-2 border-2 border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors">
+                    <XCircle size={14} /> Reject
+                  </button>
+                </div>
+              ) : pkgCountAction === 'recount' ? (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">New Actual Count <span className="text-red-500">*</span></label>
+                  <input type="number" value={pkgCountValue} onChange={e => setPkgCountValue(e.target.value)}
+                    placeholder="e.g. 50"
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Remarks <span className="text-red-500">*</span></label>
+                  <input type="text" value={pkgCountReason} onChange={e => setPkgCountReason(e.target.value)}
+                    placeholder="What changed since the first count..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolvePackageCount('recount', { newActualCount: Number(pkgCountValue), remarks: pkgCountReason })}
+                      disabled={pkgCountValue === '' || pkgCountReason.trim().length < 5 || !!saving}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 disabled:opacity-50">
+                      {saving === 'recount' ? 'Saving...' : 'Confirm Recount'}
+                    </button>
+                    <button onClick={() => setPkgCountAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              ) : pkgCountAction === 'escalate' ? (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Escalation Note <span className="text-red-500">*</span></label>
+                  <input type="text" value={pkgCountReason} onChange={e => setPkgCountReason(e.target.value)}
+                    placeholder="What Purchase/Store should verify..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolvePackageCount('escalate', { remarks: pkgCountReason })}
+                      disabled={pkgCountReason.trim().length < 5 || !!saving}
+                      className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-purple-700 disabled:opacity-50">
+                      {saving === 'escalate' ? 'Escalating...' : 'Confirm Escalation'}
+                    </button>
+                    <button onClick={() => setPkgCountAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              ) : pkgCountAction === 'approve' ? (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={pkgCountReason} onChange={e => setPkgCountReason(e.target.value)}
+                    placeholder="Why this is accepted despite the mismatch..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolvePackageCount('approved-inward', { reason: pkgCountReason })}
+                      disabled={pkgCountReason.trim().length < 5 || !!saving}
+                      className="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-amber-700 disabled:opacity-50">
+                      {saving === 'approved-inward' ? 'Saving...' : 'Confirm Approval'}
+                    </button>
+                    <button onClick={() => setPkgCountAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Rejection Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={pkgCountReason} onChange={e => setPkgCountReason(e.target.value)}
+                    placeholder="Why this material is being rejected..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolvePackageCount('reject', { reason: pkgCountReason })}
+                      disabled={pkgCountReason.trim().length < 5 || !!saving}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700 disabled:opacity-50">
+                      {saving === 'reject' ? 'Rejecting...' : 'Confirm Reject'}
+                    </button>
+                    <button onClick={() => setPkgCountAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Verify Package Count — Gate's own action, available before Gate-In */}
+          {['PENDING', 'VERIFIED'].includes(entry?.status) && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              {!showPkgCountForm ? (
+                <button onClick={() => setShowPkgCountForm(true)}
+                  className="flex items-center gap-2 border-2 border-orange-300 text-orange-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-50 transition-colors">
+                  <Package size={14} /> Verify Package Count
+                </button>
+              ) : (
+                <div>
+                  <h3 className="text-sm font-bold text-gray-700 mb-3">Verify Package Count</h3>
+                  <p className="text-xs text-gray-500 mb-3">Declared package count: <span className="font-semibold">{entry?.packageCount ?? '—'}</span></p>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Physical Count at Gate <span className="text-red-500">*</span></label>
+                  <input type="number" value={actualPackageCount} onChange={e => setActualPackageCount(e.target.value)}
+                    placeholder="Count of packages actually on the vehicle..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={handleVerifyPackageCount}
+                      disabled={actualPackageCount === '' || !!saving}
+                      className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-orange-700 disabled:opacity-50">
+                      {saving === 'verify-package-count' ? 'Checking...' : 'Confirm Count'}
+                    </button>
+                    <button onClick={() => setShowPkgCountForm(false)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
                   </div>
                 </div>
               )}
