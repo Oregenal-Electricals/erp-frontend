@@ -24,6 +24,7 @@ const STATUS_STYLES = {
   GATE_HOLD_PACKAGING_DAMAGE: 'bg-red-100 text-red-700',
   GATE_HOLD_PACKAGE_COUNT_MISMATCH: 'bg-red-100 text-red-700',
   GATE_HOLD_DOCUMENT_MISSING: 'bg-red-100 text-red-700',
+  GATE_HOLD_MULTIPLE_POS: 'bg-red-100 text-red-700',
 };
 
 const MISMATCH_HOLD_STATUSES = ['GATE_HOLD_VENDOR_MISMATCH', 'GATE_HOLD_MATERIAL_MISMATCH', 'GATE_HOLD_VEHICLE_NUMBER_MISMATCH', 'GATE_HOLD_CHALLAN_MISMATCH', 'GATE_HOLD_EXCESS_MATERIAL', 'GATE_HOLD_MIXED_MATERIALS'];
@@ -36,7 +37,7 @@ const MISMATCH_LABELS = {
   GATE_HOLD_MIXED_MATERIALS: { header: 'MIXED MATERIALS', field: 'Corrected Material List', placeholder: 'Full corrected list of materials...' },
 };
 const DAMAGE_HOLD_STATUSES = ['GATE_HOLD_MATERIAL_DAMAGE', 'GATE_HOLD_PACKAGING_DAMAGE'];
-const ALL_HOLD_STATUSES = ['GATE_HOLD_PO_NOT_FOUND', 'GATE_HOLD_PO_CANCELLED', 'GATE_HOLD_PO_CLOSED', ...MISMATCH_HOLD_STATUSES, ...DAMAGE_HOLD_STATUSES, 'GATE_HOLD_PACKAGE_COUNT_MISMATCH', 'GATE_HOLD_DOCUMENT_MISSING'];
+const ALL_HOLD_STATUSES = ['GATE_HOLD_PO_NOT_FOUND', 'GATE_HOLD_PO_CANCELLED', 'GATE_HOLD_PO_CLOSED', ...MISMATCH_HOLD_STATUSES, ...DAMAGE_HOLD_STATUSES, 'GATE_HOLD_PACKAGE_COUNT_MISMATCH', 'GATE_HOLD_DOCUMENT_MISSING', 'GATE_HOLD_MULTIPLE_POS'];
 
 export default function GateInwardDetailPage() {
   const router = useRouter();
@@ -79,6 +80,12 @@ export default function GateInwardDetailPage() {
   const [docMissingReason, setDocMissingReason] = useState('');
   const [docMissingAction, setDocMissingAction] = useState(null); // 'exception' | 'reject'
   const [docMissingResolveReason, setDocMissingResolveReason] = useState('');
+  const [showMultiPoForm, setShowMultiPoForm] = useState(false);
+  const [multiPoNumbersFound, setMultiPoNumbersFound] = useState('');
+  const [multiPoReason, setMultiPoReason] = useState('');
+  const [multiPoAction, setMultiPoAction] = useState(null); // 'split' | 'reject'
+  const [multiPoOtherNumbers, setMultiPoOtherNumbers] = useState('');
+  const [multiPoResolveReason, setMultiPoResolveReason] = useState('');
 
   const fetchEntry = async () => {
     setLoading(true);
@@ -235,6 +242,30 @@ export default function GateInwardDetailPage() {
     try {
       await api.patch(`/gate-inward/${id}/resolve-document-missing/${action}`, body);
       setDocMissingAction(null); setDocMissingResolveReason('');
+      fetchEntry();
+    } catch (err) {
+      const msg = err.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed');
+    } finally { setSaving(''); }
+  };
+  const handleFlagMultiplePOs = async () => {
+    setSaving('flag-multiple-pos');
+    setError('');
+    try {
+      await api.patch(`/gate-inward/${id}/flag-multiple-pos`, { poNumbersFound: multiPoNumbersFound, reason: multiPoReason });
+      setShowMultiPoForm(false); setMultiPoNumbersFound(''); setMultiPoReason('');
+      fetchEntry();
+    } catch (err) {
+      const msg = err.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed');
+    } finally { setSaving(''); }
+  };
+  const handleResolveMultiplePOs = async (action, body) => {
+    setSaving(action);
+    setError('');
+    try {
+      await api.patch(`/gate-inward/${id}/resolve-multiple-pos/${action}`, body);
+      setMultiPoAction(null); setSelectedPoId(''); setPoSearch(''); setPoOptions([]); setMultiPoOtherNumbers(''); setMultiPoResolveReason('');
       fetchEntry();
     } catch (err) {
       const msg = err.response?.data?.message;
@@ -1019,6 +1050,125 @@ export default function GateInwardDetailPage() {
                       {saving === 'flag-document-missing' ? 'Flagging...' : 'Stop & Flag Missing Document'}
                     </button>
                     <button onClick={() => setShowDocMissingForm(false)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+
+          {/* Gate Hold — Multiple POs in One Vehicle (GATE-016) */}
+          {entry?.status === 'GATE_HOLD_MULTIPLE_POS' && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5">
+              <h3 className="text-sm font-bold text-red-700 mb-1 flex items-center gap-2">
+                <AlertTriangle size={16} /> GATE HOLD — MULTIPLE POs IN ONE VEHICLE
+              </h3>
+              <div className="text-xs text-red-600 mb-3 space-y-0.5">
+                <p>POs found: <span className="font-semibold">{entry?.mismatchActualValue}</span></p>
+                <p className="mt-1">This entry can only link one PO. Confirm which one, and the rest will be recorded for Purchase/Store to create separate entries against the same vehicle.</p>
+              </div>
+
+              {!multiPoAction ? (
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setMultiPoAction('split')}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                    <Search size={14} /> Confirm PO & Split
+                  </button>
+                  <button onClick={() => setMultiPoAction('reject')}
+                    className="flex items-center gap-2 border-2 border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors">
+                    <XCircle size={14} /> Reject
+                  </button>
+                </div>
+              ) : multiPoAction === 'split' ? (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Which PO does THIS entry belong to?</label>
+                  <input type="text" value={poSearch} onChange={e => searchPos(e.target.value)}
+                    placeholder="Search by PO number or vendor..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" />
+                  {poOptions.length > 0 && (
+                    <div className="border rounded-lg mb-3 max-h-48 overflow-y-auto">
+                      {poOptions.map(po => (
+                        <div key={po.id} onClick={() => setSelectedPoId(po.id)}
+                          className={`px-3 py-2 text-sm cursor-pointer ${selectedPoId === po.id ? 'bg-blue-50 border-l-4 border-blue-500' : 'hover:bg-gray-50'}`}>
+                          {po.poNumber} — {po.vendor?.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Remaining PO Number(s) for separate entries <span className="text-red-500">*</span></label>
+                  <input type="text" value={multiPoOtherNumbers} onChange={e => setMultiPoOtherNumbers(e.target.value)}
+                    placeholder="e.g. PO-25-26-0043"
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={multiPoResolveReason} onChange={e => setMultiPoResolveReason(e.target.value)}
+                    placeholder="Confirming which PO this entry covers..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolveMultiplePOs('split', { confirmedPoId: selectedPoId, otherPoNumbers: multiPoOtherNumbers, reason: multiPoResolveReason })}
+                      disabled={!selectedPoId || multiPoOtherNumbers.trim().length < 2 || multiPoResolveReason.trim().length < 5 || !!saving}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 disabled:opacity-50">
+                      {saving === 'split' ? 'Saving...' : 'Confirm & Split'}
+                    </button>
+                    <button onClick={() => setMultiPoAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Rejection Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={multiPoResolveReason} onChange={e => setMultiPoResolveReason(e.target.value)}
+                    placeholder="Why this could not be reconciled..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolveMultiplePOs('reject', { reason: multiPoResolveReason })}
+                      disabled={multiPoResolveReason.trim().length < 5 || !!saving}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700 disabled:opacity-50">
+                      {saving === 'reject' ? 'Rejecting...' : 'Confirm Reject'}
+                    </button>
+                    <button onClick={() => setMultiPoAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {entry?.relatedPoNumbers && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-600">
+              Related POs needing separate Gate Inward entries: <span className="font-semibold">{entry.relatedPoNumbers}</span>
+            </div>
+          )}
+
+          {/* Flag Multiple POs — Gate's own action, available before Gate-In */}
+          {['PENDING', 'VERIFIED'].includes(entry?.status) && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              {!showMultiPoForm ? (
+                <button onClick={() => setShowMultiPoForm(true)}
+                  className="flex items-center gap-2 border-2 border-orange-300 text-orange-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-50 transition-colors">
+                  <Flag size={14} /> Flag Multiple POs
+                </button>
+              ) : (
+                <div>
+                  <h3 className="text-sm font-bold text-gray-700 mb-3">Flag Multiple POs in One Vehicle</h3>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">PO Numbers Found on Challan <span className="text-red-500">*</span></label>
+                  <input type="text" value={multiPoNumbersFound} onChange={e => setMultiPoNumbersFound(e.target.value)}
+                    placeholder="e.g. PO-25-26-0042, PO-25-26-0043"
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={multiPoReason} onChange={e => setMultiPoReason(e.target.value)}
+                    placeholder="What the driver/challan indicates..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={handleFlagMultiplePOs}
+                      disabled={multiPoNumbersFound.trim().length < 2 || multiPoReason.trim().length < 5 || !!saving}
+                      className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-orange-700 disabled:opacity-50">
+                      {saving === 'flag-multiple-pos' ? 'Flagging...' : 'Stop & Flag Multiple POs'}
+                    </button>
+                    <button onClick={() => setShowMultiPoForm(false)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
                   </div>
                 </div>
               )}
