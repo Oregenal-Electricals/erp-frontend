@@ -20,10 +20,13 @@ const STATUS_STYLES = {
   GATE_HOLD_PO_CLOSED: 'bg-red-100 text-red-700',
   GATE_HOLD_VENDOR_MISMATCH: 'bg-red-100 text-red-700',
   GATE_HOLD_MATERIAL_MISMATCH: 'bg-red-100 text-red-700',
+  GATE_HOLD_MATERIAL_DAMAGE: 'bg-red-100 text-red-700',
+  GATE_HOLD_PACKAGING_DAMAGE: 'bg-red-100 text-red-700',
 };
 
 const MISMATCH_HOLD_STATUSES = ['GATE_HOLD_VENDOR_MISMATCH', 'GATE_HOLD_MATERIAL_MISMATCH'];
-const ALL_HOLD_STATUSES = ['GATE_HOLD_PO_NOT_FOUND', 'GATE_HOLD_PO_CANCELLED', 'GATE_HOLD_PO_CLOSED', ...MISMATCH_HOLD_STATUSES];
+const DAMAGE_HOLD_STATUSES = ['GATE_HOLD_MATERIAL_DAMAGE', 'GATE_HOLD_PACKAGING_DAMAGE'];
+const ALL_HOLD_STATUSES = ['GATE_HOLD_PO_NOT_FOUND', 'GATE_HOLD_PO_CANCELLED', 'GATE_HOLD_PO_CLOSED', ...MISMATCH_HOLD_STATUSES, ...DAMAGE_HOLD_STATUSES];
 
 export default function GateInwardDetailPage() {
   const router = useRouter();
@@ -46,6 +49,15 @@ export default function GateInwardDetailPage() {
   const [mismatchAction, setMismatchAction] = useState(null); // 'correct' | 'exception' | 'reject'
   const [mismatchValue, setMismatchValue] = useState('');
   const [mismatchReason, setMismatchReason] = useState('');
+  const [showDamageForm, setShowDamageForm] = useState(false);
+  const [damageType, setDamageType] = useState('PACKAGING');
+  const [damageDescription, setDamageDescription] = useState('');
+  const [affectedPackages, setAffectedPackages] = useState('');
+  const [gateRecommendation, setGateRecommendation] = useState('ACCEPT_EXCEPTION');
+  const [damageAction, setDamageAction] = useState(null); // 'reject' | 'accept'
+  const [damageReason, setDamageReason] = useState('');
+  const [showReturnForm, setShowReturnForm] = useState(false);
+  const [returnRemarks, setReturnRemarks] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
 
   const fetchEntry = async () => {
@@ -116,6 +128,44 @@ export default function GateInwardDetailPage() {
     try {
       await api.patch(`/gate-inward/${id}/resolve-mismatch/${action}`, body);
       setMismatchAction(null); setMismatchValue(''); setMismatchReason('');
+      fetchEntry();
+    } catch (err) {
+      const msg = err.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed');
+    } finally { setSaving(''); }
+  };
+  const handleFlagDamage = async () => {
+    setSaving('flag-damage');
+    setError('');
+    try {
+      await api.patch(`/gate-inward/${id}/flag-damage`, {
+        damageType, description: damageDescription, affectedPackages: affectedPackages || undefined, gateRecommendation,
+      });
+      setShowDamageForm(false); setDamageDescription(''); setAffectedPackages('');
+      fetchEntry();
+    } catch (err) {
+      const msg = err.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed');
+    } finally { setSaving(''); }
+  };
+  const handleResolveDamage = async (action, body) => {
+    setSaving(action);
+    setError('');
+    try {
+      await api.patch(`/gate-inward/${id}/resolve-damage/${action}`, body);
+      setDamageAction(null); setDamageReason('');
+      fetchEntry();
+    } catch (err) {
+      const msg = err.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed');
+    } finally { setSaving(''); }
+  };
+  const handleRecordReturn = async () => {
+    setSaving('record-return');
+    setError('');
+    try {
+      await api.patch(`/gate-inward/${id}/record-return-gate-out`, { remarks: returnRemarks });
+      setShowReturnForm(false); setReturnRemarks('');
       fetchEntry();
     } catch (err) {
       const msg = err.response?.data?.message;
@@ -517,6 +567,155 @@ export default function GateInwardDetailPage() {
                       {saving === 'flag-mismatch' ? 'Flagging...' : 'Stop & Flag Mismatch'}
                     </button>
                     <button onClick={() => setShowFlagForm(false)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+
+          {/* Gate Hold — Visible Damage (GATE-008/009) */}
+          {DAMAGE_HOLD_STATUSES.includes(entry?.status) && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5">
+              <h3 className="text-sm font-bold text-red-700 mb-1 flex items-center gap-2">
+                <AlertTriangle size={16} /> GATE HOLD — VISIBLE {entry?.status === 'GATE_HOLD_MATERIAL_DAMAGE' ? 'MATERIAL' : 'PACKAGING'} DAMAGE
+              </h3>
+              <div className="text-xs text-red-600 mb-3 space-y-0.5">
+                <p>{entry?.damageDescription}</p>
+                {entry?.affectedPackages && <p>Affected: <span className="font-semibold">{entry.affectedPackages}</span></p>}
+                <p>Gate&apos;s recommendation: <span className="font-semibold">{entry?.gateRecommendation === 'REJECT' ? 'Reject at Gate' : 'Accept under exception'}</span> (advisory only)</p>
+                <p className="mt-1">On hold pending decision from Super Admin, Corporate Admin, Purchase, Store, or QC.</p>
+              </div>
+
+              {!damageAction ? (
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setDamageAction('accept')}
+                    className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors">
+                    <CheckCircle size={14} /> Accept Under Exception
+                  </button>
+                  <button onClick={() => setDamageAction('reject')}
+                    className="flex items-center gap-2 border-2 border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors">
+                    <XCircle size={14} /> Reject at Gate
+                  </button>
+                </div>
+              ) : damageAction === 'accept' ? (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={damageReason} onChange={e => setDamageReason(e.target.value)}
+                    placeholder="Why this is accepted for detailed Store/QC inspection..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolveDamage('accept-exception', { reason: damageReason })}
+                      disabled={damageReason.trim().length < 5 || !!saving}
+                      className="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-amber-700 disabled:opacity-50">
+                      {saving === 'accept-exception' ? 'Saving...' : 'Confirm Exception'}
+                    </button>
+                    <button onClick={() => setDamageAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Rejection Reason <span className="text-red-500">*</span></label>
+                  <input type="text" value={damageReason} onChange={e => setDamageReason(e.target.value)}
+                    placeholder="Why this material is being rejected..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleResolveDamage('reject', { reason: damageReason })}
+                      disabled={damageReason.trim().length < 5 || !!saving}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700 disabled:opacity-50">
+                      {saving === 'reject' ? 'Rejecting...' : 'Confirm Reject'}
+                    </button>
+                    <button onClick={() => setDamageAction(null)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Record Return Gate-Out — once rejected via a damage hold */}
+          {entry?.status === 'REJECTED' && entry?.damageType && !entry?.returnGateOutAt && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              {!showReturnForm ? (
+                <button onClick={() => setShowReturnForm(true)}
+                  className="flex items-center gap-2 border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+                  Record Return Gate-Out
+                </button>
+              ) : (
+                <div>
+                  <h3 className="text-sm font-bold text-gray-700 mb-3">Record the material leaving the gate</h3>
+                  <input type="text" value={returnRemarks} onChange={e => setReturnRemarks(e.target.value)}
+                    placeholder="e.g. Loaded back onto the same vehicle, driver signed the return note..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={handleRecordReturn}
+                      disabled={returnRemarks.trim().length < 5 || !!saving}
+                      className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-900 disabled:opacity-50">
+                      {saving === 'record-return' ? 'Saving...' : 'Confirm Return'}
+                    </button>
+                    <button onClick={() => setShowReturnForm(false)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {entry?.returnGateOutAt && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-600">
+              Return Gate-Out recorded by {entry.returnGateOutBy?.firstName} {entry.returnGateOutBy?.lastName} on {formatDate(entry.returnGateOutAt)}
+              {entry.returnRemarks && <div className="text-xs text-gray-500 mt-1">{entry.returnRemarks}</div>}
+            </div>
+          )}
+
+          {/* Flag Damage — Gate's own action, available before Gate-In */}
+          {['PENDING', 'VERIFIED'].includes(entry?.status) && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              {!showDamageForm ? (
+                <button onClick={() => setShowDamageForm(true)}
+                  className="flex items-center gap-2 border-2 border-orange-300 text-orange-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-50 transition-colors">
+                  <Flag size={14} /> Flag Visible Damage
+                </button>
+              ) : (
+                <div>
+                  <h3 className="text-sm font-bold text-gray-700 mb-3">Flag Visible Damage (external inspection only)</h3>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Type <span className="text-red-500">*</span></label>
+                      <select value={damageType} onChange={e => setDamageType(e.target.value)}
+                        style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                        className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="PACKAGING">Packaging Damage</option>
+                        <option value="MATERIAL">Material Damage</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Your Recommendation <span className="text-red-500">*</span></label>
+                      <select value={gateRecommendation} onChange={e => setGateRecommendation(e.target.value)}
+                        style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                        className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="ACCEPT_EXCEPTION">Accept Under Exception</option>
+                        <option value="REJECT">Reject</option>
+                      </select>
+                    </div>
+                  </div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Damage Description <span className="text-red-500">*</span></label>
+                  <input type="text" value={damageDescription} onChange={e => setDamageDescription(e.target.value)}
+                    placeholder="What you observed..."
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Affected Packages (if identifiable)</label>
+                  <input type="text" value={affectedPackages} onChange={e => setAffectedPackages(e.target.value)}
+                    placeholder="e.g. Boxes 4, 5, and 7 of 12"
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+                  <div className="flex gap-2">
+                    <button onClick={handleFlagDamage}
+                      disabled={damageDescription.trim().length < 5 || !!saving}
+                      className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-orange-700 disabled:opacity-50">
+                      {saving === 'flag-damage' ? 'Flagging...' : 'Stop & Flag Damage'}
+                    </button>
+                    <button onClick={() => setShowDamageForm(false)} className="border-2 border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
                   </div>
                 </div>
               )}
