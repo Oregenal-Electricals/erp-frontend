@@ -43,8 +43,9 @@ export default function WorkOrdersPage() {
   const [expandedGroups, setExpandedGroups] = useState({});
   const [reservationsByWo, setReservationsByWo] = useState({});
   const [releaseSummary, setReleaseSummary] = useState(null);
+  const [releaseCheck, setReleaseCheck] = useState(null);
   const [pendingApprovals, setPendingApprovals] = useState([]);
-  const [form, setForm] = useState({ productCode:'', productName:'', uom:'PCS', bomId:'', warehouseId:'', plannedQty:'', plannedStartDate:'', plannedEndDate:'', priority:'MEDIUM', remarks:'' });
+  const [form, setForm] = useState({ productCode:'', productName:'', uom:'PCS', bomId:'', warehouseId:'', plannedQty:'', plannedStartDate:'', plannedEndDate:'', requiredDate:'', plannedManpower:'', priority:'MEDIUM', remarks:'' });
   const [completeModal, setCompleteModal] = useState(null);
   const [completeForm, setCompleteForm] = useState({ completedQty:'', rejectedQty:'0' });
   const [reassignModal, setReassignModal] = useState(null);
@@ -94,6 +95,8 @@ export default function WorkOrdersPage() {
     const body = { ...form, plannedQty: parseFloat(form.plannedQty) };
     if (!body.bomId) delete body.bomId;
     if (!body.remarks) delete body.remarks;
+    if (!body.requiredDate) delete body.requiredDate;
+    if (body.plannedManpower) body.plannedManpower = parseInt(body.plannedManpower, 10); else delete body.plannedManpower;
     const res = await fetch(`${API}/work-orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
@@ -113,7 +116,10 @@ export default function WorkOrdersPage() {
     });
     if (res.ok) {
       const data = await res.json();
-      if (action === 'release' && Array.isArray(data.materialReservations)) {
+      if (action === 'release' && data.materialCheck) {
+        setReleaseCheck({ woNumber: data.woNumber, status: data.materialCheck.status, shortItems: data.materialCheck.shortItems || [] });
+      }
+      if (action === 'start' && Array.isArray(data.materialReservations)) {
         setReleaseSummary({ woNumber: data.woNumber, lines: data.materialReservations });
       }
       if ((action === 'start' || action === 'restart') && data.pendingApproval) {
@@ -284,6 +290,31 @@ export default function WorkOrdersPage() {
           </div>
         )}
 
+        {releaseCheck && (
+          <div className={`mb-6 rounded-lg p-4 border ${releaseCheck.status === 'SHORTAGE' ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+            <div className="flex justify-between items-start">
+              <div className={`text-sm font-semibold ${releaseCheck.status === 'SHORTAGE' ? 'text-red-800' : 'text-green-800'}`}>
+                {releaseCheck.status === 'SHORTAGE' ? 'MATERIAL SHORTAGE' : 'MATERIAL AVAILABLE'} — {releaseCheck.woNumber}
+              </div>
+              <button onClick={()=>setReleaseCheck(null)} className="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+            </div>
+            {releaseCheck.status === 'SHORTAGE' && releaseCheck.shortItems.length > 0 && (
+              <table className="w-full text-xs mt-2">
+                <thead className="text-red-500 uppercase"><tr>{['Item','Required','Available','Short'].map(h=><th key={h} className="text-left px-2 py-1">{h}</th>)}</tr></thead>
+                <tbody className="divide-y divide-red-100">
+                  {releaseCheck.shortItems.map((it,i) => (
+                    <tr key={i}>
+                      <td className="px-2 py-1 font-mono">{it.itemCode} — {it.itemName}</td>
+                      <td className="px-2 py-1">{it.requiredQty}</td>
+                      <td className="px-2 py-1">{it.availableQty}</td>
+                      <td className="px-2 py-1 text-red-600 font-bold">{it.shortQty}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
         {releaseSummary && (
           <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex justify-between items-start">
@@ -355,6 +386,11 @@ export default function WorkOrdersPage() {
                     <span className="text-sm text-gray-500">{wo.productName}</span>
                     <span className="text-xs text-gray-400">{wo.warehouse?.name}</span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[wo.status]}`}>{wo.status?.replace(/_/g,' ')}</span>
+                    {wo.materialAvailability && (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${wo.materialAvailability === 'SHORTAGE' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                        {wo.materialAvailability === 'SHORTAGE' ? 'MATERIAL SHORTAGE' : 'MATERIAL AVAILABLE'}
+                      </span>
+                    )}
                     <span className="text-xs text-gray-500">{wo.plannedQty?.toLocaleString()} {wo.uom}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -379,6 +415,22 @@ export default function WorkOrdersPage() {
 
                 {expandedId===wo.id && (
                   <div className="mt-3 space-y-3">
+                    {(wo.requiredDate || wo.plannedLabourHours != null) && (
+                      <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 flex flex-wrap gap-x-6 gap-y-1">
+                        {wo.requiredDate && <span>Required by: <span className="font-medium text-gray-800">{fmtDate(wo.requiredDate)}</span></span>}
+                        {wo.releasedAt && <span>Released: <span className="font-medium text-gray-800">{fmtDate(wo.releasedAt)}</span></span>}
+                        {wo.plannedLabourHours != null && (
+                          <>
+                            <span className="text-gray-400">|</span>
+                            <span className="font-semibold text-gray-500">Planned (not actual):</span>
+                            <span>Manpower: <span className="font-medium text-gray-800">{wo.plannedManpower}</span></span>
+                            <span>Labour hours: <span className="font-medium text-gray-800">{wo.plannedLabourHours?.toFixed(1)}</span></span>
+                            {wo.plannedLabourCost != null && <span>Labour cost: <span className="font-medium text-gray-800">₹{wo.plannedLabourCost?.toFixed(2)}</span></span>}
+                            {wo.plannedLabourCostPerPc != null && <span>Cost/pc: <span className="font-medium text-gray-800">₹{wo.plannedLabourCostPerPc?.toFixed(3)}</span></span>}
+                          </>
+                        )}
+                      </div>
+                    )}
                     {wo.bom && (
                       <div className="bg-blue-50 rounded-lg p-3">
                         <div className="text-xs font-semibold text-gray-500 mb-2">BOM: {wo.bom.bomNumber} (v{wo.bom.version}) — {wo.bom.items?.length || 0} components</div>
@@ -491,6 +543,14 @@ export default function WorkOrdersPage() {
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">End Date *</label>
                     <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.plannedEndDate} onChange={e=>setForm(f=>({...f,plannedEndDate:e.target.value}))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Required Date</label>
+                    <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.requiredDate} onChange={e=>setForm(f=>({...f,requiredDate:e.target.value}))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Planned Manpower</label>
+                    <input type="number" min="1" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.plannedManpower} onChange={e=>setForm(f=>({...f,plannedManpower:e.target.value}))} />
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Priority</label>
