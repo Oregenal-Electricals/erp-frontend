@@ -1,22 +1,14 @@
 'use client';
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, User, Menu, FlaskConical } from 'lucide-react';
 import { getUser, clearAuth } from '@/lib/auth';
-import { isTestSessionEnabled, setTestSessionEnabled, onTestSessionChange } from '@/lib/testSession';
 import NotificationBell from './NotificationBell';
 
-const HEADER_TOGGLE_ROLES = new Set(['SUPER_ADMIN', 'ADMIN', 'CORPORATE_ADMIN']);
 
 export default function Header({ onMenuClick }) {
   const router = useRouter();
   const user = getUser();
-  const [manualTestMode, setManualTestMode] = useState(false);
 
-  useEffect(() => {
-    setManualTestMode(isTestSessionEnabled());
-    return onTestSessionChange(setManualTestMode);
-  }, []);
 
   const handleLogout = () => {
     clearAuth();
@@ -24,7 +16,6 @@ export default function Header({ onMenuClick }) {
   };
 
   const roleLabel = user?.role?.replace(/_/g, ' ') ?? '';
-  const canToggle = !!user?.role && HEADER_TOGGLE_ROLES.has(user.role);
 
   return (
     <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0 sticky top-0 z-10">
@@ -50,18 +41,6 @@ export default function Header({ onMenuClick }) {
             <FlaskConical size={13} />
             <span className="hidden sm:block">Test User</span>
           </span>
-        )}
-        {!user?.isTestUser && canToggle && (
-          <button
-            onClick={() => setTestSessionEnabled(!manualTestMode)}
-            title="Admin-only: when on, everything you create is tagged as test data and won't affect real numbers"
-            className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
-              manualTestMode ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            }`}
-          >
-            <FlaskConical size={13} />
-            <span className="hidden sm:block">Test Mode</span>
-          </button>
         )}
         <div className="w-px h-5 bg-gray-200" />
         <NotificationBell />
