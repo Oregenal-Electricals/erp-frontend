@@ -64,7 +64,7 @@ export default function GateDashboardPage() {
               <StatCard label="Visitors Inside" value={s.visitorsInside ?? 0} tone="blue" />
               <StatCard label="Contract Labour Inside" value={s.contractLabourInside ?? 0} tone="blue" />
               <StatCard label="Vehicles Inside" value={s.vehiclesInside ?? 0} tone="green" />
-              <StatCard label="Visitor Vehicles Outside" value={s.visitorVehiclesOutside ?? 0} note="Parking — coming soon" />
+              <StatCard label="Visitor Vehicles Outside" value={s.visitorVehiclesOutside ?? 0} note="Exited today" />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
               <StatCard label="Waiting Vehicles" value={s.waitingVehicles ?? 0} note="Coming soon" />
