@@ -103,6 +103,48 @@ export default function ManpowerPage() {
   }, []);
   useEffect(() => { fetchAvailability(); }, [fetchAvailability]);
 
+  // PROD-003: Plant Head Allocates Manpower to Production Stage.
+  const [selectedForStage, setSelectedForStage] = useState(new Set());
+  const [stageForm, setStageForm] = useState({ stageName: '', startTime: '', plannedEndTime: '' });
+  const [stageAllocResult, setStageAllocResult] = useState(null);
+  const [stageAllocSaving, setStageAllocSaving] = useState(false);
+  const [stageAllocError, setStageAllocError] = useState('');
+  function toggleSelected(employeeId) {
+    setSelectedForStage(prev => {
+      const next = new Set(prev);
+      if (next.has(employeeId)) next.delete(employeeId); else next.add(employeeId);
+      return next;
+    });
+  }
+  async function submitStageAllocation() {
+    if (!stageForm.stageName || selectedForStage.size === 0) return;
+    setStageAllocSaving(true);
+    setStageAllocError('');
+    const body = {
+      employeeIds: Array.from(selectedForStage),
+      stageName: stageForm.stageName,
+      activityType: 'PRODUCTION',
+    };
+    if (stageForm.startTime) body.startTime = new Date(`${availFilters.date}T${stageForm.startTime}:00`).toISOString();
+    if (stageForm.plannedEndTime) body.plannedEndTime = new Date(`${availFilters.date}T${stageForm.plannedEndTime}:00`).toISOString();
+    const res = await fetch(`${API}/manpower/assignments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setStageAllocResult(data);
+      setSelectedForStage(new Set());
+      setStageForm({ stageName: '', startTime: '', plannedEndTime: '' });
+      fetchAvailability();
+    } else {
+      const d = await res.json();
+      setStageAllocError(Array.isArray(d.message) ? d.message.join(', ') : d.message || 'Allocation failed');
+    }
+    setStageAllocSaving(false);
+  }
+
   async function openStageRoster(stageKey) {
     setRosterLoading(true);
     setRosterModal({ title: stageKey, employees: [] });
@@ -367,13 +409,34 @@ export default function ManpowerPage() {
                 </div>
               )}
               <div className="text-xs text-gray-500 mb-2">Absent: {availability.absent} · Leave: {availability.leave} · Week Off: {availability.weekOff} · Holiday: {availability.holiday}</div>
+              {stageAllocResult && (
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                  <div className="font-semibold text-blue-800 mb-1">Allocated {stageAllocResult.createdCount} worker{stageAllocResult.createdCount === 1 ? '' : 's'}{stageAllocResult.skippedCount > 0 ? `, ${stageAllocResult.skippedCount} skipped` : ''}</div>
+                  {stageAllocResult.skipped?.map((s, i) => <div key={i} className="text-red-600 text-xs">Skipped: {s.reason}</div>)}
+                  {stageAllocResult.warnings?.map((w, i) => <div key={i} className="text-yellow-700 text-xs">Warning: {w.warning}</div>)}
+                  {stageAllocResult.estimatedCost && (
+                    <div className="text-xs text-gray-600 mt-1">
+                      Estimated stage labour cost (planning reference only): {stageAllocResult.estimatedCost.workerCount} workers × {stageAllocResult.estimatedCost.hours}h × ₹{stageAllocResult.estimatedCost.hourlyRate}/h = ₹{stageAllocResult.estimatedCost.estimatedCost}
+                    </div>
+                  )}
+                  <button onClick={() => setStageAllocResult(null)} className="text-blue-400 hover:text-blue-600 text-xs mt-1">Dismiss</button>
+                </div>
+              )}
               <table className="w-full text-sm">
                 <thead className="text-gray-400 uppercase text-xs">
-                  <tr>{['Code', 'Name', 'Department', 'Skill', 'Shift', 'In-Time', 'Attendance', 'Allocation', 'Availability'].map(h => <th key={h} className="text-left px-2 py-1">{h}</th>)}</tr>
+                  <tr>
+                    <th className="px-2 py-1"></th>
+                    {['Code', 'Name', 'Department', 'Skill', 'Shift', 'In-Time', 'Attendance', 'Allocation', 'Availability'].map(h => <th key={h} className="text-left px-2 py-1">{h}</th>)}
+                  </tr>
                 </thead>
                 <tbody className="divide-y">
                   {availability.workers.map(w => (
-                    <tr key={w.employeeId}>
+                    <tr key={w.employeeId} className={selectedForStage.has(w.employeeId) ? 'bg-blue-50' : ''}>
+                      <td className="px-2 py-1">
+                        {w.allocationStatus === 'UNALLOCATED' && (
+                          <input type="checkbox" checked={selectedForStage.has(w.employeeId)} onChange={() => toggleSelected(w.employeeId)} />
+                        )}
+                      </td>
                       <td className="px-2 py-1 font-mono">{w.employeeNumber}</td>
                       <td className="px-2 py-1">{w.employeeName}</td>
                       <td className="px-2 py-1">{w.department}</td>
@@ -388,6 +451,30 @@ export default function ManpowerPage() {
                 </tbody>
               </table>
               {availability.workers.length === 0 && <div className="text-center py-6 text-gray-400 text-sm">No production-eligible present workers match the current filters.</div>}
+              {selectedForStage.size > 0 && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+                  <div className="text-sm font-semibold text-gray-700 mb-2">Allocate {selectedForStage.size} selected worker{selectedForStage.size === 1 ? '' : 's'} to a stage</div>
+                  {stageAllocError && <div className="mb-2 p-2 bg-red-50 text-red-600 rounded text-xs">{stageAllocError}</div>}
+                  <div className="flex flex-wrap gap-3 items-end">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Stage</label>
+                      <input type="text" placeholder="e.g. Assembly" className="border rounded-lg px-3 py-2 text-sm" value={stageForm.stageName} onChange={e => setStageForm(f => ({ ...f, stageName: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Start Time</label>
+                      <input type="time" className="border rounded-lg px-3 py-2 text-sm" value={stageForm.startTime} onChange={e => setStageForm(f => ({ ...f, startTime: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Planned End Time</label>
+                      <input type="time" className="border rounded-lg px-3 py-2 text-sm" value={stageForm.plannedEndTime} onChange={e => setStageForm(f => ({ ...f, plannedEndTime: e.target.value }))} />
+                    </div>
+                    <button disabled={!stageForm.stageName || stageAllocSaving} onClick={submitStageAllocation} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50">
+                      {stageAllocSaving ? 'Allocating...' : 'Allocate to Stage'}
+                    </button>
+                    <button onClick={() => setSelectedForStage(new Set())} className="px-3 py-2 text-gray-500 text-sm">Clear selection</button>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="text-center py-6 text-gray-400 text-sm">Could not load manpower availability</div>
