@@ -82,6 +82,27 @@ export default function ManpowerPage() {
 
   useEffect(() => { fetchAll(); fetchReconciliation(); }, [fetchAll, fetchReconciliation]);
 
+  const [availability, setAvailability] = useState(null);
+  const [availLoading, setAvailLoading] = useState(true);
+  const [availFilters, setAvailFilters] = useState({ date: new Date().toISOString().slice(0, 10), shiftId: '', skill: '', availabilityStatus: '' });
+  const [availShifts, setAvailShifts] = useState([]);
+  const fetchAvailability = useCallback(async () => {
+    setAvailLoading(true);
+    const params = new URLSearchParams();
+    if (availFilters.date) params.set('date', availFilters.date);
+    if (availFilters.shiftId) params.set('shiftId', availFilters.shiftId);
+    if (availFilters.skill) params.set('skill', availFilters.skill);
+    if (availFilters.availabilityStatus) params.set('availabilityStatus', availFilters.availabilityStatus);
+    const res = await fetch(`${API}/manpower/availability?${params.toString()}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) setAvailability(await res.json());
+    setAvailLoading(false);
+  }, [availFilters]);
+  useEffect(() => {
+    fetch(`${API}/attendance/shifts`, { headers: { Authorization: `Bearer ${getToken()}` } })
+      .then(r => r.ok ? r.json() : []).then(setAvailShifts).catch(() => {});
+  }, []);
+  useEffect(() => { fetchAvailability(); }, [fetchAvailability]);
+
   async function openStageRoster(stageKey) {
     setRosterLoading(true);
     setRosterModal({ title: stageKey, employees: [] });
@@ -287,6 +308,89 @@ export default function ManpowerPage() {
             </>
           ) : (
             <div className="text-center py-6 text-gray-400 text-sm">Could not load reconciliation</div>
+          )}
+        </div>
+        {/* PROD-002: Manpower Available from HR Attendance */}
+        <div className="bg-white rounded-xl border shadow-sm p-5 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-gray-800">Manpower Availability</h2>
+            {availability && <span className="text-xs text-gray-400">{availability.date}</span>}
+          </div>
+          <div className="flex flex-wrap gap-3 mb-4">
+            <input type="date" className="border rounded-lg px-3 py-2 text-sm" value={availFilters.date} onChange={e => setAvailFilters(f => ({ ...f, date: e.target.value }))} />
+            <select className="border rounded-lg px-3 py-2 text-sm" value={availFilters.shiftId} onChange={e => setAvailFilters(f => ({ ...f, shiftId: e.target.value }))}>
+              <option value="">All Shifts</option>
+              {availShifts.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <input type="text" placeholder="Skill" className="border rounded-lg px-3 py-2 text-sm" value={availFilters.skill} onChange={e => setAvailFilters(f => ({ ...f, skill: e.target.value }))} />
+            <select className="border rounded-lg px-3 py-2 text-sm" value={availFilters.availabilityStatus} onChange={e => setAvailFilters(f => ({ ...f, availabilityStatus: e.target.value }))}>
+              <option value="">All Availability</option>
+              <option value="AVAILABLE FOR ALLOCATION">Available for Allocation</option>
+              <option value="ALREADY ALLOCATED">Already Allocated</option>
+              <option value="NOT AVAILABLE">Not Available</option>
+            </select>
+          </div>
+          {availLoading ? (
+            <div className="text-center py-6 text-gray-400 text-sm">Loading...</div>
+          ) : availability ? (
+            <>
+              <div className="grid grid-cols-5 gap-3 mb-4">
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-xl font-bold text-gray-800">{availability.totalPresent}</div>
+                  <div className="text-xs text-gray-500 mt-1">Total Present</div>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
+                  <div className="text-xl font-bold text-blue-700">{availability.productionEligiblePresent}</div>
+                  <div className="text-xs text-gray-500 mt-1">Production Eligible</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <div className="text-xl font-bold text-green-700">{availability.allocated}</div>
+                  <div className="text-xs text-gray-500 mt-1">Allocated</div>
+                </div>
+                <div className="bg-yellow-50 rounded-lg p-3 text-center">
+                  <div className="text-xl font-bold text-yellow-700">{availability.unallocated}</div>
+                  <div className="text-xs text-gray-500 mt-1">Unallocated</div>
+                </div>
+                <div className="bg-red-50 rounded-lg p-3 text-center">
+                  <div className="text-xl font-bold text-red-700">{availability.temporarilyUnavailable}</div>
+                  <div className="text-xs text-gray-500 mt-1">Temp. Unavailable</div>
+                </div>
+              </div>
+              {!availability.reconciles && (
+                <div className="mb-3 p-2 bg-red-50 text-red-600 rounded text-sm">Totals do not reconcile - data inconsistency detected.</div>
+              )}
+              {availability.exceptions?.length > 0 && (
+                <div className="mb-3 p-2 bg-red-50 text-red-600 rounded text-sm">
+                  {availability.exceptions.map((ex, i) => (
+                    <div key={i}>{ex.employeeName} ({ex.employeeNumber}): {ex.issue}</div>
+                  ))}
+                </div>
+              )}
+              <div className="text-xs text-gray-500 mb-2">Absent: {availability.absent} · Leave: {availability.leave} · Week Off: {availability.weekOff} · Holiday: {availability.holiday}</div>
+              <table className="w-full text-sm">
+                <thead className="text-gray-400 uppercase text-xs">
+                  <tr>{['Code', 'Name', 'Department', 'Skill', 'Shift', 'In-Time', 'Attendance', 'Allocation', 'Availability'].map(h => <th key={h} className="text-left px-2 py-1">{h}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y">
+                  {availability.workers.map(w => (
+                    <tr key={w.employeeId}>
+                      <td className="px-2 py-1 font-mono">{w.employeeNumber}</td>
+                      <td className="px-2 py-1">{w.employeeName}</td>
+                      <td className="px-2 py-1">{w.department}</td>
+                      <td className="px-2 py-1">{w.skill || '-'}</td>
+                      <td className="px-2 py-1">{w.shift?.name || '-'}</td>
+                      <td className="px-2 py-1">{w.inTime ? new Date(w.inTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                      <td className="px-2 py-1">{w.attendanceStatus}</td>
+                      <td className="px-2 py-1">{w.allocationStatus}{w.currentWorkOrder ? ` (${w.currentWorkOrder})` : ''}</td>
+                      <td className={`px-2 py-1 font-medium ${w.availabilityStatus === 'AVAILABLE FOR ALLOCATION' ? 'text-yellow-700' : w.availabilityStatus === 'ALREADY ALLOCATED' ? 'text-green-700' : 'text-red-600'}`}>{w.availabilityStatus}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {availability.workers.length === 0 && <div className="text-center py-6 text-gray-400 text-sm">No production-eligible present workers match the current filters.</div>}
+            </>
+          ) : (
+            <div className="text-center py-6 text-gray-400 text-sm">Could not load manpower availability</div>
           )}
         </div>
 
