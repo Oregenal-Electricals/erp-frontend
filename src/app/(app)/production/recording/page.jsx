@@ -23,7 +23,7 @@ export default function ProductionRecordingPage() {
   const [showModal, setShowModal] = useState(false);
   const [showProgress, setShowProgress] = useState(null);
   const [progress, setProgress] = useState(null);
-  const [form, setForm] = useState({ workOrderId:'', shift:'MORNING', operatorName:'', machineName:'', goodQty:'', scrapQty:'0', remarks:'', entryDate:new Date().toISOString().split('T')[0] });
+  const [form, setForm] = useState({ workOrderId:'', shift:'MORNING', operatorName:'', machineName:'', goodQty:'', scrapQty:'0', reworkQty:'0', manpowerQty:'', periodStart:'', periodEnd:'', remarks:'', entryDate:new Date().toISOString().split('T')[0] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -48,11 +48,21 @@ export default function ProductionRecordingPage() {
 
   async function handleCreate() {
     setSaving(true); setError('');
-    const body = { ...form, goodQty: parseFloat(form.goodQty)||0, scrapQty: parseFloat(form.scrapQty)||0 };
+    const body = {
+      ...form, goodQty: parseFloat(form.goodQty)||0, scrapQty: parseFloat(form.scrapQty)||0,
+      reworkQty: parseFloat(form.reworkQty)||0,
+      manpowerQty: form.manpowerQty ? parseInt(form.manpowerQty, 10) : undefined,
+    };
     if (!body.operatorName) delete body.operatorName;
     if (!body.machineName) delete body.machineName;
     if (!body.remarks) delete body.remarks;
+    if (!body.manpowerQty) delete body.manpowerQty;
     body.entryDate = new Date(form.entryDate).toISOString();
+    // PROD-007: periodStart/periodEnd are now required by the backend
+    // for actual labour-hours/cost calculation - build full timestamps
+    // from the entry date plus the two time-of-day inputs.
+    body.periodStart = new Date(`${form.entryDate}T${form.periodStart}:00`).toISOString();
+    body.periodEnd = new Date(`${form.entryDate}T${form.periodEnd}:00`).toISOString();
     const res = await fetch(`${API}/production-entries`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
@@ -86,7 +96,7 @@ export default function ProductionRecordingPage() {
             <h1 className="text-2xl font-bold text-gray-900">Production Recording</h1>
             <p className="text-gray-500 text-sm mt-1">Record daily/shift production output against work orders</p>
           </div>
-          <button onClick={() => { setForm({ workOrderId:'', shift:'MORNING', operatorName:'', machineName:'', goodQty:'', scrapQty:'0', remarks:'', entryDate:new Date().toISOString().split('T')[0] }); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ Record Production</button>
+          <button onClick={() => { setForm({ workOrderId:'', shift:'MORNING', operatorName:'', machineName:'', goodQty:'', scrapQty:'0', reworkQty:'0', manpowerQty:'', periodStart:'', periodEnd:'', remarks:'', entryDate:new Date().toISOString().split('T')[0] }); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ Record Production</button>
         </div>
 
         {stats && (
@@ -237,8 +247,24 @@ export default function ProductionRecordingPage() {
                     <input type="number" step="0.01" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.goodQty} onChange={e=>setForm(f=>({...f,goodQty:e.target.value}))} />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">Scrap Qty</label>
+                    <label className="block text-sm text-gray-600 mb-1">Scrap (Reject) Qty</label>
                     <input type="number" step="0.01" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.scrapQty} onChange={e=>setForm(f=>({...f,scrapQty:e.target.value}))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Rework Qty</label>
+                    <input type="number" step="0.01" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.reworkQty} onChange={e=>setForm(f=>({...f,reworkQty:e.target.value}))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Manpower Qty</label>
+                    <input type="number" min="1" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.manpowerQty} onChange={e=>setForm(f=>({...f,manpowerQty:e.target.value}))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Period Start *</label>
+                    <input type="time" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.periodStart} onChange={e=>setForm(f=>({...f,periodStart:e.target.value}))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Period End *</label>
+                    <input type="time" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.periodEnd} onChange={e=>setForm(f=>({...f,periodEnd:e.target.value}))} />
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Operator</label>
