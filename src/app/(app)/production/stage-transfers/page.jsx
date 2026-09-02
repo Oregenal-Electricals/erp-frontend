@@ -31,12 +31,16 @@ export default function StageTransfersPage() {
       fetch(`${API}/work-orders?status=IN_PROGRESS&limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (transferRes.ok) setTransfers(await transferRes.json());
-    if (compRes.ok) { const d = await compRes.json(); setCompletedWos(d.data || []); }
-    const [draftData, relData, ipData] = await Promise.all([
+    const [compData, draftData, relData, ipData] = await Promise.all([
+      compRes.ok ? compRes.json() : { data: [] },
       draftRes.ok ? draftRes.json() : { data: [] },
       relRes.ok ? relRes.json() : { data: [] },
       ipRes.ok ? ipRes.json() : { data: [] },
     ]);
+    // PROD-006: a stage no longer needs to be fully COMPLETED to hand
+    // over output - IN_PROGRESS Work Orders can give a partial
+    // transferable quantity too.
+    setCompletedWos([...(ipData.data || []), ...(compData.data || [])]);
     setDestWos([...(ipData.data || []), ...(relData.data || []), ...(draftData.data || [])]);
     setLoading(false);
   }, []);
@@ -49,7 +53,8 @@ export default function StageTransfersPage() {
 
   function onFromChange(id) {
     const wo = completedWos.find(w => w.id === id);
-    setGiveForm(f => ({ ...f, fromWorkOrderId: id, qty: wo ? String(wo.completedQty) : '' }));
+    const transferable = wo ? Math.max(0, (wo.completedQty || 0) - (wo.cumulativeHandoverQty || 0)) : '';
+    setGiveForm(f => ({ ...f, fromWorkOrderId: id, qty: wo ? String(transferable) : '' }));
   }
 
   async function handleGive() {
@@ -84,7 +89,7 @@ export default function StageTransfersPage() {
       <div className="p-6 max-w-4xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Stage Transfer Notes</h1>
-          <p className="text-gray-500 text-sm mt-1">Give finished goods from one stage's Work Order to another, and the receiving stage confirms it.</p>
+          <p className="text-gray-500 text-sm mt-1">Give finished goods from one stage&apos;s Work Order to another, and the receiving stage confirms it.</p>
         </div>
 
         {/* Give */}
@@ -96,7 +101,7 @@ export default function StageTransfersPage() {
               <label className="block text-xs text-gray-600 mb-1">From (completed Work Order)</label>
               <select className="w-full border rounded-lg px-3 py-2 text-sm" value={giveForm.fromWorkOrderId} onChange={e => onFromChange(e.target.value)}>
                 <option value="">— Select —</option>
-                {completedWos.map(w => <option key={w.id} value={w.id}>{w.woNumber} — {w.productName} ({w.completedQty} completed)</option>)}
+                {completedWos.map(w => <option key={w.id} value={w.id}>{w.woNumber} — {w.productName} ({Math.max(0, (w.completedQty || 0) - (w.cumulativeHandoverQty || 0))} transferable, {w.completedQty} completed)</option>)}
               </select>
             </div>
             <div>
