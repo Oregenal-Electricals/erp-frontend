@@ -9,8 +9,12 @@ const STATUS_COLORS = {
   PENDING: 'bg-gray-100 text-gray-600',
   ACCEPTED: 'bg-green-100 text-green-700',
   QUERIED: 'bg-red-100 text-red-600',
+  PENDING_APPROVAL: 'bg-amber-100 text-amber-700',
+  APPROVED: 'bg-green-100 text-green-700',
+  REJECTED: 'bg-red-100 text-red-600',
 };
 const CATEGORY_OPTIONS = ['SMT', 'MI', 'Assembly', 'Packaging', 'STORE', 'QUALITY'];
+const WO_APPROVAL_ROLES = ['SUPER_ADMIN', 'HR_MANAGER', 'PLANT_HEAD', 'UNIT_HEAD', 'PRODUCTION_HEAD', 'PLANNING_MANAGER'];
 
 export default function ManpowerPage() {
   const me = getUser() || {};
@@ -261,13 +265,17 @@ export default function ManpowerPage() {
 
   function openDistribute(allocation) {
     setDistributeFor(allocation);
-    setDistLines([{ toUserId: '', workOrderId: '', category: allocation.level === 'HR_TO_PLANT' ? 'SMT' : '', count: '' }]);
+    setDistLines([{ toUserId: '', workOrderId: '', category: allocation.level === 'HR_TO_PLANT' ? 'SMT' : '', count: '', startTime: '', plannedEndTime: '' }]);
     setDistError(''); setDistResult(null);
   }
 
   async function handleDistribute() {
     setDistError(''); setDistResult(null);
-    const lines = distLines.filter(l => l.count && (l.toUserId || l.workOrderId)).map(l => ({ toUserId: l.toUserId || undefined, workOrderId: l.workOrderId || undefined, category: l.category || undefined, count: parseInt(l.count) }));
+    const lines = distLines.filter(l => l.count && (l.toUserId || l.workOrderId)).map(l => ({
+      toUserId: l.toUserId || undefined, workOrderId: l.workOrderId || undefined, category: l.category || undefined, count: parseInt(l.count),
+      startTime: l.startTime ? new Date(l.startTime).toISOString() : undefined,
+      plannedEndTime: l.plannedEndTime ? new Date(l.plannedEndTime).toISOString() : undefined,
+    }));
     if (lines.length === 0) { setDistError('Add at least one line with a count and either a recipient or a Work Order'); return; }
     setDistributing(true);
     const res = await fetch(`${API}/manpower/allocations/distribute`, {
@@ -281,6 +289,16 @@ export default function ManpowerPage() {
     setDistributing(false);
   }
 
+  async function approveWOAllocation(allocation, action) {
+    const comments = action === 'REJECTED' ? window.prompt('Reason for rejection (required):') : undefined;
+    if (action === 'REJECTED' && !comments) return;
+    await fetch(`${API}/manpower/allocations/${allocation.id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ action, comments }),
+    });
+    fetchAll();
+  }
   async function handleRaiseQuery() {
     if (!queryMessage.trim()) return;
     await fetch(`${API}/manpower/queries`, {
@@ -708,6 +726,12 @@ export default function ManpowerPage() {
                     {a.toUserId && (a.toUserId === me.id || a.fromUserId === me.id) && (
                       <button onClick={() => setQueryFor(a)} className="text-xs text-red-500 hover:underline">Raise Query</button>
                     )}
+                    {a.status === 'PENDING_APPROVAL' && WO_APPROVAL_ROLES.includes(me.role) && (
+                      <>
+                        <button onClick={() => approveWOAllocation(a, 'APPROVED')} className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700">Approve</button>
+                        <button onClick={() => approveWOAllocation(a, 'REJECTED')} className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Reject</button>
+                      </>
+                    )}
                     {a.workOrderId && a.status === 'ACCEPTED' && (
                       <>
                         <button onClick={() => { setAdjustFor(a); setAdjustDelta(''); setAdjustReason(''); setAdjustError(''); }} className="text-xs bg-amber-500 text-white px-2 py-1 rounded hover:bg-amber-600">Adjust</button>
@@ -764,10 +788,14 @@ export default function ManpowerPage() {
                       <option value="">— Work Order (optional) —</option>
                       {workOrders.map(w => <option key={w.id} value={w.id}>{w.woNumber} — {w.productName} ({w.stageName || 'Production'})</option>)}
                     </select>
-                    <p className="text-xs text-gray-400">Pick a Line Incharge, a Work Order, or both — at least one is required.</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input type="datetime-local" placeholder="Start" className="border rounded-lg px-2 py-2 text-sm" value={line.startTime} onChange={e => setDistLines(prev => prev.map((l, i) => i === idx ? { ...l, startTime: e.target.value } : l))} />
+                      <input type="datetime-local" placeholder="Planned end" className="border rounded-lg px-2 py-2 text-sm" value={line.plannedEndTime} onChange={e => setDistLines(prev => prev.map((l, i) => i === idx ? { ...l, plannedEndTime: e.target.value } : l))} />
+                    </div>
+                    <p className="text-xs text-gray-400">Pick a Line Incharge, a Work Order, or both — at least one is required. Times are optional but needed for the overlap/capacity check and target/cost calculation when allocating to a Work Order.</p>
                   </div>
                 ))}
-                <button onClick={() => setDistLines(prev => [...prev, { toUserId: '', workOrderId: '', category: '', count: '' }])} className="text-xs text-blue-600 hover:underline">+ Add Row</button>
+                <button onClick={() => setDistLines(prev => [...prev, { toUserId: '', workOrderId: '', category: '', count: '', startTime: '', plannedEndTime: '' }])} className="text-xs text-blue-600 hover:underline">+ Add Row</button>
               </div>
               <div className="p-5 border-t flex justify-end gap-3">
                 <button onClick={() => setDistributeFor(null)} className="px-4 py-2 border rounded-lg text-sm">Close</button>
