@@ -145,6 +145,72 @@ export default function ManpowerPage() {
     setStageAllocSaving(false);
   }
 
+  // PROD-004: Stage Head Allocates Manpower to Work Order.
+  const [myStageWorkers, setMyStageWorkers] = useState([]);
+  const [eligibleWOs, setEligibleWOs] = useState([]);
+  const [woAllocLoading, setWoAllocLoading] = useState(false);
+  const [selectedForWO, setSelectedForWO] = useState(new Set());
+  const [woForm, setWoForm] = useState({ workOrderId: '', startTime: '', plannedEndTime: '' });
+  const [woAllocResult, setWoAllocResult] = useState(null);
+  const [woAllocSaving, setWoAllocSaving] = useState(false);
+  const [woAllocError, setWoAllocError] = useState('');
+  const fetchMyStageWO = useCallback(async () => {
+    setWoAllocLoading(true);
+    const [rosterRes, woRes] = await Promise.all([
+      fetch(`${API}/manpower/roster?activityType=PRODUCTION`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/work-orders?status=RELEASED&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+    ]);
+    if (rosterRes.ok) {
+      const roster = await rosterRes.json();
+      // Only stage-level assignments (not already tied to a specific WO) are available to sub-allocate.
+      setMyStageWorkers(Array.isArray(roster) ? roster.filter(a => !a.workOrderId) : []);
+    }
+    if (woRes.ok) {
+      const wos = await woRes.json();
+      setEligibleWOs(wos.data || wos.workOrders || (Array.isArray(wos) ? wos : []));
+    }
+    setWoAllocLoading(false);
+  }, []);
+  function toggleSelectedForWO(employeeId) {
+    setSelectedForWO(prev => {
+      const next = new Set(prev);
+      if (next.has(employeeId)) next.delete(employeeId); else next.add(employeeId);
+      return next;
+    });
+  }
+  async function submitWOAllocation() {
+    if (!woForm.workOrderId || selectedForWO.size === 0) return;
+    setWoAllocSaving(true);
+    setWoAllocError('');
+    const selectedWO = eligibleWOs.find(w => w.id === woForm.workOrderId);
+    const body = {
+      employeeIds: Array.from(selectedForWO),
+      workOrderId: woForm.workOrderId,
+      stageName: selectedWO?.stageName,
+      activityType: 'PRODUCTION',
+    };
+    const dateStr = availFilters.date;
+    if (woForm.startTime) body.startTime = new Date(`${dateStr}T${woForm.startTime}:00`).toISOString();
+    if (woForm.plannedEndTime) body.plannedEndTime = new Date(`${dateStr}T${woForm.plannedEndTime}:00`).toISOString();
+    const res = await fetch(`${API}/manpower/assignments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setWoAllocResult(data);
+      setSelectedForWO(new Set());
+      setWoForm({ workOrderId: '', startTime: '', plannedEndTime: '' });
+      fetchMyStageWO();
+    } else {
+      const d = await res.json();
+      setWoAllocError(Array.isArray(d.message) ? d.message.join(', ') : d.message || 'Allocation failed');
+    }
+    setWoAllocSaving(false);
+  }
+  useEffect(() => { fetchMyStageWO(); }, [fetchMyStageWO]);
+
   async function openStageRoster(stageKey) {
     setRosterLoading(true);
     setRosterModal({ title: stageKey, employees: [] });
@@ -478,6 +544,80 @@ export default function ManpowerPage() {
             </>
           ) : (
             <div className="text-center py-6 text-gray-400 text-sm">Could not load manpower availability</div>
+          )}
+        </div>
+        {/* PROD-004: Stage Head Allocates Manpower to Work Order */}
+        <div className="bg-white rounded-xl border shadow-sm p-5 mb-6">
+          <h2 className="font-semibold text-gray-800 mb-3">WO Manpower Allocation</h2>
+          <p className="text-xs text-gray-500 mb-3">Allocate manpower already on your stage to a specific released Work Order. Requires Plant Head approval before it takes effect.</p>
+          {woAllocResult && (
+            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+              <div className="font-semibold text-blue-800 mb-1">
+                {woAllocResult.createdCount} worker{woAllocResult.createdCount === 1 ? '' : 's'} submitted for Plant Head approval{woAllocResult.skippedCount > 0 ? `, ${woAllocResult.skippedCount} skipped` : ''}
+              </div>
+              {woAllocResult.skipped?.map((s, i) => <div key={i} className="text-red-600 text-xs">Skipped: {s.reason}</div>)}
+              {woAllocResult.warnings?.map((w, i) => <div key={i} className="text-yellow-700 text-xs">Warning: {w.warning}</div>)}
+              {woAllocResult.estimatedCost && (
+                <div className="text-xs text-gray-600 mt-1">
+                  Planned target: {woAllocResult.estimatedCost.plannedTargetQty ?? '-'} pcs · Planned labour hours: {woAllocResult.estimatedCost.labourHours} · Estimated labour cost (planning reference only): ₹{woAllocResult.estimatedCost.estimatedCost}
+                </div>
+              )}
+              <button onClick={() => setWoAllocResult(null)} className="text-blue-400 hover:text-blue-600 text-xs mt-1">Dismiss</button>
+            </div>
+          )}
+          {woAllocLoading ? (
+            <div className="text-center py-6 text-gray-400 text-sm">Loading...</div>
+          ) : (
+            <>
+              <table className="w-full text-sm mb-4">
+                <thead className="text-gray-400 uppercase text-xs">
+                  <tr>
+                    <th className="px-2 py-1"></th>
+                    {['Employee', 'Stage', 'Line', 'Allocation Start', 'Allocation End'].map(h => <th key={h} className="text-left px-2 py-1">{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {myStageWorkers.map(a => (
+                    <tr key={a.id} className={selectedForWO.has(a.employeeId) ? 'bg-blue-50' : ''}>
+                      <td className="px-2 py-1"><input type="checkbox" checked={selectedForWO.has(a.employeeId)} onChange={() => toggleSelectedForWO(a.employeeId)} /></td>
+                      <td className="px-2 py-1">{a.employee ? `${a.employee.firstName} ${a.employee.lastName}` : a.employeeId}</td>
+                      <td className="px-2 py-1">{a.stageName || '-'}</td>
+                      <td className="px-2 py-1">-</td>
+                      <td className="px-2 py-1">{a.startTime ? new Date(a.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                      <td className="px-2 py-1">{(a.endTime || a.plannedEndTime) ? new Date(a.endTime || a.plannedEndTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'Ongoing'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {myStageWorkers.length === 0 && <div className="text-center py-4 text-gray-400 text-sm mb-3">No stage-level manpower currently on your stage.</div>}
+              {selectedForWO.size > 0 && (
+                <div className="p-4 bg-gray-50 rounded-lg border">
+                  <div className="text-sm font-semibold text-gray-700 mb-2">Allocate {selectedForWO.size} selected worker{selectedForWO.size === 1 ? '' : 's'} to a Work Order</div>
+                  {woAllocError && <div className="mb-2 p-2 bg-red-50 text-red-600 rounded text-xs">{woAllocError}</div>}
+                  <div className="flex flex-wrap gap-3 items-end">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Work Order</label>
+                      <select className="border rounded-lg px-3 py-2 text-sm" value={woForm.workOrderId} onChange={e => setWoForm(f => ({ ...f, workOrderId: e.target.value }))}>
+                        <option value="">Select WO</option>
+                        {eligibleWOs.map(w => <option key={w.id} value={w.id}>{w.woNumber} - {w.productName}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Start Time</label>
+                      <input type="time" className="border rounded-lg px-3 py-2 text-sm" value={woForm.startTime} onChange={e => setWoForm(f => ({ ...f, startTime: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Planned End Time</label>
+                      <input type="time" className="border rounded-lg px-3 py-2 text-sm" value={woForm.plannedEndTime} onChange={e => setWoForm(f => ({ ...f, plannedEndTime: e.target.value }))} />
+                    </div>
+                    <button disabled={!woForm.workOrderId || woAllocSaving} onClick={submitWOAllocation} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50">
+                      {woAllocSaving ? 'Submitting...' : 'Submit for Plant Head Approval'}
+                    </button>
+                    <button onClick={() => setSelectedForWO(new Set())} className="px-3 py-2 text-gray-500 text-sm">Clear selection</button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
