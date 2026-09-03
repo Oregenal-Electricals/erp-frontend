@@ -47,7 +47,7 @@ export default function WorkOrdersPage() {
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [form, setForm] = useState({ productCode:'', productName:'', uom:'PCS', bomId:'', warehouseId:'', plannedQty:'', plannedStartDate:'', plannedEndDate:'', requiredDate:'', plannedManpower:'', priority:'MEDIUM', remarks:'' });
   const [completeModal, setCompleteModal] = useState(null);
-  const [completeForm, setCompleteForm] = useState({ completedQty:'', rejectedQty:'0' });
+  const [completeForm, setCompleteForm] = useState({ shortClosure: false, reason: '' });
   const [reassignModal, setReassignModal] = useState(null);
   const [reassignNewQty, setReassignNewQty] = useState('');
   const [reassignPreview, setReassignPreview] = useState(null);
@@ -157,7 +157,10 @@ export default function WorkOrdersPage() {
 
   async function handleComplete() {
     setSaving(true);
-    await handleAction(completeModal, 'complete', { completedQty: parseFloat(completeForm.completedQty), rejectedQty: parseFloat(completeForm.rejectedQty) || 0 });
+    // PROD-012: completion now reconciles against the WO's own
+    // accumulated good/reject/rework quantities server-side - it no
+    // longer accepts a typed completedQty/rejectedQty override.
+    await handleAction(completeModal, 'complete', { shortClosure: completeForm.shortClosure, reason: completeForm.reason || undefined });
     setCompleteModal(null); setSaving(false);
   }
 
@@ -396,7 +399,7 @@ export default function WorkOrdersPage() {
                   <div className="flex items-center gap-2">
                     {wo.status === 'DRAFT' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'release')}} className="px-2 py-1 text-xs bg-blue-600 text-white rounded">Release</button>}
                     {wo.status === 'RELEASED' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'start')}} className="px-2 py-1 text-xs bg-yellow-500 text-gray-900 rounded">Start</button>}
-                    {wo.status === 'IN_PROGRESS' && <button onClick={e=>{e.stopPropagation();setCompleteModal(wo.id);setCompleteForm({completedQty:wo.plannedQty,rejectedQty:'0'})}} className="px-2 py-1 text-xs bg-green-600 text-white rounded">Complete</button>}
+                    {wo.status === 'IN_PROGRESS' && <button onClick={e=>{e.stopPropagation();setCompleteModal(wo.id);setCompleteForm({shortClosure:false,reason:''})}} className="px-2 py-1 text-xs bg-green-600 text-white rounded">Complete</button>}
                     {wo.status === 'IN_PROGRESS' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'stop')}} className="px-2 py-1 text-xs bg-orange-500 text-white rounded">Stop</button>}
                     {wo.status === 'STOPPED' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'restart')}} className="px-2 py-1 text-xs bg-yellow-500 text-gray-900 rounded">Restart</button>}
                     {['DRAFT','RELEASED','IN_PROGRESS'].includes(wo.status) && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'cancel')}} className="px-2 py-1 text-xs bg-red-500 text-white rounded">Cancel</button>}
@@ -587,14 +590,23 @@ export default function WorkOrdersPage() {
                 <button onClick={()=>setCompleteModal(null)} className="text-gray-400 text-xl">✕</button>
               </div>
               <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Completed Qty *</label>
-                  <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={completeForm.completedQty} onChange={e=>setCompleteForm(f=>({...f,completedQty:e.target.value}))} />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Rejected Qty</label>
-                  <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={completeForm.rejectedQty} onChange={e=>setCompleteForm(f=>({...f,rejectedQty:e.target.value}))} />
-                </div>
+                {(() => { const wo = wos.find(w => w.id === completeModal); return wo ? (
+                  <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
+                    <p>Good (accumulated): <strong>{wo.completedQty}</strong></p>
+                    <p>Rejected (accumulated): <strong>{wo.rejectedQty}</strong></p>
+                    <p className="text-xs text-gray-400">Completion reconciles these against processed input on the server - they&apos;re no longer entered here.</p>
+                  </div>
+                ) : null; })()}
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={completeForm.shortClosure} onChange={e=>setCompleteForm(f=>({...f,shortClosure:e.target.checked}))} />
+                  Authorized short closure (some received input remains unprocessed)
+                </label>
+                {completeForm.shortClosure && (
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Short Closure Reason *</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={completeForm.reason} onChange={e=>setCompleteForm(f=>({...f,reason:e.target.value}))} />
+                  </div>
+                )}
               </div>
               <div className="p-6 border-t flex justify-end gap-3">
                 <button onClick={()=>setCompleteModal(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
