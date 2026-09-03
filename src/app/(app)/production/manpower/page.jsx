@@ -313,11 +313,13 @@ export default function ManpowerPage() {
     setAdjustError('');
     const delta = parseInt(adjustDelta);
     if (!delta) { setAdjustError('Enter a positive number to increase, or a negative number to decrease'); return; }
+    // PROD-009: reason is now mandatory on the backend.
+    if (!adjustReason.trim()) { setAdjustError('A reason is required for every manpower adjustment'); return; }
     setAdjusting(true);
     const res = await fetch(`${API}/manpower/allocations/adjust`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify({ allocationId: adjustFor.id, delta, reason: adjustReason || undefined }),
+      body: JSON.stringify({ allocationId: adjustFor.id, delta, reason: adjustReason }),
     });
     const data = await res.json();
     if (res.ok) {
@@ -840,7 +842,7 @@ export default function ManpowerPage() {
                 {adjustError && <div className="p-2 bg-red-50 text-red-600 rounded text-sm">{adjustError}</div>}
                 <p className="text-xs text-gray-500">Current count: <strong>{adjustFor.count}</strong>. Enter a positive number to increase, or a negative number to decrease. Not Plant Head/Admin? This will need approval before it takes effect.</p>
                 <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="e.g. 3 or -2" value={adjustDelta} onChange={e => setAdjustDelta(e.target.value)} />
-                <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Reason (optional)" value={adjustReason} onChange={e => setAdjustReason(e.target.value)} />
+                <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Reason (required)" value={adjustReason} onChange={e => setAdjustReason(e.target.value)} />
               </div>
               <div className="p-5 border-t flex justify-end gap-3">
                 <button onClick={() => setAdjustFor(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
