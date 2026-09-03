@@ -331,12 +331,14 @@ export default function ManpowerPage() {
 
   async function handleTransfer() {
     setTransferError('');
+    // PROD-008: reason is now mandatory on the backend (spec section 31).
     if (!transferTo || !transferQty) { setTransferError('Select a destination Work Order and a quantity'); return; }
+    if (!transferReason.trim()) { setTransferError('A reason is required for every manpower transfer'); return; }
     setTransferring(true);
     const res = await fetch(`${API}/manpower/allocations/transfer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify({ allocationId: transferFor.id, toWorkOrderId: transferTo, qty: parseInt(transferQty), reason: transferReason || undefined }),
+      body: JSON.stringify({ allocationId: transferFor.id, toWorkOrderId: transferTo, qty: parseInt(transferQty), reason: transferReason }),
     });
     const data = await res.json();
     if (res.ok) {
@@ -864,7 +866,7 @@ export default function ManpowerPage() {
                   {workOrders.filter(w => w.id !== transferFor.workOrderId).map(w => <option key={w.id} value={w.id}>{w.woNumber} — {w.productName} ({w.stageName || 'Production'})</option>)}
                 </select>
                 <input type="number" min="1" className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Quantity to move" value={transferQty} onChange={e => setTransferQty(e.target.value)} />
-                <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Reason (optional)" value={transferReason} onChange={e => setTransferReason(e.target.value)} />
+                <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Reason (required)" value={transferReason} onChange={e => setTransferReason(e.target.value)} />
               </div>
               <div className="p-5 border-t flex justify-end gap-3">
                 <button onClick={() => setTransferFor(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
