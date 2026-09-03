@@ -39,6 +39,7 @@ export default function ManpowerPage() {
   const [adjustFor, setAdjustFor] = useState(null);
   const [adjustDelta, setAdjustDelta] = useState('');
   const [adjustReason, setAdjustReason] = useState('');
+  const [adjustDestinationType, setAdjustDestinationType] = useState('WO_TO_STAGE_UNALLOCATED');
   const [adjustError, setAdjustError] = useState('');
   const [adjusting, setAdjusting] = useState(false);
 
@@ -313,13 +314,14 @@ export default function ManpowerPage() {
     setAdjustError('');
     const delta = parseInt(adjustDelta);
     if (!delta) { setAdjustError('Enter a positive number to increase, or a negative number to decrease'); return; }
-    // PROD-009: reason is now mandatory on the backend.
     if (!adjustReason.trim()) { setAdjustError('A reason is required for every manpower adjustment'); return; }
+    // PROD-010: destinationType is required for any reduction.
+    if (delta < 0 && !adjustDestinationType) { setAdjustError('Select where the reduced manpower goes'); return; }
     setAdjusting(true);
     const res = await fetch(`${API}/manpower/allocations/adjust`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify({ allocationId: adjustFor.id, delta, reason: adjustReason }),
+      body: JSON.stringify({ allocationId: adjustFor.id, delta, reason: adjustReason, destinationType: delta < 0 ? adjustDestinationType : undefined }),
     });
     const data = await res.json();
     if (res.ok) {
@@ -738,7 +740,7 @@ export default function ManpowerPage() {
                     )}
                     {a.workOrderId && a.status === 'ACCEPTED' && (
                       <>
-                        <button onClick={() => { setAdjustFor(a); setAdjustDelta(''); setAdjustReason(''); setAdjustError(''); }} className="text-xs bg-amber-500 text-white px-2 py-1 rounded hover:bg-amber-600">Adjust</button>
+                        <button onClick={() => { setAdjustFor(a); setAdjustDelta(''); setAdjustReason(''); setAdjustDestinationType('WO_TO_STAGE_UNALLOCATED'); setAdjustError(''); }} className="text-xs bg-amber-500 text-white px-2 py-1 rounded hover:bg-amber-600">Adjust</button>
                         <button onClick={() => { setTransferFor(a); setTransferTo(''); setTransferQty(''); setTransferReason(''); setTransferError(''); }} className="text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-700">Transfer</button>
                       </>
                     )}
@@ -842,6 +844,13 @@ export default function ManpowerPage() {
                 {adjustError && <div className="p-2 bg-red-50 text-red-600 rounded text-sm">{adjustError}</div>}
                 <p className="text-xs text-gray-500">Current count: <strong>{adjustFor.count}</strong>. Enter a positive number to increase, or a negative number to decrease. Not Plant Head/Admin? This will need approval before it takes effect.</p>
                 <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="e.g. 3 or -2" value={adjustDelta} onChange={e => setAdjustDelta(e.target.value)} />
+                {parseInt(adjustDelta) < 0 && (
+                  <select className="w-full border rounded-lg px-3 py-2 text-sm" value={adjustDestinationType} onChange={e => setAdjustDestinationType(e.target.value)}>
+                    <option value="WO_TO_STAGE_UNALLOCATED">Release to Stage Unallocated</option>
+                    <option value="STAGE_TO_PLANT_UNALLOCATED">Release to Plant Unallocated</option>
+                    <option value="TEMPORARILY_UNAVAILABLE">Temporarily Unavailable</option>
+                  </select>
+                )}
                 <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Reason (required)" value={adjustReason} onChange={e => setAdjustReason(e.target.value)} />
               </div>
               <div className="p-5 border-t flex justify-end gap-3">
