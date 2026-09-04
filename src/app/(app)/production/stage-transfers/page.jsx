@@ -21,6 +21,15 @@ export default function StageTransfersPage() {
   const [giveError, setGiveError] = useState('');
   const [giving, setGiving] = useState(false);
 
+  // PROD-013: final production stage handover to Production QC -
+  // separate form since there's no destination WorkOrder, only a
+  // source WO and a quantity/batch. Reuses completedWos (the same
+  // transferable-balance list as the stage-to-stage form above) since
+  // giveToQc() shares the exact same cumulativeHandoverQty counter.
+  const [giveQcForm, setGiveQcForm] = useState({ fromWorkOrderId: '', qty: '', batchLot: '', remarks: '' });
+  const [giveQcError, setGiveQcError] = useState('');
+  const [givingQc, setGivingQc] = useState(false);
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     const [transferRes, compRes, draftRes, relRes, ipRes] = await Promise.all([
@@ -77,6 +86,26 @@ export default function StageTransfersPage() {
     setGiving(false);
   }
 
+  async function handleGiveToQc() {
+    setGiveQcError('');
+    if (!giveQcForm.fromWorkOrderId || !giveQcForm.qty) {
+      setGiveQcError('Select a source Work Order and a quantity'); return;
+    }
+    setGivingQc(true);
+    const res = await fetch(`${API}/stage-transfers/give-to-qc`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({
+        fromWorkOrderId: giveQcForm.fromWorkOrderId, qty: parseFloat(giveQcForm.qty),
+        batchLot: giveQcForm.batchLot || undefined, remarks: giveQcForm.remarks || undefined,
+      }),
+    });
+    const data = await res.json();
+    if (res.ok) { setGiveQcForm({ fromWorkOrderId: '', qty: '', batchLot: '', remarks: '' }); fetchAll(); }
+    else setGiveQcError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed');
+    setGivingQc(false);
+  }
+
   async function handleReceive(id) {
     await fetch(`${API}/stage-transfers/${id}/receive`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
     fetchAll();
@@ -123,6 +152,41 @@ export default function StageTransfersPage() {
           </div>
           <button onClick={handleGive} disabled={giving} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
             {giving ? 'Giving...' : 'Give Transfer'}
+          </button>
+        </div>
+
+        {/* Give to Production QC */}
+        <div className="bg-white rounded-xl border shadow-sm p-5 mb-6">
+          <h2 className="font-semibold text-gray-800 mb-3">Give to Production QC</h2>
+          <p className="text-xs text-gray-400 mb-3">Only the final production stage in a routing may hand over to QC.</p>
+          {giveQcError && <div className="mb-3 p-2 bg-red-50 text-red-600 rounded text-sm">{giveQcError}</div>}
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">From (final stage Work Order)</label>
+              <select className="w-full border rounded-lg px-3 py-2 text-sm" value={giveQcForm.fromWorkOrderId} onChange={e => {
+                const wo = completedWos.find(w => w.id === e.target.value);
+                const transferable = wo ? Math.max(0, (wo.completedQty || 0) - (wo.cumulativeHandoverQty || 0)) : '';
+                setGiveQcForm(f => ({ ...f, fromWorkOrderId: e.target.value, qty: wo ? String(transferable) : '' }));
+              }}>
+                <option value="">— Select —</option>
+                {completedWos.map(w => <option key={w.id} value={w.id}>{w.woNumber} — {w.productName} ({Math.max(0, (w.completedQty || 0) - (w.cumulativeHandoverQty || 0))} transferable)</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Quantity</label>
+              <input type="number" min="0.0001" className="w-full border rounded-lg px-3 py-2 text-sm" value={giveQcForm.qty} onChange={e => setGiveQcForm(f => ({ ...f, qty: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Batch/Lot</label>
+              <input className="w-full border rounded-lg px-3 py-2 text-sm" value={giveQcForm.batchLot} onChange={e => setGiveQcForm(f => ({ ...f, batchLot: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Remarks</label>
+              <input className="w-full border rounded-lg px-3 py-2 text-sm" value={giveQcForm.remarks} onChange={e => setGiveQcForm(f => ({ ...f, remarks: e.target.value }))} />
+            </div>
+          </div>
+          <button onClick={handleGiveToQc} disabled={givingQc} className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50">
+            {givingQc ? 'Giving...' : 'Give to QC'}
           </button>
         </div>
 

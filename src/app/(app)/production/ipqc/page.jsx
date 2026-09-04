@@ -34,6 +34,13 @@ export default function IpqcPage() {
   const [completeForm, setCompleteForm] = useState({ result:'PASS', correctiveAction:'', remarks:'' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // PROD-014: quantity-based mixed disposition for FINAL-stage records
+  // created by PROD-013's giveToQc() - distinct from the existing
+  // single-verdict Record Result flow above, which stays untouched for
+  // IN_PROCESS/INLINE inspections.
+  const [decideModal, setDecideModal] = useState(null);
+  const [decideForm, setDecideForm] = useState({ acceptedQty:'', reworkQty:'', rejectedQty:'', holdQty:'', defectDescription:'', remarks:'' });
+  const [decideSaving, setDecideSaving] = useState(false);
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
@@ -84,6 +91,26 @@ export default function IpqcPage() {
     if (res.ok) { setCompleteModal(null); fetchAll(); }
     else { const d = await res.json(); alert(d.message); }
     setSaving(false);
+  }
+
+  async function handleDecide() {
+    setDecideSaving(true);
+    const body = {
+      acceptedQty: parseInt(decideForm.acceptedQty)||0,
+      reworkQty: parseInt(decideForm.reworkQty)||0,
+      rejectedQty: parseInt(decideForm.rejectedQty)||0,
+      holdQty: parseInt(decideForm.holdQty)||0,
+    };
+    if (decideForm.defectDescription) body.defectDescription = decideForm.defectDescription;
+    if (decideForm.remarks) body.remarks = decideForm.remarks;
+    const res = await fetch(`${API}/production-qc/${decideModal.id}/decide-quantities`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify(body),
+    });
+    setDecideSaving(false);
+    if (res.ok) { setDecideModal(null); fetchAll(); }
+    else { const d = await res.json(); alert(d.message); }
   }
 
   const passRate = form.sampleSize > 0 ? Math.round((parseInt(form.passQty)||0) / (parseInt(form.sampleSize)||1) * 100) : 0;
@@ -168,7 +195,8 @@ export default function IpqcPage() {
                       </td>
                       <td className="px-3 py-2"><span className={`px-2 py-1 rounded-full text-xs font-medium ${RESULT_COLORS[r.result]}`}>{r.result}</span></td>
                       <td className="px-3 py-2">
-                        {r.result === 'PENDING' && <button onClick={()=>{setCompleteModal(r.id);setCompleteForm({result:'PASS',correctiveAction:'',remarks:''});}} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Record Result</button>}
+                        {r.result === 'PENDING' && r.inspectionStage === 'FINAL' && <button onClick={()=>{setDecideModal(r);setDecideForm({acceptedQty:'',reworkQty:'',rejectedQty:'',holdQty:'',defectDescription:'',remarks:''});}} className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700">Decide Quantities</button>}
+                        {r.result === 'PENDING' && r.inspectionStage !== 'FINAL' && <button onClick={()=>{setCompleteModal(r.id);setCompleteForm({result:'PASS',correctiveAction:'',remarks:''});}} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Record Result</button>}
                       </td>
                     </tr>
                   );
@@ -275,6 +303,68 @@ export default function IpqcPage() {
               <div className="p-6 border-t flex justify-end gap-3">
                 <button onClick={()=>setCompleteModal(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
                 <button onClick={handleComplete} disabled={saving} className={`px-4 py-2 text-white rounded-lg text-sm disabled:opacity-50 ${completeForm.result==='PASS'?'bg-green-600':completeForm.result==='FAIL'?'bg-red-600':'bg-yellow-500'}`}>{saving?'Saving...':'Confirm Result'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {decideModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
+              <div className="p-6 border-b flex justify-between">
+                <div>
+                  <h2 className="text-lg font-bold">Decide Quantities</h2>
+                  <p className="text-xs text-gray-400 font-mono">{decideModal.qcNumber} — {decideModal.workOrder?.woNumber}</p>
+                </div>
+                <button onClick={()=>setDecideModal(null)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-gray-800">{decideModal.sampleSize}</div>
+                  <div className="text-xs text-gray-500">Quantity Inspected</div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Accepted Qty</label>
+                    <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={decideForm.acceptedQty} onChange={e=>setDecideForm(f=>({...f,acceptedQty:e.target.value}))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Rework Qty</label>
+                    <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={decideForm.reworkQty} onChange={e=>setDecideForm(f=>({...f,reworkQty:e.target.value}))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Rejected Qty</label>
+                    <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={decideForm.rejectedQty} onChange={e=>setDecideForm(f=>({...f,rejectedQty:e.target.value}))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Hold Qty</label>
+                    <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={decideForm.holdQty} onChange={e=>setDecideForm(f=>({...f,holdQty:e.target.value}))} />
+                  </div>
+                </div>
+                {(() => {
+                  const sum = (parseInt(decideForm.acceptedQty)||0) + (parseInt(decideForm.reworkQty)||0) + (parseInt(decideForm.rejectedQty)||0) + (parseInt(decideForm.holdQty)||0);
+                  const diff = decideModal.sampleSize - sum;
+                  return (
+                    <div className={`rounded-lg p-3 text-center text-sm font-medium ${diff===0?'bg-green-50 text-green-700':'bg-red-50 text-red-700'}`}>
+                      {diff===0 ? 'Reconciled ✓' : diff>0 ? `${diff} PCS UNRECONCILED` : `Exceeds inspected qty by ${-diff}`}
+                    </div>
+                  );
+                })()}
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Defect Description</label>
+                  <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} value={decideForm.defectDescription} onChange={e=>setDecideForm(f=>({...f,defectDescription:e.target.value}))} />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Remarks</label>
+                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={decideForm.remarks} onChange={e=>setDecideForm(f=>({...f,remarks:e.target.value}))} />
+                </div>
+              </div>
+              <div className="p-6 border-t flex justify-end gap-3">
+                <button onClick={()=>setDecideModal(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                <button
+                  onClick={handleDecide}
+                  disabled={decideSaving || ((parseInt(decideForm.acceptedQty)||0) + (parseInt(decideForm.reworkQty)||0) + (parseInt(decideForm.rejectedQty)||0) + (parseInt(decideForm.holdQty)||0)) !== decideModal.sampleSize}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm disabled:opacity-50"
+                >{decideSaving?'Saving...':'Submit Decision'}</button>
               </div>
             </div>
           </div>
