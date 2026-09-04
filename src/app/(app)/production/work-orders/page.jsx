@@ -56,6 +56,13 @@ export default function WorkOrdersPage() {
   const [reassignError, setReassignError] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // PROD-011: pause/resume UI - openDowntimes maps workOrderId -> the
+  // open Downtime record, so the button/badge for each WO row can be
+  // decided without a per-row fetch.
+  const [openDowntimes, setOpenDowntimes] = useState({});
+  const [pauseModal, setPauseModal] = useState(null);
+  const [pauseForm, setPauseForm] = useState({ reason: '', category: 'OTHER' });
+  const [pauseSaving, setPauseSaving] = useState(false);
 
 
   async function fetchAll() {
@@ -76,7 +83,7 @@ export default function WorkOrdersPage() {
     setLoading(false);
   }
 
-  useEffect(() => { fetchAll(); }, [page, search, status]);
+  useEffect(() => { fetchAll(); fetchOpenDowntimes(); }, [page, search, status]);
   useEffect(() => { if (canSetPriority) fetchPendingApprovals(); }, []);
 
   function handleBomSelect(bomId) {
@@ -106,6 +113,53 @@ export default function WorkOrdersPage() {
     if (res.ok) { setShowModal(false); fetchAll(); }
     else setError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed');
     setSaving(false);
+  }
+
+  // PROD-011: open downtimes across all currently-listed WOs, mapped
+  // by workOrderId so each row can decide Pause vs Resume without a
+  // per-row fetch.
+  async function fetchOpenDowntimes() {
+    const res = await fetch(`${API}/downtimes?status=OPEN`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) {
+      const list = await res.json();
+      const map = {};
+      for (const d of list) map[d.workOrderId] = d;
+      setOpenDowntimes(map);
+    }
+  }
+
+  async function handlePause() {
+    if (!pauseForm.reason.trim()) { alert('Reason is required'); return; }
+    setPauseSaving(true);
+    const res = await fetch(`${API}/downtimes/pause`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ workOrderId: pauseModal.id, reason: pauseForm.reason, category: pauseForm.category }),
+    });
+    setPauseSaving(false);
+    if (res.ok) {
+      setPauseModal(null);
+      fetchOpenDowntimes();
+      fetchAll();
+    } else {
+      const d = await res.json();
+      alert(d.message);
+    }
+  }
+
+  async function handleResume(downtimeId) {
+    const res = await fetch(`${API}/downtimes/${downtimeId}/resume`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({}),
+    });
+    if (res.ok) {
+      fetchOpenDowntimes();
+      fetchAll();
+    } else {
+      const d = await res.json();
+      alert(d.message);
+    }
   }
 
   async function handleAction(id, action, body = {}) {
@@ -401,6 +455,8 @@ export default function WorkOrdersPage() {
                     {wo.status === 'RELEASED' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'start')}} className="px-2 py-1 text-xs bg-yellow-500 text-gray-900 rounded">Start</button>}
                     {wo.status === 'IN_PROGRESS' && <button onClick={e=>{e.stopPropagation();setCompleteModal(wo.id);setCompleteForm({shortClosure:false,reason:''})}} className="px-2 py-1 text-xs bg-green-600 text-white rounded">Complete</button>}
                     {wo.status === 'IN_PROGRESS' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'stop')}} className="px-2 py-1 text-xs bg-orange-500 text-white rounded">Stop</button>}
+                    {wo.status === 'IN_PROGRESS' && !openDowntimes[wo.id] && <button onClick={e=>{e.stopPropagation();setPauseModal(wo);setPauseForm({reason:'',category:'OTHER'})}} className="px-2 py-1 text-xs bg-purple-500 text-white rounded">Pause</button>}
+                    {openDowntimes[wo.id] && <button onClick={e=>{e.stopPropagation();handleResume(openDowntimes[wo.id].id)}} className="px-2 py-1 text-xs bg-teal-600 text-white rounded">Resume</button>}
                     {wo.status === 'STOPPED' && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'restart')}} className="px-2 py-1 text-xs bg-yellow-500 text-gray-900 rounded">Restart</button>}
                     {['DRAFT','RELEASED','IN_PROGRESS'].includes(wo.status) && <button onClick={e=>{e.stopPropagation();handleAction(wo.id,'cancel')}} className="px-2 py-1 text-xs bg-red-500 text-white rounded">Cancel</button>}
                     {['DRAFT','RELEASED','IN_PROGRESS','STOPPED'].includes(wo.status) && <button onClick={e=>{e.stopPropagation();openReassign(wo)}} className="px-2 py-1 text-xs bg-indigo-500 text-white rounded">Reassign Qty</button>}
@@ -611,6 +667,36 @@ export default function WorkOrdersPage() {
               <div className="p-6 border-t flex justify-end gap-3">
                 <button onClick={()=>setCompleteModal(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
                 <button onClick={handleComplete} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm disabled:opacity-50">{saving?'Completing...':'Mark Complete'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {pauseModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+              <div className="p-6 border-b flex justify-between">
+                <div>
+                  <h2 className="text-lg font-bold">Pause Production</h2>
+                  <p className="text-xs text-gray-400 font-mono">{pauseModal.woNumber}</p>
+                </div>
+                <button onClick={()=>setPauseModal(null)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Category</label>
+                  <select className="w-full border rounded-lg px-3 py-2 text-sm" value={pauseForm.category} onChange={e=>setPauseForm(f=>({...f,category:e.target.value}))}>
+                    {['MACHINE','MATERIAL','QUALITY','POWER','MANPOWER','CHANGEOVER','PLANNED_BREAK','MAINTENANCE','OTHER'].map(c=><option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Reason *</label>
+                  <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} value={pauseForm.reason} onChange={e=>setPauseForm(f=>({...f,reason:e.target.value}))} placeholder="Why is production being paused?" />
+                </div>
+              </div>
+              <div className="p-6 border-t flex justify-end gap-2">
+                <button onClick={()=>setPauseModal(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                <button onClick={handlePause} disabled={pauseSaving} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm disabled:opacity-50">{pauseSaving?'Pausing...':'Pause'}</button>
               </div>
             </div>
           </div>
