@@ -222,6 +222,7 @@ const NAV = [
       { label: 'Production Floor', href: '/production/floor', icon: Factory },
       { label: 'Manpower', href: '/production/manpower', icon: Factory },
       { label: 'Stage Transfers', href: '/production/stage-transfers', icon: Factory },
+      { label: 'Rework', href: '/production/rework', icon: Factory },
       { label: 'Production Dashboard', href: '/production/dashboard', icon: BarChart3 },
       { label: 'Work Orders', href: '/production/work-orders', icon: ClipboardList },
       { label: 'MRP', href: '/production/mrp', icon: BarChart3 },
