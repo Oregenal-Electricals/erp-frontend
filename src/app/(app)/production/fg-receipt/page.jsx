@@ -25,6 +25,16 @@ export default function FgReceiptPage() {
   const [selectedWo, setSelectedWo] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // PROD-017: QC-accepted quantity available for FG handover, sourced
+  // from ProductionQc.acceptedQty rather than wo.completedQty - lets
+  // first-pass and rework-accepted quantity move to FG Store while
+  // production is still IN_PROGRESS, without waiting for the WO to
+  // complete (unlike the existing completedQty-based pendingWos flow
+  // above, which requires WO status COMPLETED).
+  const [pendingQcAcceptances, setPendingQcAcceptances] = useState([]);
+  const [qcHandoverModal, setQcHandoverModal] = useState(null);
+  const [qcHandoverForm, setQcHandoverForm] = useState({ qty: '', warehouseId: '', batchLot: '' });
+  const [qcHandoverSaving, setQcHandoverSaving] = useState(false);
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
@@ -32,17 +42,40 @@ export default function FgReceiptPage() {
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
     if (status) params.set('status', status);
-    const [recRes, statsRes, pendRes, whRes] = await Promise.all([
+    const [recRes, statsRes, pendRes, whRes, qcRes] = await Promise.all([
       fetch(`${API}/fg-receipts?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/fg-receipts/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/fg-receipts/pending-wos`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/warehouses?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }).then(r=>r.ok?r.json():{}).then(d=>d.data||d),
+      fetch(`${API}/production-qc?limit=200`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (recRes.ok) { const d = await recRes.json(); setReceipts(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
     if (statsRes.ok) setStats(await statsRes.json());
     if (pendRes.ok) { const d = await pendRes.json(); setPendingWos(d.data || []); }
     setWarehouses(Array.isArray(whRes) ? whRes : []);
+    if (qcRes.ok) {
+      const d = await qcRes.json();
+      setPendingQcAcceptances((d.data || []).filter(q => (q.acceptedQty - (q.fgHandedOverQty||0)) > 0));
+    }
     setLoading(false);
+  }
+
+  async function handleGiveToFgFromQc() {
+    setQcHandoverSaving(true);
+    const res = await fetch(`${API}/fg-receipts/from-qc-acceptance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({
+        productionQcId: qcHandoverModal.id, warehouseId: qcHandoverForm.warehouseId,
+        qty: parseFloat(qcHandoverForm.qty), batchNumber: qcHandoverForm.batchLot || undefined,
+      }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setQcHandoverModal(null); setQcHandoverForm({ qty: '', warehouseId: '', batchLot: '' });
+      fetchAll();
+    } else alert(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed');
+    setQcHandoverSaving(false);
   }
 
   useEffect(() => { fetchAll(); }, [page, search, status]);
@@ -121,6 +154,31 @@ export default function FgReceiptPage() {
                 <div className="text-xs text-gray-500 mt-1">{s.label}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {pendingQcAcceptances.length > 0 && (
+          <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
+            <div className="text-sm font-semibold text-purple-800 mb-3">QC Accepted Quantity Available for FG Handover</div>
+            <p className="text-xs text-purple-600 mb-3">Sourced from QC acceptance decisions - can move to FG Store while production continues, without waiting for the Work Order to complete.</p>
+            <div className="space-y-2">
+              {pendingQcAcceptances.map(qc => {
+                const available = qc.acceptedQty - (qc.fgHandedOverQty || 0);
+                return (
+                  <div key={qc.id} className="flex items-center justify-between bg-white rounded-lg p-3 border border-purple-100">
+                    <div className="flex items-center gap-4">
+                      <span className="font-mono font-bold text-blue-600">{qc.qcNumber}</span>
+                      <span className="text-sm text-gray-600">{qc.workOrder?.woNumber}</span>
+                      <span className="text-sm text-gray-500">{qc.workOrder?.productName}</span>
+                      <span className="text-sm font-bold text-purple-600">{available} available</span>
+                    </div>
+                    <button onClick={() => { setQcHandoverModal(qc); setQcHandoverForm({ qty: String(available), warehouseId: '', batchLot: '' }); }} className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs hover:bg-purple-700">
+                      Hand Over to FG Store
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -251,6 +309,41 @@ export default function FgReceiptPage() {
               <div className="p-6 border-t flex justify-end gap-3">
                 <button onClick={()=>setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
                 <button onClick={handleCreate} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50">{saving?'Saving...':'Create FG Receipt'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {qcHandoverModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+              <div className="p-6 border-b flex justify-between">
+                <div>
+                  <h2 className="text-lg font-bold">Hand Over to FG Store</h2>
+                  <p className="text-xs text-gray-400 font-mono">{qcHandoverModal.qcNumber} - {qcHandoverModal.workOrder?.woNumber}</p>
+                </div>
+                <button onClick={() => setQcHandoverModal(null)} className="text-gray-400 text-xl">X</button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Quantity *</label>
+                  <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={qcHandoverForm.qty} onChange={e => setQcHandoverForm(f => ({ ...f, qty: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Warehouse *</label>
+                  <select className="w-full border rounded-lg px-3 py-2 text-sm" value={qcHandoverForm.warehouseId} onChange={e => setQcHandoverForm(f => ({ ...f, warehouseId: e.target.value }))}>
+                    <option value="">Select</option>
+                    {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Batch/Lot</label>
+                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={qcHandoverForm.batchLot} onChange={e => setQcHandoverForm(f => ({ ...f, batchLot: e.target.value }))} />
+                </div>
+                <p className="text-xs text-gray-400">This creates a DRAFT FG Receipt - it will not increase FG stock until Store confirms physical receipt.</p>
+              </div>
+              <div className="p-6 border-t flex justify-end gap-3">
+                <button onClick={() => setQcHandoverModal(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                <button onClick={handleGiveToFgFromQc} disabled={qcHandoverSaving || !qcHandoverForm.warehouseId || !qcHandoverForm.qty} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm disabled:opacity-50">{qcHandoverSaving ? 'Saving...' : 'Hand Over'}</button>
               </div>
             </div>
           </div>
