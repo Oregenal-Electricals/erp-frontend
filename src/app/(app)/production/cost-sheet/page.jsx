@@ -24,6 +24,10 @@ export default function CostSheetPage() {
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [selectedWoId, setSelectedWoId] = useState('');
+  // PROD-018: closure blockers panel and the actual closure gate.
+  const [closureCheck, setClosureCheck] = useState(null);
+  const [checkingClosure, setCheckingClosure] = useState(false);
+  const [closingWo, setClosingWo] = useState(false);
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
@@ -55,8 +59,9 @@ export default function CostSheetPage() {
   }
 
   async function handleViewDetail(id) {
-    if (selected === id) { setSelected(null); setDetail(null); return; }
+    if (selected === id) { setSelected(null); setDetail(null); setClosureCheck(null); return; }
     setSelected(id);
+    setClosureCheck(null);
     const res = await fetch(`${API}/production-cost-sheets/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
     if (res.ok) {
       const d = await res.json();
@@ -95,6 +100,25 @@ export default function CostSheetPage() {
     });
     if (res.ok) { fetchAll(); handleViewDetail(id); }
     else { const d = await res.json(); alert(d.message); }
+  }
+
+  async function handleCheckClosure(workOrderId) {
+    setCheckingClosure(true);
+    const res = await fetch(`${API}/production-cost-sheets/closure-check/${workOrderId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) setClosureCheck(await res.json());
+    else { const d = await res.json(); alert(d.message); }
+    setCheckingClosure(false);
+  }
+
+  async function handleCloseWo(workOrderId) {
+    if (!confirm('Close this Work Order? This will finalize costing.')) return;
+    setClosingWo(true);
+    const res = await fetch(`${API}/production-cost-sheets/close/${workOrderId}`, {
+      method: 'POST', headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (res.ok) { fetchAll(); handleViewDetail(selected); }
+    else { const d = await res.json(); alert(d.message); }
+    setClosingWo(false);
   }
 
   const costPct = (val, total) => total > 0 ? (val/total*100).toFixed(1) : 0;
@@ -250,6 +274,55 @@ export default function CostSheetPage() {
                           </div>
                         )}
                       </div>
+                    </div>
+
+                    {/* PROD-018: Final Costing & Closure */}
+                    <div className="mt-4 bg-white rounded-xl border p-4">
+                      <h3 className="font-semibold text-gray-700 mb-3 text-sm">Final Costing & Closure</h3>
+                      <div className="grid grid-cols-3 gap-3 mb-4">
+                        <div className="bg-gray-50 rounded p-3 text-center">
+                          <div className="font-bold text-sm">{fmt(detail.reworkCost)}</div>
+                          <div className="text-xs text-gray-400">Rework Cost</div>
+                        </div>
+                        <div className="bg-gray-50 rounded p-3 text-center">
+                          <div className="font-bold text-sm text-green-600">-{fmt(detail.scrapRecovery)}</div>
+                          <div className="text-xs text-gray-400">Recognized Scrap Recovery</div>
+                        </div>
+                        <div className="bg-gray-50 rounded p-3 text-center">
+                          <div className="font-bold text-sm">{detail.finalGoodFgQty}</div>
+                          <div className="text-xs text-gray-400">Final Good FG Qty</div>
+                        </div>
+                        <div className="bg-gray-50 rounded p-3 text-center">
+                          <div className="font-bold text-sm">{fmt(detail.grossActualCost)}</div>
+                          <div className="text-xs text-gray-400">Gross Actual Cost</div>
+                        </div>
+                        <div className="bg-purple-50 rounded p-3 text-center">
+                          <div className="font-bold text-sm text-purple-700">{fmt(detail.netActualCost)}</div>
+                          <div className="text-xs text-gray-400">Net Actual Cost</div>
+                        </div>
+                        <div className="bg-purple-50 rounded p-3 text-center">
+                          <div className="font-bold text-sm text-purple-700">{detail.finalGoodFgQty > 0 ? fmt(detail.netActualCost / detail.finalGoodFgQty) : 'N/A'}</div>
+                          <div className="text-xs text-gray-400">Actual Cost / Good FG</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mb-3">
+                        <button onClick={() => handleCheckClosure(detail.workOrderId)} disabled={checkingClosure} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50">{checkingClosure ? 'Checking...' : 'Check Closure Readiness'}</button>
+                      </div>
+                      {closureCheck && (
+                        closureCheck.passed ? (
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                            <div className="text-sm font-semibold text-green-700 mb-2">WO READY FOR COMPLETION</div>
+                            <button onClick={() => handleCloseWo(detail.workOrderId)} disabled={closingWo} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50">{closingWo ? 'Closing...' : 'Close Work Order'}</button>
+                          </div>
+                        ) : (
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                            <div className="text-sm font-semibold text-red-700 mb-2">WO CANNOT BE CLOSED</div>
+                            <ul className="text-xs text-red-600 list-disc pl-4 space-y-1">
+                              {closureCheck.blockers.map((b, i) => <li key={i}>{b}</li>)}
+                            </ul>
+                          </div>
+                        )
+                      )}
                     </div>
 
                     {/* Material Breakdown */}
