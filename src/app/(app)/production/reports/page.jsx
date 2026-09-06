@@ -7,7 +7,7 @@ function getToken() { if (typeof window !== 'undefined') return localStorage.get
 const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0})}`;
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 
-const TABS = ['WO Completion','Shift Production','Material Consumption','Scrap Analysis','Quality Summary'];
+const TABS = ['WO Completion','Shift Production','Material Consumption','Scrap Analysis','Quality Summary','Daily Output'];
 const STATUS_COLORS = { DRAFT:'bg-gray-100 text-gray-600', RELEASED:'bg-blue-100 text-blue-700', IN_PROGRESS:'bg-yellow-100 text-yellow-700', COMPLETED:'bg-green-100 text-green-700', CANCELLED:'bg-red-100 text-red-600' };
 const RESULT_COLORS = { PASS:'text-green-600', FAIL:'text-red-600', CONDITIONAL:'text-yellow-600' };
 
@@ -19,6 +19,7 @@ export default function ProductionReportsPage() {
   const [toDate, setToDate] = useState('');
   const [status, setStatus] = useState('');
   const [shift, setShift] = useState('');
+  const [productCode, setProductCode] = useState('');
 
   async function fetchData() {
     setLoading(true); setData(null);
@@ -27,6 +28,7 @@ export default function ProductionReportsPage() {
     if (toDate) params.set('toDate', toDate);
     if (status && activeTab==='WO Completion') params.set('status', status);
     if (shift && activeTab==='Shift Production') params.set('shift', shift);
+    if (productCode && activeTab==='Daily Output') params.set('productCode', productCode);
 
     const endpoints = {
       'WO Completion': 'wo-completion',
@@ -34,6 +36,7 @@ export default function ProductionReportsPage() {
       'Material Consumption': 'material-consumption',
       'Scrap Analysis': 'scrap-analysis',
       'Quality Summary': 'quality-summary',
+      'Daily Output': 'daily-output',
     };
     const res = await fetch(`${API}/production-reports/${endpoints[activeTab]}?${params}`, {
       headers: { Authorization: `Bearer ${getToken()}` },
@@ -62,7 +65,7 @@ export default function ProductionReportsPage() {
         </div>
 
         <div className="bg-white rounded-xl border p-4 mb-4 flex gap-3 flex-wrap items-end">
-          {['Shift Production','Scrap Analysis','Quality Summary'].includes(activeTab) && (
+          {['Shift Production','Scrap Analysis','Quality Summary','Daily Output'].includes(activeTab) && (
             <>
               <div><label className="block text-xs text-gray-500 mb-1">From Date</label><input type="date" className="border rounded-lg px-3 py-2 text-sm" value={fromDate} onChange={e=>setFromDate(e.target.value)} /></div>
               <div><label className="block text-xs text-gray-500 mb-1">To Date</label><input type="date" className="border rounded-lg px-3 py-2 text-sm" value={toDate} onChange={e=>setToDate(e.target.value)} /></div>
@@ -82,6 +85,11 @@ export default function ProductionReportsPage() {
                 <option value="">All</option>
                 {['MORNING','EVENING','NIGHT'].map(s=><option key={s}>{s}</option>)}
               </select>
+            </div>
+          )}
+          {activeTab === 'Daily Output' && (
+            <div><label className="block text-xs text-gray-500 mb-1">Product Code</label>
+              <input className="border rounded-lg px-3 py-2 text-sm" placeholder="All products" value={productCode} onChange={e=>setProductCode(e.target.value)} />
             </div>
           )}
           <button onClick={fetchData} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Apply</button>
@@ -180,6 +188,53 @@ export default function ProductionReportsPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Stage','Total','Pass','Fail','Conditional','Pass Rate'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
                 <tbody className="divide-y">{data.byStage.map((s,i)=>(<tr key={i}><td className="px-3 py-2 text-xs">{s.stage?.replace(/_/g,' ')}</td><td className="px-3 py-2 text-xs">{s.total}</td><td className="px-3 py-2 text-xs font-bold text-green-600">{s.pass}</td><td className="px-3 py-2 text-xs font-bold text-red-600">{s.fail}</td><td className="px-3 py-2 text-xs font-bold text-yellow-600">{s.conditional}</td><td className="px-3 py-2 text-xs font-bold">{s.passRate}%</td></tr>))}</tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!loading && data && activeTab === 'Daily Output' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-green-50 rounded-xl p-4"><div className="text-2xl font-bold text-green-700">{data.totalGoodQty}</div><div className="text-xs text-gray-500 mt-1">Total Good Qty</div></div>
+              <div className="bg-red-50 rounded-xl p-4"><div className="text-2xl font-bold text-red-600">{data.totalScrapQty}</div><div className="text-xs text-gray-500 mt-1">Total Scrap Qty</div></div>
+              <div className="bg-yellow-50 rounded-xl p-4"><div className="text-2xl font-bold text-yellow-700">{data.totalReworkQty}</div><div className="text-xs text-gray-500 mt-1">Total Rework Qty</div></div>
+            </div>
+            <div className="bg-white rounded-xl border shadow-sm">
+              <div className="p-4 border-b font-semibold text-gray-700">Daily Trend</div>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Date','Good Qty','Scrap Qty','Rework Qty','Entries'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+                <tbody className="divide-y">
+                  {data.byDate.length === 0 ? <tr><td colSpan={5} className="text-center py-6 text-gray-400 text-xs">No confirmed entries in this range</td></tr> :
+                  data.byDate.map((d,i)=>(
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-xs font-mono">{fmtDate(d.date)}</td>
+                      <td className="px-3 py-2 text-xs font-bold text-green-600">{d.goodQty}</td>
+                      <td className="px-3 py-2 text-xs text-red-500">{d.scrapQty}</td>
+                      <td className="px-3 py-2 text-xs text-yellow-600">{d.reworkQty}</td>
+                      <td className="px-3 py-2 text-xs text-gray-400">{d.entries}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="bg-white rounded-xl border shadow-sm">
+              <div className="p-4 border-b font-semibold text-gray-700">By Product</div>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Product Code','Product Name','Good Qty','Scrap Qty','Rework Qty','Entries'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+                <tbody className="divide-y">
+                  {data.byProduct.length === 0 ? <tr><td colSpan={6} className="text-center py-6 text-gray-400 text-xs">No confirmed entries in this range</td></tr> :
+                  data.byProduct.map((p,i)=>(
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 font-mono text-xs text-blue-600 font-bold">{p.productCode}</td>
+                      <td className="px-3 py-2 text-xs">{p.productName}</td>
+                      <td className="px-3 py-2 text-xs font-bold text-green-600">{p.goodQty}</td>
+                      <td className="px-3 py-2 text-xs text-red-500">{p.scrapQty}</td>
+                      <td className="px-3 py-2 text-xs text-yellow-600">{p.reworkQty}</td>
+                      <td className="px-3 py-2 text-xs text-gray-400">{p.entries}</td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
           </div>
