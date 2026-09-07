@@ -20,6 +20,13 @@ export default function ProductionReportsPage() {
   const [status, setStatus] = useState('');
   const [shift, setShift] = useState('');
   const [productCode, setProductCode] = useState('');
+  const [granularity, setGranularity] = useState('DAY');
+
+  function fmtBucket(dateKey, gran) {
+    if (gran === 'MONTH') { const [y,m] = dateKey.split('-'); return new Date(y, m-1, 1).toLocaleDateString('en-IN',{month:'short',year:'numeric'}); }
+    if (gran === 'HOUR') { const [datePart,hh] = dateKey.split('T'); return fmtDate(datePart) + ' ' + hh + ':00'; }
+    return fmtDate(dateKey);
+  }
 
   async function fetchData() {
     setLoading(true); setData(null);
@@ -29,6 +36,7 @@ export default function ProductionReportsPage() {
     if (status && activeTab==='WO Completion') params.set('status', status);
     if (shift && activeTab==='Shift Production') params.set('shift', shift);
     if (productCode && activeTab==='Daily Output') params.set('productCode', productCode);
+    if (activeTab==='Daily Output') params.set('granularity', granularity);
 
     const endpoints = {
       'WO Completion': 'wo-completion',
@@ -88,9 +96,18 @@ export default function ProductionReportsPage() {
             </div>
           )}
           {activeTab === 'Daily Output' && (
-            <div><label className="block text-xs text-gray-500 mb-1">Product Code</label>
-              <input className="border rounded-lg px-3 py-2 text-sm" placeholder="All products" value={productCode} onChange={e=>setProductCode(e.target.value)} />
-            </div>
+            <>
+              <div><label className="block text-xs text-gray-500 mb-1">Granularity</label>
+                <select className="border rounded-lg px-3 py-2 text-sm" value={granularity} onChange={e=>setGranularity(e.target.value)}>
+                  <option value="HOUR">Hourly</option>
+                  <option value="DAY">Daily</option>
+                  <option value="MONTH">Monthly</option>
+                </select>
+              </div>
+              <div><label className="block text-xs text-gray-500 mb-1">Product Code</label>
+                <input className="border rounded-lg px-3 py-2 text-sm" placeholder="All products" value={productCode} onChange={e=>setProductCode(e.target.value)} />
+              </div>
+            </>
           )}
           <button onClick={fetchData} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Apply</button>
         </div>
@@ -201,14 +218,14 @@ export default function ProductionReportsPage() {
               <div className="bg-yellow-50 rounded-xl p-4"><div className="text-2xl font-bold text-yellow-700">{data.totalReworkQty}</div><div className="text-xs text-gray-500 mt-1">Total Rework Qty</div></div>
             </div>
             <div className="bg-white rounded-xl border shadow-sm">
-              <div className="p-4 border-b font-semibold text-gray-700">Daily Trend</div>
+              <div className="p-4 border-b font-semibold text-gray-700">{data.granularity === "HOUR" ? "Hourly" : data.granularity === "MONTH" ? "Monthly" : "Daily"} Trend</div>
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Date','Good Qty','Scrap Qty','Rework Qty','Entries'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
                 <tbody className="divide-y">
                   {data.byDate.length === 0 ? <tr><td colSpan={5} className="text-center py-6 text-gray-400 text-xs">No confirmed entries in this range</td></tr> :
                   data.byDate.map((d,i)=>(
                     <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 text-xs font-mono">{fmtDate(d.date)}</td>
+                      <td className="px-3 py-2 text-xs font-mono">{fmtBucket(d.date, data.granularity)}</td>
                       <td className="px-3 py-2 text-xs font-bold text-green-600">{d.goodQty}</td>
                       <td className="px-3 py-2 text-xs text-red-500">{d.scrapQty}</td>
                       <td className="px-3 py-2 text-xs text-yellow-600">{d.reworkQty}</td>
