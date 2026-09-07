@@ -6,8 +6,9 @@ const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0})}`;
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
+const fmtPct = v => (v === null || v === undefined) ? 'N/A' : Math.round(v*100) + '%';
 
-const TABS = ['WO Completion','Shift Production','Material Consumption','Scrap Analysis','Quality Summary','Daily Output'];
+const TABS = ['WO Completion','Shift Production','Material Consumption','Scrap Analysis','Quality Summary','Daily Output','Efficiency (OEE)'];
 const STATUS_COLORS = { DRAFT:'bg-gray-100 text-gray-600', RELEASED:'bg-blue-100 text-blue-700', IN_PROGRESS:'bg-yellow-100 text-yellow-700', COMPLETED:'bg-green-100 text-green-700', CANCELLED:'bg-red-100 text-red-600' };
 const RESULT_COLORS = { PASS:'text-green-600', FAIL:'text-red-600', CONDITIONAL:'text-yellow-600' };
 
@@ -36,7 +37,8 @@ export default function ProductionReportsPage() {
     if (status && activeTab==='WO Completion') params.set('status', status);
     if (shift && activeTab==='Shift Production') params.set('shift', shift);
     if (productCode && activeTab==='Daily Output') params.set('productCode', productCode);
-    if (activeTab==='Daily Output') params.set('granularity', granularity);
+    if (['Daily Output','Efficiency (OEE)'].includes(activeTab)) params.set('granularity', granularity);
+    if (productCode && activeTab==='Efficiency (OEE)') params.set('productCode', productCode);
 
     const endpoints = {
       'WO Completion': 'wo-completion',
@@ -45,6 +47,7 @@ export default function ProductionReportsPage() {
       'Scrap Analysis': 'scrap-analysis',
       'Quality Summary': 'quality-summary',
       'Daily Output': 'daily-output',
+      'Efficiency (OEE)': 'oee',
     };
     const res = await fetch(`${API}/production-reports/${endpoints[activeTab]}?${params}`, {
       headers: { Authorization: `Bearer ${getToken()}` },
@@ -73,7 +76,7 @@ export default function ProductionReportsPage() {
         </div>
 
         <div className="bg-white rounded-xl border p-4 mb-4 flex gap-3 flex-wrap items-end">
-          {['Shift Production','Scrap Analysis','Quality Summary','Daily Output'].includes(activeTab) && (
+          {['Shift Production','Scrap Analysis','Quality Summary','Daily Output','Efficiency (OEE)'].includes(activeTab) && (
             <>
               <div><label className="block text-xs text-gray-500 mb-1">From Date</label><input type="date" className="border rounded-lg px-3 py-2 text-sm" value={fromDate} onChange={e=>setFromDate(e.target.value)} /></div>
               <div><label className="block text-xs text-gray-500 mb-1">To Date</label><input type="date" className="border rounded-lg px-3 py-2 text-sm" value={toDate} onChange={e=>setToDate(e.target.value)} /></div>
@@ -95,7 +98,7 @@ export default function ProductionReportsPage() {
               </select>
             </div>
           )}
-          {activeTab === 'Daily Output' && (
+          {['Daily Output','Efficiency (OEE)'].includes(activeTab) && (
             <>
               <div><label className="block text-xs text-gray-500 mb-1">Granularity</label>
                 <select className="border rounded-lg px-3 py-2 text-sm" value={granularity} onChange={e=>setGranularity(e.target.value)}>
@@ -249,6 +252,56 @@ export default function ProductionReportsPage() {
                       <td className="px-3 py-2 text-xs text-red-500">{p.scrapQty}</td>
                       <td className="px-3 py-2 text-xs text-yellow-600">{p.reworkQty}</td>
                       <td className="px-3 py-2 text-xs text-gray-400">{p.entries}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!loading && data && activeTab === 'Efficiency (OEE)' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-4 gap-4">
+              <div className="bg-purple-50 rounded-xl p-4"><div className="text-2xl font-bold text-purple-700">{fmtPct(data.overall.oee)}</div><div className="text-xs text-gray-500 mt-1">Overall OEE</div></div>
+              <div className="bg-blue-50 rounded-xl p-4"><div className="text-xl font-bold text-blue-700">{fmtPct(data.overall.availability)}</div><div className="text-xs text-gray-500 mt-1">Availability</div></div>
+              <div className="bg-yellow-50 rounded-xl p-4"><div className="text-xl font-bold text-yellow-700">{fmtPct(data.overall.performance)}</div><div className="text-xs text-gray-500 mt-1">Performance</div></div>
+              <div className="bg-green-50 rounded-xl p-4"><div className="text-xl font-bold text-green-700">{fmtPct(data.overall.quality)}</div><div className="text-xs text-gray-500 mt-1">Quality</div></div>
+            </div>
+            <p className="text-xs text-gray-400">OEE = Availability x Performance x Quality. Entries missing a target quantity show N/A for Performance/OEE rather than a fabricated number.</p>
+            <div className="bg-white rounded-xl border shadow-sm">
+              <div className="p-4 border-b font-semibold text-gray-700">{data.granularity === "HOUR" ? "Hourly" : data.granularity === "MONTH" ? "Monthly" : "Daily"} Trend</div>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Date','OEE','Availability','Performance','Quality','Entries'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+                <tbody className="divide-y">
+                  {data.byDate.length === 0 ? <tr><td colSpan={6} className="text-center py-6 text-gray-400 text-xs">No confirmed entries in this range</td></tr> :
+                  data.byDate.map((d,i)=>(
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-xs font-mono">{fmtBucket(d.date, data.granularity)}</td>
+                      <td className="px-3 py-2 text-xs font-bold text-purple-700">{fmtPct(d.oee)}</td>
+                      <td className="px-3 py-2 text-xs">{fmtPct(d.availability)}</td>
+                      <td className="px-3 py-2 text-xs">{fmtPct(d.performance)}</td>
+                      <td className="px-3 py-2 text-xs">{fmtPct(d.quality)}</td>
+                      <td className="px-3 py-2 text-xs text-gray-400">{d.entries}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="bg-white rounded-xl border shadow-sm">
+              <div className="p-4 border-b font-semibold text-gray-700">By Product</div>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Product Code','Product Name','OEE','Availability','Performance','Quality'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+                <tbody className="divide-y">
+                  {data.byProduct.length === 0 ? <tr><td colSpan={6} className="text-center py-6 text-gray-400 text-xs">No confirmed entries in this range</td></tr> :
+                  data.byProduct.map((p,i)=>(
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 font-mono text-xs text-blue-600 font-bold">{p.productCode}</td>
+                      <td className="px-3 py-2 text-xs">{p.productName}</td>
+                      <td className="px-3 py-2 text-xs font-bold text-purple-700">{fmtPct(p.oee)}</td>
+                      <td className="px-3 py-2 text-xs">{fmtPct(p.availability)}</td>
+                      <td className="px-3 py-2 text-xs">{fmtPct(p.performance)}</td>
+                      <td className="px-3 py-2 text-xs">{fmtPct(p.quality)}</td>
                     </tr>
                   ))}
                 </tbody>
