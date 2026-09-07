@@ -8,7 +8,7 @@ const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigit
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 const fmtPct = v => (v === null || v === undefined) ? 'N/A' : Math.round(v*100) + '%';
 
-const TABS = ['WO Completion','Shift Production','Material Consumption','Scrap Analysis','Quality Summary','Daily Output','Efficiency (OEE)'];
+const TABS = ['WO Completion','Shift Production','Material Consumption','Scrap Analysis','Quality Summary','Daily Output','Efficiency (OEE)','Cost Trend'];
 const STATUS_COLORS = { DRAFT:'bg-gray-100 text-gray-600', RELEASED:'bg-blue-100 text-blue-700', IN_PROGRESS:'bg-yellow-100 text-yellow-700', COMPLETED:'bg-green-100 text-green-700', CANCELLED:'bg-red-100 text-red-600' };
 const RESULT_COLORS = { PASS:'text-green-600', FAIL:'text-red-600', CONDITIONAL:'text-yellow-600' };
 
@@ -37,8 +37,8 @@ export default function ProductionReportsPage() {
     if (status && activeTab==='WO Completion') params.set('status', status);
     if (shift && activeTab==='Shift Production') params.set('shift', shift);
     if (productCode && activeTab==='Daily Output') params.set('productCode', productCode);
-    if (['Daily Output','Efficiency (OEE)'].includes(activeTab)) params.set('granularity', granularity);
-    if (productCode && activeTab==='Efficiency (OEE)') params.set('productCode', productCode);
+    if (['Daily Output','Efficiency (OEE)','Cost Trend'].includes(activeTab)) params.set('granularity', granularity);
+    if (productCode && ['Efficiency (OEE)','Cost Trend'].includes(activeTab)) params.set('productCode', productCode);
 
     const endpoints = {
       'WO Completion': 'wo-completion',
@@ -48,6 +48,7 @@ export default function ProductionReportsPage() {
       'Quality Summary': 'quality-summary',
       'Daily Output': 'daily-output',
       'Efficiency (OEE)': 'oee',
+      'Cost Trend': 'cost-trend',
     };
     const res = await fetch(`${API}/production-reports/${endpoints[activeTab]}?${params}`, {
       headers: { Authorization: `Bearer ${getToken()}` },
@@ -76,7 +77,7 @@ export default function ProductionReportsPage() {
         </div>
 
         <div className="bg-white rounded-xl border p-4 mb-4 flex gap-3 flex-wrap items-end">
-          {['Shift Production','Scrap Analysis','Quality Summary','Daily Output','Efficiency (OEE)'].includes(activeTab) && (
+          {['Shift Production','Scrap Analysis','Quality Summary','Daily Output','Efficiency (OEE)','Cost Trend'].includes(activeTab) && (
             <>
               <div><label className="block text-xs text-gray-500 mb-1">From Date</label><input type="date" className="border rounded-lg px-3 py-2 text-sm" value={fromDate} onChange={e=>setFromDate(e.target.value)} /></div>
               <div><label className="block text-xs text-gray-500 mb-1">To Date</label><input type="date" className="border rounded-lg px-3 py-2 text-sm" value={toDate} onChange={e=>setToDate(e.target.value)} /></div>
@@ -98,7 +99,7 @@ export default function ProductionReportsPage() {
               </select>
             </div>
           )}
-          {['Daily Output','Efficiency (OEE)'].includes(activeTab) && (
+          {['Daily Output','Efficiency (OEE)','Cost Trend'].includes(activeTab) && (
             <>
               <div><label className="block text-xs text-gray-500 mb-1">Granularity</label>
                 <select className="border rounded-lg px-3 py-2 text-sm" value={granularity} onChange={e=>setGranularity(e.target.value)}>
@@ -302,6 +303,57 @@ export default function ProductionReportsPage() {
                       <td className="px-3 py-2 text-xs">{fmtPct(p.availability)}</td>
                       <td className="px-3 py-2 text-xs">{fmtPct(p.performance)}</td>
                       <td className="px-3 py-2 text-xs">{fmtPct(p.quality)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!loading && data && activeTab === 'Cost Trend' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-purple-50 rounded-xl p-4"><div className="text-2xl font-bold text-purple-700">{fmt(data.totals.avgUnitCost)}</div><div className="text-xs text-gray-500 mt-1">Avg Unit Cost</div></div>
+              <div className="bg-blue-50 rounded-xl p-4"><div className="text-xl font-bold text-blue-700">{fmt(data.totals.netActualCost)}</div><div className="text-xs text-gray-500 mt-1">Total Net Actual Cost</div></div>
+              <div className="bg-gray-50 rounded-xl p-4"><div className="text-xl font-bold text-gray-700">{data.totalWos}</div><div className="text-xs text-gray-500 mt-1">Work Orders</div></div>
+            </div>
+            <p className="text-xs text-gray-400">Only WO closure-finalized cost sheets are included - a still-open WO's cost is not yet final and would shift the trend retroactively.</p>
+            <div className="bg-white rounded-xl border shadow-sm">
+              <div className="p-4 border-b font-semibold text-gray-700">{data.granularity === "HOUR" ? "Hourly" : data.granularity === "MONTH" ? "Monthly" : "Daily"} Trend</div>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Date','Material','Labour','Overhead','Other','Net Actual','Avg Unit Cost','WOs'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+                <tbody className="divide-y">
+                  {data.byDate.length === 0 ? <tr><td colSpan={8} className="text-center py-6 text-gray-400 text-xs">No finalized cost sheets in this range</td></tr> :
+                  data.byDate.map((d,i)=>(
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-xs font-mono">{fmtBucket(d.date, data.granularity)}</td>
+                      <td className="px-3 py-2 text-xs">{fmt(d.materialCost)}</td>
+                      <td className="px-3 py-2 text-xs">{fmt(d.laborCost)}</td>
+                      <td className="px-3 py-2 text-xs">{fmt(d.overheadCost)}</td>
+                      <td className="px-3 py-2 text-xs">{fmt(d.otherCost)}</td>
+                      <td className="px-3 py-2 text-xs font-bold">{fmt(d.netActualCost)}</td>
+                      <td className="px-3 py-2 text-xs font-bold text-purple-700">{d.avgUnitCost === null ? 'N/A' : fmt(d.avgUnitCost)}</td>
+                      <td className="px-3 py-2 text-xs text-gray-400">{d.woCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="bg-white rounded-xl border shadow-sm">
+              <div className="p-4 border-b font-semibold text-gray-700">By Product</div>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Product Code','Product Name','Net Actual Cost','Avg Unit Cost','Good FG Qty','WOs'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+                <tbody className="divide-y">
+                  {data.byProduct.length === 0 ? <tr><td colSpan={6} className="text-center py-6 text-gray-400 text-xs">No finalized cost sheets in this range</td></tr> :
+                  data.byProduct.map((p,i)=>(
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 font-mono text-xs text-blue-600 font-bold">{p.productCode}</td>
+                      <td className="px-3 py-2 text-xs">{p.productName}</td>
+                      <td className="px-3 py-2 text-xs font-bold">{fmt(p.netActualCost)}</td>
+                      <td className="px-3 py-2 text-xs font-bold text-purple-700">{p.avgUnitCost === null ? 'N/A' : fmt(p.avgUnitCost)}</td>
+                      <td className="px-3 py-2 text-xs text-green-600">{p.finalGoodFgQty}</td>
+                      <td className="px-3 py-2 text-xs text-gray-400">{p.woCount}</td>
                     </tr>
                   ))}
                 </tbody>
