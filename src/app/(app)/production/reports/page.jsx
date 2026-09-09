@@ -8,7 +8,7 @@ const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigit
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 const fmtPct = v => (v === null || v === undefined) ? 'N/A' : Math.round(v*100) + '%';
 
-const TABS = ['WO Completion','Shift Production','Material Consumption','Scrap Analysis','Quality Summary','Daily Output','Efficiency (OEE)','Cost Trend'];
+const TABS = ['WO Completion','Shift Production','Material Consumption','Scrap Analysis','Quality Summary','Daily Output','Efficiency (OEE)','Cost Trend','P&L'];
 const STATUS_COLORS = { DRAFT:'bg-gray-100 text-gray-600', RELEASED:'bg-blue-100 text-blue-700', IN_PROGRESS:'bg-yellow-100 text-yellow-700', COMPLETED:'bg-green-100 text-green-700', CANCELLED:'bg-red-100 text-red-600' };
 const RESULT_COLORS = { PASS:'text-green-600', FAIL:'text-red-600', CONDITIONAL:'text-yellow-600' };
 
@@ -49,6 +49,7 @@ export default function ProductionReportsPage() {
       'Daily Output': 'daily-output',
       'Efficiency (OEE)': 'oee',
       'Cost Trend': 'cost-trend',
+      'P&L': 'pnl',
     };
     const res = await fetch(`${API}/production-reports/${endpoints[activeTab]}?${params}`, {
       headers: { Authorization: `Bearer ${getToken()}` },
@@ -77,7 +78,7 @@ export default function ProductionReportsPage() {
         </div>
 
         <div className="bg-white rounded-xl border p-4 mb-4 flex gap-3 flex-wrap items-end">
-          {['Shift Production','Scrap Analysis','Quality Summary','Daily Output','Efficiency (OEE)','Cost Trend'].includes(activeTab) && (
+          {['Shift Production','Scrap Analysis','Quality Summary','Daily Output','Efficiency (OEE)','Cost Trend','P&L'].includes(activeTab) && (
             <>
               <div><label className="block text-xs text-gray-500 mb-1">From Date</label><input type="date" className="border rounded-lg px-3 py-2 text-sm" value={fromDate} onChange={e=>setFromDate(e.target.value)} /></div>
               <div><label className="block text-xs text-gray-500 mb-1">To Date</label><input type="date" className="border rounded-lg px-3 py-2 text-sm" value={toDate} onChange={e=>setToDate(e.target.value)} /></div>
@@ -352,6 +353,42 @@ export default function ProductionReportsPage() {
                       <td className="px-3 py-2 text-xs">{p.productName}</td>
                       <td className="px-3 py-2 text-xs font-bold">{fmt(p.netActualCost)}</td>
                       <td className="px-3 py-2 text-xs font-bold text-purple-700">{p.avgUnitCost === null ? 'N/A' : fmt(p.avgUnitCost)}</td>
+                      <td className="px-3 py-2 text-xs text-green-600">{p.finalGoodFgQty}</td>
+                      <td className="px-3 py-2 text-xs text-gray-400">{p.woCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!loading && data && activeTab === 'P&L' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-green-50 rounded-xl p-4"><div className="text-xl font-bold text-green-700">{fmt(data.totals.revenue)}</div><div className="text-xs text-gray-500 mt-1">Total Revenue</div></div>
+              <div className="bg-blue-50 rounded-xl p-4"><div className="text-xl font-bold text-blue-700">{fmt(data.totals.cost)}</div><div className="text-xs text-gray-500 mt-1">Total Cost</div></div>
+              <div className={`rounded-xl p-4 ${data.totals.profit >= 0 ? 'bg-purple-50' : 'bg-red-50'}`}><div className={`text-xl font-bold ${data.totals.profit >= 0 ? 'text-purple-700' : 'text-red-700'}`}>{fmt(data.totals.profit)}</div><div className="text-xs text-gray-500 mt-1">Profit</div></div>
+            </div>
+            <p className="text-xs text-gray-400">Revenue uses the selling price actually effective on each WO's closure date, not today's price. Only WO closure-finalized cost sheets are included.</p>
+            {data.noPriceProducts && data.noPriceProducts.length > 0 && (
+              <div className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+                No selling price set for: {data.noPriceProducts.join(', ')} - their cost is counted but revenue shows as 0 until a price is set.
+              </div>
+            )}
+            <div className="bg-white rounded-xl border shadow-sm">
+              <div className="p-4 border-b font-semibold text-gray-700">By Product</div>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Product Code','Product Name','Revenue','Cost','Profit','Good FG Qty','WOs'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+                <tbody className="divide-y">
+                  {data.byProduct.length === 0 ? <tr><td colSpan={7} className="text-center py-6 text-gray-400 text-xs">No finalized cost sheets in this range</td></tr> :
+                  data.byProduct.map((p,i)=>(
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 font-mono text-xs text-blue-600 font-bold">{p.productCode}{p.hasPriceGap && <span className="ml-1 text-orange-500" title="No selling price set">*</span>}</td>
+                      <td className="px-3 py-2 text-xs">{p.productName}</td>
+                      <td className="px-3 py-2 text-xs">{fmt(p.revenue)}</td>
+                      <td className="px-3 py-2 text-xs">{fmt(p.cost)}</td>
+                      <td className={`px-3 py-2 text-xs font-bold ${p.profit >= 0 ? 'text-purple-700' : 'text-red-600'}`}>{fmt(p.profit)}</td>
                       <td className="px-3 py-2 text-xs text-green-600">{p.finalGoodFgQty}</td>
                       <td className="px-3 py-2 text-xs text-gray-400">{p.woCount}</td>
                     </tr>
