@@ -59,17 +59,22 @@ function AvailableTab({ warehouses }) {
       const params = new URLSearchParams({ limit: 50 });
       if (search) params.set('search', search);
       if (warehouseId) params.set('warehouseId', warehouseId);
-      const [balanceRes, pendingRes] = await Promise.all([
+      const [balanceRes, pendingList] = await Promise.all([
         api(`/stock-ledger/balance?${params}`),
         api('/stock-putaway/pending-iqcs').catch(() => []),
       ]);
       setRows(listOf(balanceRes));
-      // Cross-reference against the same pending-iqcs source Material In's
-      // Put-Away tab uses - a "no bin yet" flag, not a separate balance
-      // computation, since availableQty already includes this material
-      // (it became available at IQC approval, before any bin assignment).
+      // pending-iqcs' list response has no items array (only grn summary) -
+      // fetch each pending IQC's full detail to get its item codes. This
+      // list is normally small (a handful of IQC-approved, not-yet-binned
+      // records), so N+1 here is fine for a dashboard-style view.
       const codes = new Set();
-      (pendingRes || []).forEach(iqc => (iqc.items || []).forEach(it => { if (it.acceptedQty > 0) codes.add(it.itemCode); }));
+      await Promise.all((pendingList || []).map(async iqc => {
+        try {
+          const full = await api(`/iqc/${iqc.id}`);
+          (full.items || []).forEach(it => { if (it.acceptedQty > 0) codes.add(it.itemCode); });
+        } catch (e) { /* skip */ }
+      }));
       setPendingItemCodes(codes);
     } catch (e) { /* silent */ }
     setLoading(false);
