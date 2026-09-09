@@ -36,7 +36,7 @@ export default function InventoryLandingPage() {
 
   useEffect(() => {
     Promise.all([
-      api('/gate-inward?status=SENT_TO_STORES&limit=1').then(d => (d.total ?? listOf(d).length)).catch(() => null),
+      api('/gate-inward?status=SENT_TO_STORES&limit=200').then(d => listOf(d).length).catch(() => null),
       api('/stock-putaway/pending-iqcs').then(d => d.length).catch(() => null),
       api('/production/material-issue-overrides/pending').then(d => d.length).catch(() => null),
     ]).then(([pendingArrivals, pendingPutaway, pendingOverrides]) => {
