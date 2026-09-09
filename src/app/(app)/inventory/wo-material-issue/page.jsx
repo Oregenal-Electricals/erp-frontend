@@ -28,6 +28,8 @@ export default function WoMaterialIssuePage() {
   const [busy, setBusy] = useState(false);
   const [warehouses, setWarehouses] = useState([]);
   const [returnForm, setReturnForm] = useState({});
+  const [overrideReason, setOverrideReason] = useState('');
+  const [activeOverride, setActiveOverride] = useState(null);
 
   useEffect(() => { api('/warehouses?limit=100').then(d => setWarehouses(listOf(d))).catch(() => {}); }, []);
 
@@ -50,10 +52,28 @@ export default function WoMaterialIssuePage() {
   const loadStatus = useCallback(async (wo) => {
     setLoadingStatus(true);
     setDraftIssue(null);
-    try { setStatus(await api(`/production/material-returns/status/${wo.id}`)); }
+    try {
+      setStatus(await api(`/production/material-returns/status/${wo.id}`));
+      setActiveOverride(null);
+    }
     catch (e) { fail(e); }
     setLoadingStatus(false);
   }, []);
+
+  async function requestOverride() {
+    if (!overrideReason.trim()) { fail(new Error('Enter a reason for the override request')); return; }
+    setBusy(true);
+    try {
+      const override = await api('/production/material-issue-overrides', {
+        method: 'POST',
+        body: JSON.stringify({ workOrderId: selectedWo.id, reason: overrideReason }),
+      });
+      setActiveOverride(override);
+      notify('Override requested - waiting on management approval (5-hour window).');
+      setOverrideReason('');
+    } catch (e) { fail(e); }
+    setBusy(false);
+  }
 
   async function pickWo(wo) {
     setSelectedWo(wo);
@@ -201,6 +221,23 @@ export default function WoMaterialIssuePage() {
                     {busy ? 'Issuing...' : 'Confirm Issue to Department'}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {!loadingStatus && status?.overallStatus === 'PENDING' && (
+              <div className="bg-white rounded-xl border shadow-sm p-4">
+                <div className="font-semibold text-gray-700 mb-2">Request Management Override</div>
+                <p className="text-xs text-gray-400 mb-3">If the outstanding quantity can't be returned or accounted for right now, request a one-time exception. Management has a 5-hour window to decide.</p>
+                {activeOverride ? (
+                  <div className="text-xs px-3 py-2 rounded-lg bg-blue-50 text-blue-700">
+                    Override requested (status: {activeOverride.status}) - waiting on approval. Deadline: {new Date(activeOverride.deadlineAt).toLocaleString()}
+                  </div>
+                ) : (
+                  <div className="flex gap-2 flex-wrap items-end">
+                    <input className="border rounded px-2 py-1 text-xs flex-1 min-w-[200px]" placeholder="Reason for override..." value={overrideReason} onChange={e => setOverrideReason(e.target.value)} />
+                    <button onClick={requestOverride} disabled={busy} className="px-3 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700 disabled:opacity-50">Request Override</button>
+                  </div>
+                )}
               </div>
             )}
 
