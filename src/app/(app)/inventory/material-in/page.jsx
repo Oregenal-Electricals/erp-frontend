@@ -61,6 +61,9 @@ export default function MaterialInPage() {
 
 // ---------- TAB 1: Gate Arrivals ----------
 function GateArrivalsTab({ warehouses, onDone, onError }) {
+  const [pos, setPos] = useState([]);
+  const [poId, setPoId] = useState('');
+  useEffect(() => { api('/purchase-orders?limit=200').then(d => setPos(listOf(d))).catch(() => {}); }, []);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
@@ -87,6 +90,7 @@ function GateArrivalsTab({ warehouses, onDone, onError }) {
       (full.items || []).forEach(it => { qtys[it.id] = it.quantity; });
       setItemQtys(qtys);
       setWarehouseId(warehouses[0]?.id || '');
+      setPoId(full.poId || '');
     } catch (e) { onError(e); }
   }
 
@@ -100,7 +104,8 @@ function GateArrivalsTab({ warehouses, onDone, onError }) {
         receivedQty: Number(itemQtys[it.id] ?? it.quantity), unitPrice: 0,
       }));
       await api('/grn', { method: 'POST', body: JSON.stringify({
-        grnType: 'DOMESTIC', gateInwardEntryId: detail.id, warehouseId, items,
+        grnType: 'DOMESTIC', gateInwardEntryId: detail.id, warehouseId,
+        ...(detail.poId ? {} : { poId }), items,
       }) });
       setExpandedId(null); setDetail(null);
       await fetchList();
@@ -133,6 +138,15 @@ function GateArrivalsTab({ warehouses, onDone, onError }) {
                   {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
               </div>
+              {!detail.poId && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Purchase Order (this Gate entry has no PO linked - select one to receive against)</label>
+                  <select className="border rounded-lg px-3 py-2 text-sm" value={poId} onChange={ev => setPoId(ev.target.value)}>
+                    <option value="">Select PO...</option>
+                    {pos.map(p => <option key={p.id} value={p.id}>{p.poNumber}</option>)}
+                  </select>
+                </div>
+              )}
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Item','UOM','Declared Qty','Receiving Qty'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
                 <tbody className="divide-y">
