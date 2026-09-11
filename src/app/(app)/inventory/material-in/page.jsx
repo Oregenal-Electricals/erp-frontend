@@ -16,7 +16,7 @@ async function api(path, opts = {}) {
 const listOf = d => Array.isArray(d) ? d : (d?.data || []);
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 
-const TABS = ['Gate Arrivals', 'Receive & Verify', 'IQC Handover', 'Put-Away', 'Rejected'];
+const TABS = ['Gate Arrivals', 'Receive & Verify', 'IQC Handover', 'Put-Away', 'Discrepancies', 'Rejected'];
 
 export default function MaterialInPage() {
   const [activeTab, setActiveTab] = useState('Gate Arrivals');
@@ -50,9 +50,10 @@ export default function MaterialInPage() {
         </div>
 
         {activeTab === 'Gate Arrivals' && <GateArrivalsTab warehouses={warehouses} onDone={() => { notify('Material received - now verify quantities in the next tab'); setActiveTab('Receive & Verify'); }} onError={fail} />}
-        {activeTab === 'Receive & Verify' && <ReceiveVerifyTab onSent={() => { notify('Sent to IQC'); setActiveTab('IQC Handover'); }} onSaved={() => notify('Verification saved')} onError={fail} />}
-        {activeTab === 'IQC Handover' && <IqcHandoverTab onDone={() => notify('Handed over to IQC')} onError={fail} />}
+        {activeTab === 'Receive & Verify' && <ReceiveVerifyTab onSent={() => { notify('Sent to IQC'); setActiveTab('IQC Handover'); }} onSaved={() => notify('Verification saved')} onFlagged={() => notify('Discrepancy raised - see the Discrepancies tab')} onError={fail} />}
+        {activeTab === 'IQC Handover' && <IqcHandoverTab onDone={() => notify('Handed over to IQC')} onReversed={() => notify('GRN reversed')} onError={fail} />}
         {activeTab === 'Put-Away' && <PutAwayTab onDone={() => notify('Put-away completed - material is now Available Stock')} onError={fail} />}
+        {activeTab === 'Discrepancies' && <DiscrepanciesTab warehouses={warehouses} onDone={() => notify('Saved')} onError={fail} />}
         {activeTab === 'Rejected' && <RejectedTab onDone={() => notify('Rejected material placed and dispositioned')} onError={fail} />}
       </div>
     </AppLayout>
@@ -172,11 +173,16 @@ function GateArrivalsTab({ warehouses, onDone, onError }) {
 }
 
 // ---------- TAB 2: Receive & Verify ----------
-function ReceiveVerifyTab({ onSent, onSaved, onError }) {
+const PROBLEM_TYPES = ['WRONG_MATERIAL', 'SPECIFICATION_MISMATCH', 'BATCH_MISMATCH', 'UOM_MISMATCH', 'VISIBLE_DAMAGE', 'LABEL_MISMATCH', 'MIXED_MATERIAL', 'DOCUMENT_MISMATCH', 'UNKNOWN'];
+
+function ReceiveVerifyTab({ onSent, onSaved, onFlagged, onError }) {
   const [grns, setGrns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [qtys, setQtys] = useState({});
   const [savingId, setSavingId] = useState(null);
+  const [flagItem, setFlagItem] = useState(null); // { grnItemId, itemName, receivedQty, heldQty }
+  const [flagForm, setFlagForm] = useState({ affectedQty: '', problemType: 'WRONG_MATERIAL', damageType: '', reason: '' });
+  const [flagSaving, setFlagSaving] = useState(false);
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -213,6 +219,27 @@ function ReceiveVerifyTab({ onSent, onSaved, onError }) {
     setSavingId(null);
   }
 
+  function openFlag(it) {
+    setFlagItem(it);
+    setFlagForm({ affectedQty: '', problemType: 'WRONG_MATERIAL', damageType: '', reason: '' });
+  }
+
+  async function submitFlag() {
+    if (!flagForm.affectedQty || Number(flagForm.affectedQty) <= 0) { onError(new Error('Enter an affected quantity')); return; }
+    setFlagSaving(true);
+    try {
+      await api(`/grn-discrepancies/grn-item/${flagItem.id}`, { method: 'POST', body: JSON.stringify({
+        affectedQty: Number(flagForm.affectedQty), problemType: flagForm.problemType,
+        ...(flagForm.problemType === 'VISIBLE_DAMAGE' && flagForm.damageType ? { damageType: flagForm.damageType } : {}),
+        ...(flagForm.reason ? { reason: flagForm.reason } : {}),
+      }) });
+      setFlagItem(null);
+      onFlagged();
+      await fetchList();
+    } catch (e) { onError(e); }
+    setFlagSaving(false);
+  }
+
   if (loading) return <div className="text-center py-12 text-gray-400">Loading...</div>;
 
   return (
@@ -225,7 +252,7 @@ function ReceiveVerifyTab({ onSent, onSaved, onError }) {
             <span className="text-xs text-gray-400">{g.warehouse?.name}</span>
           </div>
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Item','UOM','Ordered','Actual Physical Qty'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Item','UOM','Ordered','Actual Physical Qty','Held',''].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
             <tbody className="divide-y">
               {(g.items || []).map(it => (
                 <tr key={it.id}>
@@ -233,6 +260,8 @@ function ReceiveVerifyTab({ onSent, onSaved, onError }) {
                   <td className="px-3 py-2 text-xs text-gray-500">{it.uom}</td>
                   <td className="px-3 py-2 text-xs text-gray-500">{it.orderedQty}</td>
                   <td className="px-3 py-2"><input type="number" className="border rounded px-2 py-1 text-xs w-24" value={qtys[it.id] ?? ''} onChange={ev => setQtys(prev => ({ ...prev, [it.id]: ev.target.value }))} /></td>
+                  <td className="px-3 py-2 text-xs">{it.heldQty > 0 ? <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">{it.heldQty} held</span> : <span className="text-gray-300">—</span>}</td>
+                  <td className="px-3 py-2"><button onClick={() => openFlag(it)} className="text-xs text-orange-600 hover:underline">Flag Issue</button></td>
                 </tr>
               ))}
             </tbody>
@@ -241,18 +270,60 @@ function ReceiveVerifyTab({ onSent, onSaved, onError }) {
             <button onClick={() => saveVerification(g)} disabled={savingId===g.id} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 disabled:opacity-50">Save Verified Qty</button>
             <button onClick={() => sendToIqc(g)} disabled={savingId===g.id} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">Send to IQC</button>
           </div>
+          {g.items?.some(it => it.heldQty > 0) && <p className="text-xs text-gray-400 mt-2">Held quantities are excluded from what goes to IQC - resolve them from the Discrepancies tab.</p>}
         </div>
       ))}
+
+      {flagItem && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5">
+            <h3 className="font-bold text-gray-900 mb-1">Flag a Discrepancy</h3>
+            <p className="text-xs text-gray-500 mb-4">{flagItem.itemName} ({flagItem.itemCode}) — received {flagItem.receivedQty}, already held {flagItem.heldQty || 0}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Problem Type</label>
+                <select className="border rounded-lg px-3 py-2 text-sm w-full" value={flagForm.problemType} onChange={ev => setFlagForm(f => ({ ...f, problemType: ev.target.value }))}>
+                  {PROBLEM_TYPES.map(p => <option key={p} value={p}>{p.replace(/_/g, ' ')}</option>)}
+                </select>
+              </div>
+              {flagForm.problemType === 'VISIBLE_DAMAGE' && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Damage Type</label>
+                  <select className="border rounded-lg px-3 py-2 text-sm w-full" value={flagForm.damageType} onChange={ev => setFlagForm(f => ({ ...f, damageType: ev.target.value }))}>
+                    <option value="">Select...</option>
+                    <option value="PACKAGING_DAMAGED">Packaging Damaged</option>
+                    <option value="MATERIAL_DAMAGED">Material Damaged</option>
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Affected Quantity</label>
+                <input type="number" className="border rounded-lg px-3 py-2 text-sm w-full" value={flagForm.affectedQty} onChange={ev => setFlagForm(f => ({ ...f, affectedQty: ev.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Reason / Notes</label>
+                <textarea className="border rounded-lg px-3 py-2 text-sm w-full" rows={2} value={flagForm.reason} onChange={ev => setFlagForm(f => ({ ...f, reason: ev.target.value }))} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setFlagItem(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+              <button onClick={submitFlag} disabled={flagSaving} className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-700 disabled:opacity-50">{flagSaving ? 'Saving...' : 'Flag Discrepancy'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ---------- TAB 3: IQC Handover ----------
-function IqcHandoverTab({ onDone, onError }) {
+function IqcHandoverTab({ onDone, onReversed, onError }) {
   const [grns, setGrns] = useState([]);
   const [iqcStatus, setIqcStatus] = useState({});
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
+  const [reverseId, setReverseId] = useState(null);
+  const [reverseReason, setReverseReason] = useState('');
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -279,6 +350,18 @@ function IqcHandoverTab({ onDone, onError }) {
     setSavingId(null);
   }
 
+  async function confirmReverse() {
+    if (!reverseReason.trim()) { onError(new Error('A reason is required to reverse a GRN')); return; }
+    setSavingId(reverseId);
+    try {
+      await api(`/grn/${reverseId}/reverse`, { method: 'POST', body: JSON.stringify({ reason: reverseReason }) });
+      setReverseId(null); setReverseReason('');
+      onReversed();
+      await fetchList();
+    } catch (e) { onError(e); }
+    setSavingId(null);
+  }
+
   if (loading) return <div className="text-center py-12 text-gray-400">Loading...</div>;
 
   return (
@@ -297,13 +380,31 @@ function IqcHandoverTab({ onDone, onError }) {
                 In IQC — {iqc.status} (view in Quality)
               </a>
             ) : (
-              <button onClick={() => handover(g)} disabled={savingId===g.id} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50">
-                Handover to IQC
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setReverseId(g.id); setReverseReason(''); }} className="px-3 py-2 text-red-600 text-xs hover:bg-red-50 rounded-lg">Reverse GRN</button>
+                <button onClick={() => handover(g)} disabled={savingId===g.id} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50">
+                  Handover to IQC
+                </button>
+              </div>
             )}
           </div>
         );
       })}
+
+      {reverseId && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5">
+            <h3 className="font-bold text-gray-900 mb-1">Reverse GRN</h3>
+            <p className="text-xs text-gray-500 mb-4">This can only be undone by a fresh receipt - it does not restore this GRN.</p>
+            <label className="block text-xs text-gray-500 mb-1">Reason</label>
+            <textarea className="border rounded-lg px-3 py-2 text-sm w-full" rows={3} value={reverseReason} onChange={ev => setReverseReason(ev.target.value)} />
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setReverseId(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+              <button onClick={confirmReverse} disabled={savingId===reverseId} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50">{savingId===reverseId ? 'Reversing...' : 'Reverse GRN'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -406,7 +507,255 @@ function PutAwayTab({ onDone, onError }) {
   );
 }
 
-// ---------- TAB 5: Rejected ----------
+// ---------- TAB 5: Discrepancies (STORE-003/004/005) ----------
+function DiscrepanciesTab({ warehouses, onDone, onError }) {
+  const [subTab, setSubTab] = useState('Quantity'); // Quantity (short/excess) vs Material (wrong/damage/mismatch)
+  const [shortages, setShortages] = useState([]);
+  const [discrepancies, setDiscrepancies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+  const [excessForm, setExcessForm] = useState(null); // { id, qty, reason }
+  const [segregate, setSegregate] = useState(null); // { id, binId }
+  const [bins, setBins] = useState([]);
+  const [resolveDirect, setResolveDirect] = useState(null); // { id, resolution, reason }
+  const [requestAuth, setRequestAuth] = useState(null); // { id, resolution, reason }
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [s, d] = await Promise.all([
+        api('/store-receiving/shortages?limit=100'),
+        api('/grn-discrepancies?limit=100'),
+      ]);
+      setShortages(listOf(s).filter(r => r.status !== 'RESOLVED' && r.status !== 'APPROVED_SHORT_CLOSURE' && r.status !== 'APPROVED_EXCESS'));
+      setDiscrepancies(listOf(d).filter(r => r.status !== 'RESOLVED' && r.status !== 'CANCELLED'));
+    } catch (e) { onError(e); }
+    setLoading(false);
+  }, [onError]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  async function openSegregate(rec) {
+    setSegregate({ id: rec.id, binId: '' });
+    try {
+      const wid = rec.grn?.warehouseId;
+      if (wid) { const b = await api(`/rack-bin/bins/empty/${wid}`); setBins(listOf(b) || b || []); }
+    } catch { setBins([]); }
+  }
+
+  async function saveExcessApproval() {
+    if (!excessForm.qty || Number(excessForm.qty) <= 0) { onError(new Error('Enter a quantity to approve')); return; }
+    setBusyId(excessForm.id);
+    try {
+      await api(`/store-receiving/shortages/${excessForm.id}/approve-excess`, { method: 'POST', body: JSON.stringify({ qty: Number(excessForm.qty), reason: excessForm.reason || 'Approved' }) });
+      setExcessForm(null); onDone(); await fetchAll();
+    } catch (e) { onError(e); }
+    setBusyId(null);
+  }
+
+  async function purchaseReview(id, purchaseStatus) {
+    setBusyId(id);
+    try { await api(`/grn-discrepancies/${id}/purchase-review`, { method: 'POST', body: JSON.stringify({ purchaseStatus }) }); onDone(); await fetchAll(); }
+    catch (e) { onError(e); }
+    setBusyId(null);
+  }
+
+  async function qcReview(id, qcStatus) {
+    setBusyId(id);
+    try { await api(`/grn-discrepancies/${id}/qc-review`, { method: 'POST', body: JSON.stringify({ qcStatus }) }); onDone(); await fetchAll(); }
+    catch (e) { onError(e); }
+    setBusyId(null);
+  }
+
+  async function saveSegregate() {
+    if (!segregate.binId) { onError(new Error('Select a bin')); return; }
+    setBusyId(segregate.id);
+    try {
+      await api(`/grn-discrepancies/${segregate.id}/segregate`, { method: 'POST', body: JSON.stringify({ binId: segregate.binId }) });
+      setSegregate(null); onDone(); await fetchAll();
+    } catch (e) { onError(e); }
+    setBusyId(null);
+  }
+
+  async function saveResolveDirect() {
+    if (!resolveDirect.reason?.trim()) { onError(new Error('A reason is required')); return; }
+    setBusyId(resolveDirect.id);
+    try {
+      await api(`/grn-discrepancies/${resolveDirect.id}/resolve-direct`, { method: 'POST', body: JSON.stringify({ resolution: resolveDirect.resolution, reason: resolveDirect.reason }) });
+      setResolveDirect(null); onDone(); await fetchAll();
+    } catch (e) { onError(e); }
+    setBusyId(null);
+  }
+
+  async function saveRequestAuth() {
+    if (!requestAuth.reason?.trim()) { onError(new Error('A reason is required')); return; }
+    setBusyId(requestAuth.id);
+    try {
+      await api(`/grn-discrepancies/${requestAuth.id}/request-resolution`, { method: 'POST', body: JSON.stringify({ resolution: requestAuth.resolution, reason: requestAuth.reason }) });
+      setRequestAuth(null); onDone(); await fetchAll();
+    } catch (e) { onError(e); }
+    setBusyId(null);
+  }
+
+  if (loading) return <div className="text-center py-12 text-gray-400">Loading...</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        {['Quantity', 'Material'].map(t => (
+          <button key={t} onClick={() => setSubTab(t)} className={`px-3 py-1.5 text-xs font-medium rounded-full ${subTab===t ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
+            {t === 'Quantity' ? 'Short / Excess' : 'Wrong / Damaged / Mismatch'}
+          </button>
+        ))}
+      </div>
+
+      {subTab === 'Quantity' && (
+        <div className="space-y-3">
+          {shortages.length === 0 && <div className="text-center py-12 text-gray-400 bg-white rounded-xl border">No open short/excess quantity issues.</div>}
+          {shortages.map(s => (
+            <div key={s.id} className="bg-white rounded-xl border shadow-sm p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-mono text-sm font-bold">{s.discrepancyNumber}</span>
+                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${s.discrepancyType === 'EXCESS' ? 'bg-purple-100 text-purple-700' : 'bg-yellow-100 text-yellow-700'}`}>{s.discrepancyType}</span>
+                  <span className="text-xs text-gray-400 ml-3">{s.grnItem?.grn?.grnNumber || s.storeReceivingItem?.storeReceiving?.receivingNumber}</span>
+                </div>
+                <span className="text-xs text-gray-500">{s.status}</span>
+              </div>
+              <p className="text-sm text-gray-700 mt-1">{s.itemName} <span className="text-gray-400 font-mono text-xs">({s.itemCode})</span> — expected {s.expectedQty}, received {s.actualQty}</p>
+              {s.discrepancyType === 'EXCESS' ? (
+                <p className="text-xs text-gray-500 mt-1">Excess {s.excessQty} · approved so far {s.approvedExcessQty} · outstanding {s.outstandingExcessQty}</p>
+              ) : (
+                <p className="text-xs text-gray-500 mt-1">Short {s.shortQty} · outstanding {s.outstandingQty}</p>
+              )}
+              {s.discrepancyType === 'EXCESS' && s.outstandingExcessQty > 0 && (
+                <button onClick={() => setExcessForm({ id: s.id, qty: '', reason: '' })} className="mt-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs hover:bg-purple-700">Approve Excess</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {subTab === 'Material' && (
+        <div className="space-y-3">
+          {discrepancies.length === 0 && <div className="text-center py-12 text-gray-400 bg-white rounded-xl border">No open material discrepancies.</div>}
+          {discrepancies.map(d => (
+            <div key={d.id} className="bg-white rounded-xl border shadow-sm p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-mono text-sm font-bold">{d.discrepancyNumber}</span>
+                  <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">{d.problemType?.replace(/_/g, ' ')}</span>
+                  <span className="text-xs text-gray-400 ml-3">{d.grn?.grnNumber}</span>
+                </div>
+                <span className="text-xs text-gray-500">{d.status}</span>
+              </div>
+              <p className="text-sm text-gray-700 mt-1">{d.itemName} <span className="text-gray-400 font-mono text-xs">({d.itemCode})</span> — affected {d.affectedQty}</p>
+              {d.reason && <p className="text-xs text-gray-500 mt-1">{d.reason}</p>}
+              <div className="flex flex-wrap items-center gap-3 mt-2 text-xs">
+                <span>Purchase: <b>{d.purchaseStatus}</b></span>
+                <span>QC: <b>{d.qcStatus}</b></span>
+                {d.holdBinId ? <span className="text-green-600">Segregated to a hold bin</span> : d.status !== 'RESOLVED' && <button onClick={() => openSegregate(d)} className="text-blue-600 hover:underline">Segregate to bin</button>}
+              </div>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {d.purchaseStatus === 'NOTIFIED' && (
+                  <>
+                    <button disabled={busyId===d.id} onClick={() => purchaseReview(d.id, 'COMMERCIALLY_ACCEPTED')} className="px-3 py-1 bg-gray-100 rounded-lg text-xs hover:bg-gray-200">Purchase: Accept</button>
+                    <button disabled={busyId===d.id} onClick={() => purchaseReview(d.id, 'RETURN_REQUIRED')} className="px-3 py-1 bg-gray-100 rounded-lg text-xs hover:bg-gray-200">Purchase: Return</button>
+                    <button disabled={busyId===d.id} onClick={() => purchaseReview(d.id, 'REPLACEMENT_REQUIRED')} className="px-3 py-1 bg-gray-100 rounded-lg text-xs hover:bg-gray-200">Purchase: Replace</button>
+                  </>
+                )}
+                {d.qcStatus === 'PENDING' && (
+                  <>
+                    <button disabled={busyId===d.id} onClick={() => qcReview(d.id, 'ACCEPTED')} className="px-3 py-1 bg-green-50 text-green-700 rounded-lg text-xs hover:bg-green-100">QC: Accept</button>
+                    <button disabled={busyId===d.id} onClick={() => qcReview(d.id, 'REJECTED')} className="px-3 py-1 bg-red-50 text-red-700 rounded-lg text-xs hover:bg-red-100">QC: Reject</button>
+                  </>
+                )}
+                {!d.resolutionApprovalRequestId && d.status !== 'RESOLVED' && (
+                  <>
+                    <button disabled={busyId===d.id} onClick={() => setRequestAuth({ id: d.id, resolution: 'ACCEPT_AUTHORIZED', reason: '' })} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs hover:bg-blue-100">Request Authorized Accept</button>
+                    <button disabled={busyId===d.id} onClick={() => setResolveDirect({ id: d.id, resolution: 'RETURN_TO_VENDOR', reason: '' })} className="px-3 py-1 bg-gray-100 rounded-lg text-xs hover:bg-gray-200">Resolve (Return/Replace/Hold/Other)</button>
+                  </>
+                )}
+                {d.resolutionApprovalRequestId && <span className="text-xs text-blue-600">Resolution requested - awaiting approval</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {excessForm && (
+        <Modal title="Approve Excess" onClose={() => setExcessForm(null)}>
+          <label className="block text-xs text-gray-500 mb-1">Quantity to approve</label>
+          <input type="number" className="border rounded-lg px-3 py-2 text-sm w-full mb-3" value={excessForm.qty} onChange={ev => setExcessForm(f => ({ ...f, qty: ev.target.value }))} />
+          <label className="block text-xs text-gray-500 mb-1">Reason</label>
+          <textarea className="border rounded-lg px-3 py-2 text-sm w-full" rows={2} value={excessForm.reason} onChange={ev => setExcessForm(f => ({ ...f, reason: ev.target.value }))} />
+          <ModalActions onCancel={() => setExcessForm(null)} onSave={saveExcessApproval} saving={busyId===excessForm.id} label="Approve" color="purple" />
+        </Modal>
+      )}
+
+      {segregate && (
+        <Modal title="Segregate to Hold Bin" onClose={() => setSegregate(null)}>
+          <label className="block text-xs text-gray-500 mb-1">Bin</label>
+          <select className="border rounded-lg px-3 py-2 text-sm w-full" value={segregate.binId} onChange={ev => setSegregate(s => ({ ...s, binId: ev.target.value }))}>
+            <option value="">Select an empty bin...</option>
+            {bins.map(b => <option key={b.id} value={b.id}>{b.code}</option>)}
+          </select>
+          <ModalActions onCancel={() => setSegregate(null)} onSave={saveSegregate} saving={busyId===segregate.id} label="Segregate" color="blue" />
+        </Modal>
+      )}
+
+      {resolveDirect && (
+        <Modal title="Resolve Discrepancy" onClose={() => setResolveDirect(null)}>
+          <label className="block text-xs text-gray-500 mb-1">Resolution</label>
+          <select className="border rounded-lg px-3 py-2 text-sm w-full mb-3" value={resolveDirect.resolution} onChange={ev => setResolveDirect(r => ({ ...r, resolution: ev.target.value }))}>
+            <option value="RETURN_TO_VENDOR">Return to Vendor</option>
+            <option value="REPLACE">Replace</option>
+            <option value="HOLD_INVESTIGATION">Hold for Investigation</option>
+            <option value="OTHER">Other</option>
+          </select>
+          <label className="block text-xs text-gray-500 mb-1">Reason</label>
+          <textarea className="border rounded-lg px-3 py-2 text-sm w-full" rows={2} value={resolveDirect.reason} onChange={ev => setResolveDirect(r => ({ ...r, reason: ev.target.value }))} />
+          <ModalActions onCancel={() => setResolveDirect(null)} onSave={saveResolveDirect} saving={busyId===resolveDirect.id} label="Resolve" color="gray" />
+        </Modal>
+      )}
+
+      {requestAuth && (
+        <Modal title="Request Authorized Resolution" onClose={() => setRequestAuth(null)}>
+          <p className="text-xs text-gray-500 mb-3">This sends the material for management approval before it can become usable stock.</p>
+          <label className="block text-xs text-gray-500 mb-1">Resolution</label>
+          <select className="border rounded-lg px-3 py-2 text-sm w-full mb-3" value={requestAuth.resolution} onChange={ev => setRequestAuth(r => ({ ...r, resolution: ev.target.value }))}>
+            <option value="ACCEPT_AUTHORIZED">Accept (Authorized)</option>
+            <option value="RECLASSIFY">Reclassify</option>
+          </select>
+          <label className="block text-xs text-gray-500 mb-1">Reason</label>
+          <textarea className="border rounded-lg px-3 py-2 text-sm w-full" rows={2} value={requestAuth.reason} onChange={ev => setRequestAuth(r => ({ ...r, reason: ev.target.value }))} />
+          <ModalActions onCancel={() => setRequestAuth(null)} onSave={saveRequestAuth} saving={busyId===requestAuth.id} label="Send for Approval" color="blue" />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function Modal({ title, children, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5">
+        <h3 className="font-bold text-gray-900 mb-3">{title}</h3>
+        {children}
+      </div>
+    </div>
+  );
+}
+function ModalActions({ onCancel, onSave, saving, label, color }) {
+  const colors = { purple: 'bg-purple-600 hover:bg-purple-700', blue: 'bg-blue-600 hover:bg-blue-700', gray: 'bg-gray-700 hover:bg-gray-800' };
+  return (
+    <div className="flex justify-end gap-2 mt-5">
+      <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+      <button onClick={onSave} disabled={saving} className={`px-4 py-2 text-white rounded-lg text-sm disabled:opacity-50 ${colors[color]}`}>{saving ? 'Saving...' : label}</button>
+    </div>
+  );
+}
+
+// ---------- TAB 6: Rejected ----------
 function RejectedTab({ onDone, onError }) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
