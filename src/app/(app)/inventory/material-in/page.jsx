@@ -16,7 +16,7 @@ async function api(path, opts = {}) {
 const listOf = d => Array.isArray(d) ? d : (d?.data || []);
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 
-const TABS = ['Gate Arrivals', 'Receive & Verify', 'IQC Handover', 'Put-Away', 'Discrepancies', 'Rejected'];
+const TABS = ['Gate Arrivals', 'Receive & Verify', 'IQC Handover', 'Put-Away', 'Discrepancies', 'Rejected', 'Hold'];
 
 export default function MaterialInPage() {
   const [activeTab, setActiveTab] = useState('Gate Arrivals');
@@ -55,6 +55,7 @@ export default function MaterialInPage() {
         {activeTab === 'Put-Away' && <PutAwayTab onDone={() => notify('Put-away completed - material is now Available Stock')} onError={fail} />}
         {activeTab === 'Discrepancies' && <DiscrepanciesTab warehouses={warehouses} onDone={() => notify('Saved')} onError={fail} />}
         {activeTab === 'Rejected' && <RejectedTab onDone={() => notify('Rejected material placed and dispositioned')} onError={fail} />}
+        {activeTab === 'Hold' && <HoldTab onDone={() => notify('Reinspection recorded')} onError={fail} />}
       </div>
     </AppLayout>
   );
@@ -511,7 +512,6 @@ function PutAwayTab({ onDone, onError }) {
   const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
-  const [iqcDetail, setIqcDetail] = useState(null);
   const [bins, setBins] = useState([]);
   const [binAssign, setBinAssign] = useState({});
   const [saving, setSaving] = useState(false);
@@ -528,12 +528,13 @@ function PutAwayTab({ onDone, onError }) {
     if (expandedId === iqc.id) { setExpandedId(null); return; }
     setExpandedId(iqc.id);
     try {
-      const full = await api(`/iqc/${iqc.id}`);
-      setIqcDetail(full);
       const emptyBins = await api(`/rack-bin/bins/empty/${iqc.grn.warehouseId}`);
       setBins(listOf(emptyBins) || emptyBins || []);
       const assign = {};
-      (full.items || []).filter(it => it.acceptedQty > 0).forEach(it => { assign[it.id] = { binId: '', qty: it.acceptedQty }; });
+      // STORE-008 section 34: default to remainingPutAwayQty (what's
+      // still eligible), not the full acceptedQty - a line can already
+      // have some of it put away from an earlier partial batch.
+      (iqc.items || []).filter(it => it.remainingPutAwayQty > 0).forEach(it => { assign[it.id] = { binId: '', qty: it.remainingPutAwayQty }; });
       setBinAssign(assign);
     } catch (e) { onError(e); }
   }
@@ -544,11 +545,14 @@ function PutAwayTab({ onDone, onError }) {
     setSaving(true);
     try {
       const itemPayload = items.map(([itemId, v]) => {
-        const it = (iqcDetail.items || []).find(i => i.id === itemId);
-        return { binId: v.binId, itemCode: it.itemCode, itemName: it.itemName, uom: it.uom, qty: Number(v.qty), unitCost: 0 };
+        const it = (iqc.items || []).find(i => i.id === itemId);
+        // iqcItemId is what lets the backend cross-check this qty against
+        // remaining acceptedQty and block an over-put-away attempt -
+        // without it the check is silently skipped entirely.
+        return { binId: v.binId, iqcItemId: it.id, itemCode: it.itemCode, itemName: it.itemName, uom: it.uom, qty: Number(v.qty), unitCost: 0 };
       });
       const putaway = await api('/stock-putaway', { method: 'POST', body: JSON.stringify({
-        grnId: iqc.grn.grnNumber ? iqc.grnId : iqc.grnId, iqcId: iqc.id, warehouseId: iqc.grn.warehouseId, items: itemPayload,
+        grnId: iqc.grnId, iqcId: iqc.id, warehouseId: iqc.grn.warehouseId, items: itemPayload,
       }) });
       await api(`/stock-putaway/${putaway.id}/complete`, { method: 'POST' });
       setExpandedId(null);
@@ -573,26 +577,27 @@ function PutAwayTab({ onDone, onError }) {
             </div>
             <span className="text-xs text-gray-400">{expandedId === iqc.id ? 'Collapse' : 'Put-Away'}</span>
           </button>
-          {expandedId === iqc.id && iqcDetail && (
+          {expandedId === iqc.id && (
             <div className="border-t p-4 space-y-3">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Item','Passed Qty','Bin','Qty to Place'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Item','Remaining to Place','Bin','Qty to Place'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
                 <tbody className="divide-y">
-                  {(iqcDetail.items || []).filter(it => it.acceptedQty > 0).map(it => (
+                  {(iqc.items || []).filter(it => it.remainingPutAwayQty > 0).map(it => (
                     <tr key={it.id}>
                       <td className="px-3 py-2 text-xs">{it.itemName}</td>
-                      <td className="px-3 py-2 text-xs font-bold text-green-600">{it.acceptedQty}</td>
+                      <td className="px-3 py-2 text-xs font-bold text-green-600">{it.remainingPutAwayQty}</td>
                       <td className="px-3 py-2">
                         <select className="border rounded px-2 py-1 text-xs" value={binAssign[it.id]?.binId || ''} onChange={ev => setBinAssign(prev => ({ ...prev, [it.id]: { ...prev[it.id], binId: ev.target.value } }))}>
                           <option value="">Select bin...</option>
                           {bins.map(b => <option key={b.id} value={b.id}>{b.code}</option>)}
                         </select>
                       </td>
-                      <td className="px-3 py-2"><input type="number" className="border rounded px-2 py-1 text-xs w-20" value={binAssign[it.id]?.qty ?? ''} onChange={ev => setBinAssign(prev => ({ ...prev, [it.id]: { ...prev[it.id], qty: ev.target.value } }))} /></td>
+                      <td className="px-3 py-2"><input type="number" max={it.remainingPutAwayQty} className="border rounded px-2 py-1 text-xs w-20" value={binAssign[it.id]?.qty ?? ''} onChange={ev => setBinAssign(prev => ({ ...prev, [it.id]: { ...prev[it.id], qty: ev.target.value } }))} /></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              <p className="text-xs text-gray-400">Placing less than the remaining qty leaves the rest eligible for a later put-away batch.</p>
               <button onClick={() => confirmPutaway(iqc)} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50">
                 {saving ? 'Confirming...' : 'Confirm Put-Away'}
               </button>
@@ -914,6 +919,106 @@ function RejectedTab({ onDone, onError }) {
                   <td className="px-3 py-2">
                     {it.disposition === 'PENDING' && (
                       <button onClick={() => saveDisposition(rec, it.id)} disabled={savingId===it.id} className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 disabled:opacity-50">Save</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------- TAB 7: Hold (STORE-008) ----------
+function HoldTab({ onDone, onError }) {
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [reinspect, setReinspect] = useState({});
+  const [savingId, setSavingId] = useState(null);
+
+  const fetchList = useCallback(async () => {
+    setLoading(true);
+    try {
+      const list = listOf(await api('/hold-stock?limit=50'));
+      setRecords(list.filter(r => r.status !== 'CLOSED'));
+    } catch (e) { onError(e); }
+    setLoading(false);
+  }, [onError]);
+  useEffect(() => { fetchList(); }, [fetchList]);
+
+  function startReinspect(item) {
+    setReinspect(prev => ({ ...prev, [item.id]: { passQty: item.holdQty, failQty: 0, notes: '' } }));
+  }
+
+  async function submitReinspect(rec, item) {
+    const r = reinspect[item.id];
+    if (!r) return;
+    const total = Number(r.passQty) + Number(r.failQty);
+    if (total <= 0) { onError(new Error('Enter a pass or fail quantity')); return; }
+    if (total > item.holdQty) { onError(new Error(`Reinspected qty (${total}) cannot exceed held qty (${item.holdQty})`)); return; }
+    setSavingId(item.id);
+    try {
+      await api(`/hold-stock/${rec.id}/items/${item.id}/reinspect`, {
+        method: 'POST',
+        body: JSON.stringify({ passQty: Number(r.passQty), failQty: Number(r.failQty), notes: r.notes || undefined }),
+      });
+      setReinspect(prev => { const n = { ...prev }; delete n[item.id]; return n; });
+      onDone();
+      await fetchList();
+    } catch (e) { onError(e); }
+    setSavingId(null);
+  }
+
+  if (loading) return <div className="text-center py-12 text-gray-400">Loading...</div>;
+
+  return (
+    <div className="space-y-3">
+      {records.length === 0 && <div className="text-center py-12 text-gray-400 bg-white rounded-xl border">No hold stock pending reinspection.</div>}
+      {records.map(rec => (
+        <div key={rec.id} className="bg-white rounded-xl border shadow-sm p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-mono text-orange-600 font-bold text-sm">{rec.holdNumber}</span>
+            <span className="text-xs text-gray-400">{rec.warehouse?.name}</span>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Item', 'Hold Qty', 'Reason', 'Reinspection', ''].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+            <tbody className="divide-y">
+              {(rec.items || []).map(it => (
+                <tr key={it.id}>
+                  <td className="px-3 py-2 text-xs">{it.itemName}</td>
+                  <td className="px-3 py-2 text-xs font-bold text-orange-600">{it.holdQty}</td>
+                  <td className="px-3 py-2 text-xs text-gray-500">{it.holdReason || '-'}</td>
+                  <td className="px-3 py-2">
+                    {it.reinspectionStatus === 'PENDING' ? (
+                      reinspect[it.id] ? (
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <label className="block text-[10px] text-gray-400">Pass</label>
+                            <input type="number" className="border rounded px-2 py-1 text-xs w-16" value={reinspect[it.id].passQty} onChange={ev => setReinspect(prev => ({ ...prev, [it.id]: { ...prev[it.id], passQty: ev.target.value } }))} />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-400">Fail</label>
+                            <input type="number" className="border rounded px-2 py-1 text-xs w-16" value={reinspect[it.id].failQty} onChange={ev => setReinspect(prev => ({ ...prev, [it.id]: { ...prev[it.id], failQty: ev.target.value } }))} />
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="px-2 py-1 rounded-full bg-orange-100 text-orange-700 text-xs">Pending decision</span>
+                      )
+                    ) : (
+                      <span className="text-xs text-gray-500">{it.reinspectionStatus} (P{it.reinspectedPassQty}/F{it.reinspectedFailQty})</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {it.reinspectionStatus === 'PENDING' && (
+                      reinspect[it.id] ? (
+                        <button onClick={() => submitReinspect(rec, it)} disabled={savingId===it.id} className="px-3 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700 disabled:opacity-50">
+                          {savingId===it.id ? 'Saving...' : 'Submit'}
+                        </button>
+                      ) : (
+                        <button onClick={() => startReinspect(it)} className="px-3 py-1 border text-orange-600 rounded text-xs hover:bg-orange-50">Reinspect</button>
+                      )
                     )}
                   </td>
                 </tr>
