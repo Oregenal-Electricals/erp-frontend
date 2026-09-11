@@ -51,7 +51,7 @@ export default function MaterialInPage() {
 
         {activeTab === 'Gate Arrivals' && <GateArrivalsTab warehouses={warehouses} onDone={() => { notify('Material received - now verify quantities in the next tab'); setActiveTab('Receive & Verify'); }} onError={fail} />}
         {activeTab === 'Receive & Verify' && <ReceiveVerifyTab onSent={() => { notify('Sent to IQC'); setActiveTab('IQC Handover'); }} onSaved={() => notify('Verification saved')} onFlagged={() => notify('Discrepancy raised - see the Discrepancies tab')} onError={fail} />}
-        {activeTab === 'IQC Handover' && <IqcHandoverTab onDone={() => notify('Handed over to IQC')} onReversed={() => notify('GRN reversed')} onError={fail} />}
+        {activeTab === 'IQC Handover' && <IqcHandoverTab onDone={(msg) => notify(msg || 'Handed over to IQC')} onReversed={() => notify('GRN reversed')} onError={fail} />}
         {activeTab === 'Put-Away' && <PutAwayTab onDone={() => notify('Put-away completed - material is now Available Stock')} onError={fail} />}
         {activeTab === 'Discrepancies' && <DiscrepanciesTab warehouses={warehouses} onDone={() => notify('Saved')} onError={fail} />}
         {activeTab === 'Rejected' && <RejectedTab onDone={() => notify('Rejected material placed and dispositioned')} onError={fail} />}
@@ -319,32 +319,67 @@ function ReceiveVerifyTab({ onSent, onSaved, onFlagged, onError }) {
 // ---------- TAB 3: IQC Handover ----------
 function IqcHandoverTab({ onDone, onReversed, onError }) {
   const [grns, setGrns] = useState([]);
-  const [iqcStatus, setIqcStatus] = useState({});
+  const [iqcByGrn, setIqcByGrn] = useState({});
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
   const [reverseId, setReverseId] = useState(null);
   const [reverseReason, setReverseReason] = useState('');
+  const [handoverGrn, setHandoverGrn] = useState(null);
+  const [confirmIqc, setConfirmIqc] = useState(null);
 
   const fetchList = useCallback(async () => {
     setLoading(true);
     try {
       const list = listOf(await api('/grn?status=IQC_PENDING&limit=50'));
       setGrns(list);
-      const statuses = {};
+      const byGrn = {};
       await Promise.all(list.map(async g => {
-        try { statuses[g.id] = await api(`/iqc/grn/${g.id}`); } catch { statuses[g.id] = null; }
+        try { byGrn[g.id] = listOf(await api(`/iqc/grn/${g.id}`)); } catch { byGrn[g.id] = []; }
       }));
-      setIqcStatus(statuses);
+      setIqcByGrn(byGrn);
     } catch (e) { onError(e); }
     setLoading(false);
   }, [onError]);
   useEffect(() => { fetchList(); }, [fetchList]);
 
-  async function handover(grn) {
-    setSavingId(grn.id);
+  function remainingQty(item) {
+    return Math.max(item.receivedQty - (item.heldQty || 0) - (item.sentToIqcQty || 0), 0);
+  }
+
+  function openHandover(grn) {
+    const qtys = {};
+    (grn.items || []).forEach(it => { const r = remainingQty(it); if (r > 0) qtys[it.id] = r; });
+    setHandoverGrn({ grn, qtys });
+  }
+
+  async function submitHandover() {
+    const items = Object.entries(handoverGrn.qtys).filter(([, q]) => Number(q) > 0).map(([grnItemId, qty]) => ({ grnItemId, qty: Number(qty) }));
+    if (items.length === 0) { onError(new Error('Enter a quantity for at least one item')); return; }
+    setSavingId(handoverGrn.grn.id);
     try {
-      await api('/iqc', { method: 'POST', body: JSON.stringify({ grnId: grn.id }) });
-      onDone();
+      const r = await api('/iqc', { method: 'POST', body: JSON.stringify({ grnId: handoverGrn.grn.id, items }) });
+      setHandoverGrn(null);
+      onDone(r.skippedIqc ? 'Material accepted directly - IQC not required' : 'Sent to IQC - awaiting QC receipt confirmation');
+      await fetchList();
+    } catch (e) { onError(e); }
+    setSavingId(null);
+  }
+
+  function openConfirm(iqc) {
+    const qtys = {};
+    (iqc.items || []).forEach(it => { qtys[it.id] = it.receivedQty; });
+    setConfirmIqc({ iqc, qtys });
+  }
+
+  async function submitConfirm() {
+    const items = Object.entries(confirmIqc.qtys).map(([itemId, confirmedQty]) => ({ itemId, confirmedQty: Number(confirmedQty) }));
+    setSavingId(confirmIqc.iqc.id);
+    try {
+      const r = await api(`/iqc/${confirmIqc.iqc.id}/confirm-receipt`, { method: 'POST', body: JSON.stringify({ items }) });
+      setConfirmIqc(null);
+      onDone(r.handoverMismatches?.length > 0
+        ? `Receipt confirmed - ${r.handoverMismatches.length} item(s) short of what Store sent`
+        : 'Receipt confirmed - matches what Store sent');
       await fetchList();
     } catch (e) { onError(e); }
     setSavingId(null);
@@ -368,28 +403,90 @@ function IqcHandoverTab({ onDone, onReversed, onError }) {
     <div className="space-y-3">
       {grns.length === 0 && <div className="text-center py-12 text-gray-400 bg-white rounded-xl border">Nothing pending IQC handover.</div>}
       {grns.map(g => {
-        const iqc = iqcStatus[g.id];
+        const inspections = iqcByGrn[g.id] || [];
+        const totalRemaining = (g.items || []).reduce((s, it) => s + remainingQty(it), 0);
         return (
-          <div key={g.id} className="bg-white rounded-xl border shadow-sm p-4 flex items-center justify-between">
-            <div>
-              <span className="font-mono text-blue-600 font-bold text-sm">{g.grnNumber}</span>
-              <span className="text-xs text-gray-400 ml-3">{g.warehouse?.name}</span>
-            </div>
-            {iqc ? (
-              <a href={`/inventory/iqc/${iqc.id}`} className="text-sm text-purple-600 hover:underline">
-                In IQC — {iqc.status} (view in Quality)
-              </a>
-            ) : (
+          <div key={g.id} className="bg-white rounded-xl border shadow-sm p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <span className="font-mono text-blue-600 font-bold text-sm">{g.grnNumber}</span>
+                <span className="text-xs text-gray-400 ml-3">{g.warehouse?.name}</span>
+              </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => { setReverseId(g.id); setReverseReason(''); }} className="px-3 py-2 text-red-600 text-xs hover:bg-red-50 rounded-lg">Reverse GRN</button>
-                <button onClick={() => handover(g)} disabled={savingId===g.id} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50">
-                  Handover to IQC
-                </button>
+                {inspections.length === 0 && (
+                  <button onClick={() => { setReverseId(g.id); setReverseReason(''); }} className="px-3 py-2 text-red-600 text-xs hover:bg-red-50 rounded-lg">Reverse GRN</button>
+                )}
+                {totalRemaining > 0 && (
+                  <button onClick={() => openHandover(g)} disabled={savingId===g.id} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50">
+                    {inspections.length > 0 ? 'Send More to IQC' : 'Handover to IQC'}
+                  </button>
+                )}
+              </div>
+            </div>
+            {inspections.length > 0 && (
+              <div className="space-y-1 mt-2">
+                {inspections.map(iqc => (
+                  <div key={iqc.id} className="flex items-center justify-between text-xs bg-gray-50 rounded-lg px-3 py-2">
+                    <a href={`/inventory/iqc/${iqc.id}`} className="text-purple-600 hover:underline font-mono">{iqc.iqcNumber}</a>
+                    <span className={`px-2 py-0.5 rounded-full font-medium ${iqc.status==='AWAITING_QC_RECEIPT' ? 'bg-orange-100 text-orange-700' : iqc.status==='APPROVED' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{iqc.status.replace(/_/g,' ')}</span>
+                    {iqc.status === 'AWAITING_QC_RECEIPT' ? (
+                      <button onClick={() => openConfirm(iqc)} className="text-blue-600 hover:underline">Confirm Receipt</button>
+                    ) : <span className="text-gray-400">(view in Quality)</span>}
+                  </div>
+                ))}
               </div>
             )}
           </div>
         );
       })}
+
+      {handoverGrn && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5">
+            <h3 className="font-bold text-gray-900 mb-1">Send to IQC</h3>
+            <p className="text-xs text-gray-500 mb-4">Adjust quantities to send a partial batch - the remainder stays eligible for a later handover.</p>
+            <div className="space-y-2">
+              {(handoverGrn.grn.items || []).filter(it => remainingQty(it) > 0).map(it => (
+                <div key={it.id} className="flex items-center justify-between gap-3">
+                  <div className="text-xs">
+                    <div>{it.itemName} <span className="text-gray-400 font-mono">({it.itemCode})</span></div>
+                    <div className="text-gray-400">Remaining eligible: {remainingQty(it)}</div>
+                  </div>
+                  <input type="number" className="border rounded px-2 py-1 text-xs w-24" value={handoverGrn.qtys[it.id] ?? ''} onChange={ev => setHandoverGrn(h => ({ ...h, qtys: { ...h.qtys, [it.id]: ev.target.value } }))} />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setHandoverGrn(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+              <button onClick={submitHandover} disabled={savingId===handoverGrn.grn.id} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50">{savingId===handoverGrn.grn.id ? 'Sending...' : 'Send to IQC'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmIqc && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5">
+            <h3 className="font-bold text-gray-900 mb-1">Confirm Physical Receipt</h3>
+            <p className="text-xs text-gray-500 mb-4">Enter what was actually, physically received - a shortfall from what Store sent is flagged as a handover mismatch, not silently accepted.</p>
+            <div className="space-y-2">
+              {(confirmIqc.iqc.items || []).map(it => (
+                <div key={it.id} className="flex items-center justify-between gap-3">
+                  <div className="text-xs">
+                    <div>{it.itemName} <span className="text-gray-400 font-mono">({it.itemCode})</span></div>
+                    <div className="text-gray-400">Store sent: {it.receivedQty}</div>
+                  </div>
+                  <input type="number" className="border rounded px-2 py-1 text-xs w-24" value={confirmIqc.qtys[it.id] ?? ''} onChange={ev => setConfirmIqc(c => ({ ...c, qtys: { ...c.qtys, [it.id]: ev.target.value } }))} />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setConfirmIqc(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+              <button onClick={submitConfirm} disabled={savingId===confirmIqc.iqc.id} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">{savingId===confirmIqc.iqc.id ? 'Confirming...' : 'Confirm Receipt'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {reverseId && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
