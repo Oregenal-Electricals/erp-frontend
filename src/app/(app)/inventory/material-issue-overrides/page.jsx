@@ -21,6 +21,8 @@ export default function MaterialIssueOverridesPage() {
   const [toast, setToast] = useState('');
   const [busy, setBusy] = useState(false);
   const [comments, setComments] = useState({});
+  // STORE-012: approver can grant less than what was requested.
+  const [approvedQtyForm, setApprovedQtyForm] = useState({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -33,14 +35,19 @@ export default function MaterialIssueOverridesPage() {
   function notify(msg) { setToast(msg); setTimeout(() => setToast(''), 4000); }
   function fail(e) { setError(e.message || 'Something went wrong'); setTimeout(() => setError(''), 6000); }
 
-  async function decide(id, action) {
+  async function decide(id, action, requestedQty) {
     setBusy(true);
     try {
+      const body = { action, comments: comments[id] || '' };
+      if (action === 'APPROVED') {
+        const entered = approvedQtyForm[id];
+        body.approvedQty = entered ? Number(entered) : requestedQty;
+      }
       await api(`/production/material-issue-overrides/${id}/decide`, {
         method: 'POST',
-        body: JSON.stringify({ action, comments: comments[id] || '' }),
+        body: JSON.stringify(body),
       });
-      notify(action === 'APPROVED' ? 'Override approved.' : 'Override rejected.');
+      notify(action === 'APPROVED' ? `Override approved for ${body.approvedQty}.` : 'Override rejected.');
       await load();
     } catch (e) { fail(e); }
     setBusy(false);
@@ -70,7 +77,9 @@ export default function MaterialIssueOverridesPage() {
                 </div>
                 <span className="text-xs text-gray-400">Deadline: {new Date(o.deadlineAt).toLocaleString()}</span>
               </div>
-              <div className="text-xs text-gray-500 mb-2">Requested by {o.requestedBy?.firstName} {o.requestedBy?.lastName} - "{o.reason}"</div>
+              <div className="text-xs text-gray-500 mb-2">
+                Requesting to issue <span className="font-bold text-gray-700">{o.requestedQty} {o.itemsSnapshot?.[0]?.uom}</span> of <span className="font-mono">{o.itemCode}</span> despite the pending previous material below - requested by {o.requestedBy?.firstName} {o.requestedBy?.lastName}, reason: "{o.reason}"
+              </div>
               <table className="w-full text-xs mb-3">
                 <thead className="text-gray-400 uppercase"><tr>{['Item','Issued','Outstanding'].map(h=><th key={h} className="px-2 py-1 text-left">{h}</th>)}</tr></thead>
                 <tbody className="divide-y">
@@ -84,8 +93,9 @@ export default function MaterialIssueOverridesPage() {
                 </tbody>
               </table>
               <div className="flex gap-2 items-end flex-wrap">
+                <input type="number" placeholder={`Approve qty (max ${o.requestedQty})`} className="border rounded px-2 py-1 text-xs w-40" value={approvedQtyForm[o.id] || ''} onChange={e => setApprovedQtyForm(prev => ({ ...prev, [o.id]: e.target.value }))} />
                 <input className="border rounded px-2 py-1 text-xs flex-1 min-w-[200px]" placeholder="Comments (optional)..." value={comments[o.id] || ''} onChange={e => setComments(prev => ({ ...prev, [o.id]: e.target.value }))} />
-                <button onClick={() => decide(o.id, 'APPROVED')} disabled={busy} className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50">Approve</button>
+                <button onClick={() => decide(o.id, 'APPROVED', o.requestedQty)} disabled={busy} className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50">Approve</button>
                 <button onClick={() => decide(o.id, 'REJECTED')} disabled={busy} className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 disabled:opacity-50">Reject</button>
               </div>
             </div>
