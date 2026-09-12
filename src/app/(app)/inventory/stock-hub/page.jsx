@@ -11,6 +11,15 @@ async function api(path) {
   return res.json();
 }
 const listOf = d => Array.isArray(d) ? d : (d?.data || []);
+// STORE-009 section 51: "Put-Away Pending Since" / Age - helps spot
+// material that's been sitting in the receiving/IQC area too long.
+function formatAge(dateStr) {
+  if (!dateStr) return '-';
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const hours = Math.floor(ms / 3600000);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
 
 const TABS = ['Available', 'Put-Away Pending', 'Rejected', 'Location View', 'Material View'];
 
@@ -135,6 +144,7 @@ function PutAwayPendingTab() {
             <span className="font-mono text-green-600 font-bold text-sm">{iqc.iqcNumber}</span>
             <span className="text-xs text-gray-500 ml-3">{iqc.grn?.grnNumber}</span>
             <span className="text-xs text-gray-400 ml-3">{iqc.grn?.warehouse?.name}</span>
+            <span className="text-xs text-gray-400 ml-3">Pending {formatAge(iqc.updatedAt)}</span>
           </div>
           <Link href="/inventory/material-in" className="text-sm text-blue-600 hover:underline">Put Away →</Link>
         </div>

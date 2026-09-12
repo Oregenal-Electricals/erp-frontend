@@ -14,6 +14,13 @@ async function api(path, opts = {}) {
   return data;
 }
 const listOf = d => Array.isArray(d) ? d : (d?.data || []);
+function formatAge(dateStr) {
+  if (!dateStr) return '-';
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const hours = Math.floor(ms / 3600000);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 
 const TABS = ['Gate Arrivals', 'Receive & Verify', 'IQC Handover', 'Put-Away', 'Discrepancies', 'Rejected', 'Hold'];
@@ -586,6 +593,7 @@ function PutAwayTab({ onDone, onError }) {
               <span className="font-mono text-green-600 font-bold text-sm">{iqc.iqcNumber}</span>
               <span className="text-xs text-gray-500 ml-3">{iqc.grn?.grnNumber}</span>
               <span className="text-xs text-gray-400 ml-3">{iqc.grn?.warehouse?.name}</span>
+              <span className="text-xs text-gray-400 ml-3">Pending {formatAge(iqc.updatedAt)}</span>
             </div>
             <span className="text-xs text-gray-400">{expandedId === iqc.id ? 'Collapse' : 'Put-Away'}</span>
           </button>
