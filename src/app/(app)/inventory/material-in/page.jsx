@@ -180,6 +180,7 @@ function ReceiveVerifyTab({ onSent, onSaved, onFlagged, onError }) {
   const [grns, setGrns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [qtys, setQtys] = useState({});
+  const [batches, setBatches] = useState({});
   const [savingId, setSavingId] = useState(null);
   const [flagItem, setFlagItem] = useState(null); // { grnItemId, itemName, receivedQty, heldQty }
   const [flagForm, setFlagForm] = useState({ affectedQty: '', problemType: 'WRONG_MATERIAL', damageType: '', reason: '' });
@@ -192,8 +193,10 @@ function ReceiveVerifyTab({ onSent, onSaved, onFlagged, onError }) {
       const list = listOf(d);
       setGrns(list);
       const q = {};
-      list.forEach(g => (g.items || []).forEach(it => { q[it.id] = it.receivedQty; }));
+      const b = {};
+      list.forEach(g => (g.items || []).forEach(it => { q[it.id] = it.receivedQty; b[it.id] = it.batchNumber || ''; }));
       setQtys(q);
+      setBatches(b);
     } catch (e) { onError(e); }
     setLoading(false);
   }, [onError]);
@@ -202,7 +205,10 @@ function ReceiveVerifyTab({ onSent, onSaved, onFlagged, onError }) {
   async function saveVerification(grn) {
     setSavingId(grn.id);
     try {
-      const items = (grn.items || []).map(it => ({ id: it.id, receivedQty: Number(qtys[it.id]) }));
+      // STORE-009 section 30-31: batch number is optional - not every
+      // material is batch-tracked, but this is what propagates through
+      // to StockBatch and eventual location-level batch traceability.
+      const items = (grn.items || []).map(it => ({ id: it.id, receivedQty: Number(qtys[it.id]), batchNumber: batches[it.id] || undefined }));
       await api(`/grn/${grn.id}`, { method: 'PUT', body: JSON.stringify({ items }) });
       onSaved();
       await fetchList();
@@ -253,7 +259,7 @@ function ReceiveVerifyTab({ onSent, onSaved, onFlagged, onError }) {
             <span className="text-xs text-gray-400">{g.warehouse?.name}</span>
           </div>
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Item','UOM','Ordered','Actual Physical Qty','Held',''].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Item','UOM','Ordered','Actual Physical Qty','Batch/Lot No.','Held',''].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
             <tbody className="divide-y">
               {(g.items || []).map(it => (
                 <tr key={it.id}>
@@ -261,6 +267,7 @@ function ReceiveVerifyTab({ onSent, onSaved, onFlagged, onError }) {
                   <td className="px-3 py-2 text-xs text-gray-500">{it.uom}</td>
                   <td className="px-3 py-2 text-xs text-gray-500">{it.orderedQty}</td>
                   <td className="px-3 py-2"><input type="number" className="border rounded px-2 py-1 text-xs w-24" value={qtys[it.id] ?? ''} onChange={ev => setQtys(prev => ({ ...prev, [it.id]: ev.target.value }))} /></td>
+                  <td className="px-3 py-2"><input type="text" placeholder="optional" className="border rounded px-2 py-1 text-xs w-28" value={batches[it.id] ?? ''} onChange={ev => setBatches(prev => ({ ...prev, [it.id]: ev.target.value }))} /></td>
                   <td className="px-3 py-2 text-xs">{it.heldQty > 0 ? <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">{it.heldQty} held</span> : <span className="text-gray-300">—</span>}</td>
                   <td className="px-3 py-2"><button onClick={() => openFlag(it)} className="text-xs text-orange-600 hover:underline">Flag Issue</button></td>
                 </tr>
@@ -529,12 +536,17 @@ function PutAwayTab({ onDone, onError }) {
     setExpandedId(iqc.id);
     try {
       const emptyBins = await api(`/rack-bin/bins/empty/${iqc.grn.warehouseId}`);
-      setBins(listOf(emptyBins) || emptyBins || []);
+      const binList = listOf(emptyBins) || emptyBins || [];
+      setBins(binList);
       const assign = {};
-      // STORE-008 section 34: default to remainingPutAwayQty (what's
-      // still eligible), not the full acceptedQty - a line can already
-      // have some of it put away from an earlier partial batch.
-      (iqc.items || []).filter(it => it.remainingPutAwayQty > 0).forEach(it => { assign[it.id] = { binId: '', qty: it.remainingPutAwayQty }; });
+      // STORE-009 section 6: pre-fill the suggested bin when it's actually
+      // in the empty/available list - still just a default, Store can
+      // change it. STORE-008 section 34: qty defaults to remainingPutAwayQty
+      // (what's still eligible), not the full acceptedQty.
+      (iqc.items || []).filter(it => it.remainingPutAwayQty > 0).forEach(it => {
+        const suggestedAvailable = it.suggestedLocation && binList.some(b => b.id === it.suggestedLocation.binId);
+        assign[it.id] = { binId: suggestedAvailable ? it.suggestedLocation.binId : '', qty: it.remainingPutAwayQty };
+      });
       setBinAssign(assign);
     } catch (e) { onError(e); }
   }
@@ -580,16 +592,17 @@ function PutAwayTab({ onDone, onError }) {
           {expandedId === iqc.id && (
             <div className="border-t p-4 space-y-3">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Item','Remaining to Place','Bin','Qty to Place'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Item','Remaining to Place','Suggested','Bin','Qty to Place'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
                 <tbody className="divide-y">
                   {(iqc.items || []).filter(it => it.remainingPutAwayQty > 0).map(it => (
                     <tr key={it.id}>
                       <td className="px-3 py-2 text-xs">{it.itemName}</td>
                       <td className="px-3 py-2 text-xs font-bold text-green-600">{it.remainingPutAwayQty}</td>
+                      <td className="px-3 py-2 text-xs text-gray-400">{it.suggestedLocation ? `${it.suggestedLocation.rackCode || ''}/${it.suggestedLocation.binCode}` : '-'}</td>
                       <td className="px-3 py-2">
                         <select className="border rounded px-2 py-1 text-xs" value={binAssign[it.id]?.binId || ''} onChange={ev => setBinAssign(prev => ({ ...prev, [it.id]: { ...prev[it.id], binId: ev.target.value } }))}>
                           <option value="">Select bin...</option>
-                          {bins.map(b => <option key={b.id} value={b.id}>{b.code}</option>)}
+                          {bins.map(b => <option key={b.id} value={b.id}>{b.code}{it.suggestedLocation?.binId === b.id ? ' (suggested)' : ''}</option>)}
                         </select>
                       </td>
                       <td className="px-3 py-2"><input type="number" max={it.remainingPutAwayQty} className="border rounded px-2 py-1 text-xs w-20" value={binAssign[it.id]?.qty ?? ''} onChange={ev => setBinAssign(prev => ({ ...prev, [it.id]: { ...prev[it.id], qty: ev.target.value } }))} /></td>
