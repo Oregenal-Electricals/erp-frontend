@@ -12,7 +12,7 @@ async function api(path) {
 }
 const listOf = d => Array.isArray(d) ? d : (d?.data || []);
 
-const TABS = ['Available', 'Put-Away Pending', 'Rejected', 'Location View'];
+const TABS = ['Available', 'Put-Away Pending', 'Rejected', 'Location View', 'Material View'];
 
 export default function StockPage() {
   const [activeTab, setActiveTab] = useState('Available');
@@ -40,6 +40,7 @@ export default function StockPage() {
         {activeTab === 'Put-Away Pending' && <PutAwayPendingTab />}
         {activeTab === 'Rejected' && <RejectedTab />}
         {activeTab === 'Location View' && <LocationViewTab warehouses={warehouses} />}
+        {activeTab === 'Material View' && <MaterialViewTab />}
       </div>
     </AppLayout>
   );
@@ -238,6 +239,70 @@ function LocationViewTab({ warehouses }) {
           ))}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ---------- TAB 5: Material View (STORE-009) ----------
+function MaterialViewTab() {
+  const [itemCode, setItemCode] = useState('');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function search() {
+    if (!itemCode.trim()) return;
+    setLoading(true);
+    setError('');
+    setResult(null);
+    try {
+      const r = await api(`/stock-putaway/by-item/${encodeURIComponent(itemCode.trim())}`);
+      setResult(r);
+    } catch (e) { setError('Could not load that item.'); }
+    setLoading(false);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <input
+          type="text" placeholder="Search item code (e.g. DRIVER-01)..."
+          className="border rounded-lg px-3 py-2 text-sm flex-1"
+          value={itemCode} onChange={ev => setItemCode(ev.target.value)}
+          onKeyDown={ev => ev.key === 'Enter' && search()}
+        />
+        <button onClick={search} disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
+          {loading ? 'Searching...' : 'Search'}
+        </button>
+      </div>
+
+      {error && <div className="text-sm text-red-600">{error}</div>}
+
+      {result && (
+        <div className="bg-white rounded-xl border shadow-sm p-4">
+          <div className="flex items-center justify-between mb-4">
+            <span className="font-mono font-bold text-gray-900">{result.itemCode}</span>
+            <span className="text-sm text-gray-500">Total Available: <span className="font-bold text-green-600">{result.totalQty}</span></span>
+          </div>
+          {result.locations.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">No completed put-away found for this item yet.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Warehouse', 'Rack/Bin', 'Batch', 'Qty'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+              <tbody className="divide-y">
+                {result.locations.map((loc, i) => (
+                  <tr key={i}>
+                    <td className="px-3 py-2 text-xs text-gray-500">{loc.putaway?.warehouse?.name}</td>
+                    <td className="px-3 py-2 text-xs font-mono">{loc.bin?.rack?.code}/{loc.bin?.code}</td>
+                    <td className="px-3 py-2 text-xs text-gray-500">{loc.stockBatch?.batchNumber || '-'}</td>
+                    <td className="px-3 py-2 text-xs font-bold text-green-600">{loc.qty}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
     </div>
   );
 }
