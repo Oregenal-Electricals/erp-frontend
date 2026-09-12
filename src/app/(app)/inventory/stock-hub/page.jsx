@@ -21,7 +21,7 @@ function formatAge(dateStr) {
   return `${Math.floor(hours / 24)}d`;
 }
 
-const TABS = ['Available', 'Put-Away Pending', 'Rejected', 'Location View', 'Material View'];
+const TABS = ['Available', 'Put-Away Pending', 'QC Pending', 'Hold', 'Rejected', 'Location View', 'Material View'];
 
 export default function StockPage() {
   const [activeTab, setActiveTab] = useState('Available');
@@ -47,6 +47,8 @@ export default function StockPage() {
 
         {activeTab === 'Available' && <AvailableTab warehouses={warehouses} />}
         {activeTab === 'Put-Away Pending' && <PutAwayPendingTab />}
+        {activeTab === 'QC Pending' && <QcPendingTab />}
+        {activeTab === 'Hold' && <HoldTab />}
         {activeTab === 'Rejected' && <RejectedTab />}
         {activeTab === 'Location View' && <LocationViewTab warehouses={warehouses} />}
         {activeTab === 'Material View' && <MaterialViewTab />}
@@ -147,6 +149,60 @@ function PutAwayPendingTab() {
             <span className="text-xs text-gray-400 ml-3">Pending {formatAge(iqc.updatedAt)}</span>
           </div>
           <Link href="/inventory/material-in" className="text-sm text-blue-600 hover:underline">Put Away →</Link>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------- QC Pending (summary - actual action is in Material In's IQC Handover tab) ----------
+function QcPendingTab() {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    api('/iqc?limit=100').then(d => setRows(listOf(d).filter(i => !['APPROVED', 'REJECTED'].includes(i.status)))).catch(() => setRows([])).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-center py-12 text-gray-400">Loading...</div>;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-gray-400">Received and handed to IQC, not yet quality-released - not Available, not issueable. To act on these, use Material In's IQC Handover tab.</p>
+      {rows.length === 0 && <div className="text-center py-12 text-gray-400 bg-white rounded-xl border">Nothing waiting on QC.</div>}
+      {rows.map(iqc => (
+        <div key={iqc.id} className="bg-white rounded-xl border shadow-sm p-4 flex items-center justify-between">
+          <div>
+            <span className="font-mono text-purple-600 font-bold text-sm">{iqc.iqcNumber}</span>
+            <span className="text-xs text-gray-500 ml-3">{iqc.grn?.grnNumber}</span>
+            <span className="text-xs text-gray-400 ml-3">{iqc.grn?.warehouse?.name}</span>
+          </div>
+          <span className="px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-700">{iqc.status}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------- Hold (summary - actual reinspect action is in Material In's Hold tab) ----------
+function HoldTab() {
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { api('/hold-stock?limit=50').then(d => setRecords(listOf(d))).catch(() => setRecords([])).finally(() => setLoading(false)); }, []);
+
+  if (loading) return <div className="text-center py-12 text-gray-400">Loading...</div>;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-gray-400">Held material is never Available Stock or WO-issueable until Quality reinspects it. To reinspect, use the Hold tab in Material In.</p>
+      {records.length === 0 && <div className="text-center py-12 text-gray-400 bg-white rounded-xl border">No held stock.</div>}
+      {records.map(r => (
+        <div key={r.id} className="bg-white rounded-xl border shadow-sm p-4 flex items-center justify-between">
+          <div>
+            <span className="font-mono text-orange-600 font-bold text-sm">{r.holdNumber}</span>
+            <span className="text-xs text-gray-500 ml-3">{r.warehouse?.name}</span>
+            <span className="text-xs text-gray-400 ml-3">Total: {r.totalHoldQty}</span>
+          </div>
+          <span className={`px-2 py-1 rounded-full text-xs ${r.status === 'CLOSED' ? 'bg-gray-100 text-gray-600' : 'bg-orange-100 text-orange-700'}`}>{r.status}</span>
         </div>
       ))}
     </div>
@@ -257,6 +313,7 @@ function LocationViewTab({ warehouses }) {
 function MaterialViewTab() {
   const [itemCode, setItemCode] = useState('');
   const [result, setResult] = useState(null);
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -265,9 +322,14 @@ function MaterialViewTab() {
     setLoading(true);
     setError('');
     setResult(null);
+    setSummary(null);
     try {
-      const r = await api(`/stock-putaway/by-item/${encodeURIComponent(itemCode.trim())}`);
-      setResult(r);
+      const [locations, materialSummary] = await Promise.all([
+        api(`/stock-putaway/by-item/${encodeURIComponent(itemCode.trim())}`),
+        api(`/stock-ledger/summary/${encodeURIComponent(itemCode.trim())}`),
+      ]);
+      setResult(locations);
+      setSummary(materialSummary);
     } catch (e) { setError('Could not load that item.'); }
     setLoading(false);
   }
@@ -288,12 +350,28 @@ function MaterialViewTab() {
 
       {error && <div className="text-sm text-red-600">{error}</div>}
 
-      {result && (
+      {summary && (
         <div className="bg-white rounded-xl border shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
-            <span className="font-mono font-bold text-gray-900">{result.itemCode}</span>
-            <span className="text-sm text-gray-500">Total Available: <span className="font-bold text-green-600">{result.totalQty}</span></span>
+            <span className="font-mono font-bold text-gray-900">{summary.itemCode}</span>
+            <span className="text-xs text-gray-400">{summary.itemName}</span>
           </div>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3 text-center">
+            <div><div className="text-xs text-gray-400">Physical Total</div><div className="font-bold text-gray-900">{summary.physicalTotal}</div></div>
+            <div><div className="text-xs text-gray-400">Available</div><div className="font-bold text-green-600">{summary.available}</div></div>
+            <div><div className="text-xs text-gray-400">Reserved</div><div className="font-bold text-blue-600">{summary.reserved}</div></div>
+            <div><div className="text-xs text-gray-400">Free Available</div><div className="font-bold text-green-700">{summary.freeAvailable}</div></div>
+            <div><div className="text-xs text-gray-400">Put-Away Pending</div><div className="font-bold text-yellow-600">{summary.putAwayPending}</div></div>
+            <div><div className="text-xs text-gray-400">QC Pending</div><div className="font-bold text-purple-600">{summary.qcPending}</div></div>
+            <div><div className="text-xs text-gray-400">Hold</div><div className="font-bold text-orange-600">{summary.hold}</div></div>
+            <div><div className="text-xs text-gray-400">Rejected</div><div className="font-bold text-red-600">{summary.rejected}</div></div>
+          </div>
+        </div>
+      )}
+
+      {result && (
+        <div className="bg-white rounded-xl border shadow-sm p-4">
+          <div className="text-xs text-gray-400 mb-3">Available by batch and location</div>
           {result.locations.length === 0 ? (
             <div className="text-center py-8 text-gray-400">No completed put-away found for this item yet.</div>
           ) : (
