@@ -21,7 +21,7 @@ function formatAge(dateStr) {
   return `${Math.floor(hours / 24)}d`;
 }
 
-const TABS = ['Available', 'Put-Away Pending', 'QC Pending', 'Hold', 'Rejected', 'Location View', 'Material View'];
+const TABS = ['Available', 'Put-Away Pending', 'QC Pending', 'Hold', 'Rejected', 'Location View', 'Material View', 'Stock Count'];
 
 export default function StockPage() {
   const [activeTab, setActiveTab] = useState('Available');
@@ -52,6 +52,7 @@ export default function StockPage() {
         {activeTab === 'Rejected' && <RejectedTab />}
         {activeTab === 'Location View' && <LocationViewTab warehouses={warehouses} />}
         {activeTab === 'Material View' && <MaterialViewTab />}
+        {activeTab === 'Stock Count' && <StockCountTab warehouses={warehouses} />}
       </div>
     </AppLayout>
   );
@@ -462,6 +463,143 @@ function MaterialViewTab() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------- TAB 8: Stock Count / Verify Stock (STORE-016) ----------
+function StockCountTab({ warehouses }) {
+  const [warehouseId, setWarehouseId] = useState('');
+  const [itemCode, setItemCode] = useState('');
+  const [itemName, setItemName] = useState('');
+  const [uom, setUom] = useState('PCS');
+  const [status, setStatus] = useState('AVAILABLE');
+  const [physicalQty, setPhysicalQty] = useState('');
+  const [reason, setReason] = useState('COUNTING_ERROR');
+  const [remarks, setRemarks] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [toast, setToast] = useState('');
+  const [adjustments, setAdjustments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { if (warehouses.length > 0 && !warehouseId) setWarehouseId(warehouses[0].id); }, [warehouses, warehouseId]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setAdjustments(listOf(await api('/stock-adjustments?limit=20'))); }
+    catch (e) { /* silent */ }
+    setLoading(false);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  function notify(msg) { setToast(msg); setTimeout(() => setToast(''), 4000); }
+
+  // Store enters ONLY the physical count - ERP Expected Qty is never
+  // typed here, it's computed server-side from the actual system-of-
+  // record for whichever status this line is scoped to.
+  async function submitCount() {
+    if (!itemCode.trim()) { setError('Enter an item code'); return; }
+    if (!physicalQty) { setError('Enter the physical count'); return; }
+    setBusy(true);
+    setError('');
+    try {
+      const created = await api('/stock-adjustments', {
+        method: 'POST',
+        body: JSON.stringify({
+          warehouseId, adjustmentType: 'RECOUNT', reason, remarks,
+          items: [{ itemCode, itemName: itemName || itemCode, uom, status, physicalQty: Number(physicalQty), unitCost: 0 }],
+        }),
+      });
+      const line = created.items?.[0];
+      notify(`Counted ${itemCode}: ERP ${line?.systemQty ?? '?'}, Physical ${physicalQty}, Variance ${line?.adjustmentQty > 0 ? '+' : ''}${line?.adjustmentQty ?? '?'}`);
+      setItemCode(''); setItemName(''); setPhysicalQty('');
+      await load();
+    } catch (e) { setError(e.message || 'Count failed'); }
+    setBusy(false);
+  }
+
+  async function approve(id) {
+    setBusy(true);
+    try { await api(`/stock-adjustments/${id}/approve`, { method: 'POST' }); notify('Adjustment approved and posted'); await load(); }
+    catch (e) { setError(e.message || 'Approval failed'); }
+    setBusy(false);
+  }
+
+  async function cancel(id) {
+    setBusy(true);
+    try { await api(`/stock-adjustments/${id}/cancel`, { method: 'POST' }); notify('Count cancelled'); await load(); }
+    catch (e) { setError(e.message || 'Cancel failed'); }
+    setBusy(false);
+  }
+
+  async function reverse(id) {
+    const reason = window.prompt('Reason for reversing this adjustment?');
+    if (!reason) return;
+    setBusy(true);
+    try { await api(`/stock-adjustments/${id}/reverse`, { method: 'POST', body: JSON.stringify({ reason }) }); notify('Adjustment reversed'); await load(); }
+    catch (e) { setError(e.message || 'Reversal failed'); }
+    setBusy(false);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border shadow-sm p-4">
+        <div className="font-semibold text-gray-700 mb-2">Count a Material</div>
+        <p className="text-xs text-gray-400 mb-3">Enter the physical count you found - the ERP expected qty is looked up automatically, you never type it. A variance does not change stock by itself; it needs approval below first.</p>
+        {error && <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2 mb-2">{error}</div>}
+        <div className="flex gap-2 items-end flex-wrap">
+          <select className="border rounded px-2 py-1 text-xs" value={warehouseId} onChange={e => setWarehouseId(e.target.value)}>
+            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </select>
+          <input placeholder="Item code" className="border rounded px-2 py-1 text-xs w-32" value={itemCode} onChange={e => setItemCode(e.target.value)} />
+          <input placeholder="Item name (optional)" className="border rounded px-2 py-1 text-xs w-40" value={itemName} onChange={e => setItemName(e.target.value)} />
+          <input placeholder="UOM" className="border rounded px-2 py-1 text-xs w-16" value={uom} onChange={e => setUom(e.target.value)} />
+          <select className="border rounded px-2 py-1 text-xs" value={status} onChange={e => setStatus(e.target.value)}>
+            <option value="AVAILABLE">Available</option>
+            <option value="HOLD">Hold</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="QC_PENDING">QC Pending</option>
+          </select>
+          <input type="number" placeholder="Physical count" className="border rounded px-2 py-1 text-xs w-32" value={physicalQty} onChange={e => setPhysicalQty(e.target.value)} />
+          <select className="border rounded px-2 py-1 text-xs" value={reason} onChange={e => setReason(e.target.value)}>
+            <option value="COUNTING_ERROR">Counting Error</option>
+            <option value="UNRECORDED_LOCATION_TRANSFER">Unrecorded Location Transfer</option>
+            <option value="MATERIAL_LOSS">Material Loss</option>
+            <option value="MATERIAL_FOUND">Material Found</option>
+            <option value="INCORRECT_PREVIOUS_ISSUE">Incorrect Previous Issue</option>
+            <option value="INCORRECT_RETURN">Incorrect Return</option>
+            <option value="DAMAGE">Damage</option>
+            <option value="PACKING_DIFFERENCE">Packing Difference</option>
+            <option value="OTHER">Other</option>
+          </select>
+          <button onClick={submitCount} disabled={busy} className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:opacity-50">Submit Count</button>
+        </div>
+      </div>
+
+      {toast && <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">{toast}</div>}
+
+      <div className="bg-white rounded-xl border shadow-sm">
+        <div className="p-4 border-b font-semibold text-gray-700">Recent Counts / Adjustments</div>
+        {loading && <div className="text-center py-8 text-gray-400">Loading...</div>}
+        {!loading && adjustments.length === 0 && <div className="text-center py-8 text-gray-400">No counts yet.</div>}
+        <div className="divide-y">
+          {adjustments.map(adj => (
+            <div key={adj.id} className="p-4 flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <span className="font-mono text-blue-600 font-bold text-sm">{adj.adjustmentNumber}</span>
+                <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${adj.status === 'APPROVED' ? 'bg-green-100 text-green-700' : adj.status === 'REVERSED' ? 'bg-gray-200 text-gray-600' : adj.status === 'CANCELLED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{adj.status}</span>
+                <span className="ml-2 text-xs text-gray-400">{adj._count?.items ?? ''} item(s)</span>
+              </div>
+              <div className="flex gap-2">
+                {adj.status === 'DRAFT' && <button onClick={() => approve(adj.id)} disabled={busy} className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50">Approve &amp; Post</button>}
+                {adj.status === 'DRAFT' && <button onClick={() => cancel(adj.id)} disabled={busy} className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 disabled:opacity-50">Cancel</button>}
+                {adj.status === 'APPROVED' && <button onClick={() => reverse(adj.id)} disabled={busy} className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 disabled:opacity-50">Reverse</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
