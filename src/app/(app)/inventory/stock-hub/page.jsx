@@ -245,6 +245,12 @@ function LocationViewTab({ warehouses }) {
   const [racks, setRacks] = useState({});
   const [bins, setBins] = useState({});
   const [loading, setLoading] = useState(false);
+  // STORE-015: which bin the transfer form is open for, and the form's own state.
+  const [transferFrom, setTransferFrom] = useState(null);
+  const [transferForm, setTransferForm] = useState({ toBinId: '', qty: '', reason: 'REORGANIZATION' });
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => { if (warehouses.length > 0 && !warehouseId) setWarehouseId(warehouses[0].id); }, [warehouses, warehouseId]);
 
@@ -273,11 +279,75 @@ function LocationViewTab({ warehouses }) {
   }, [warehouseId]);
   useEffect(() => { load(); }, [load]);
 
+  // Flat list of every bin in the current warehouse, for the transfer
+  // form's destination dropdown - reuses the same data already loaded
+  // above rather than a separate fetch.
+  const allBins = Object.values(bins).flat();
+
+  function openTransfer(bin) {
+    setTransferFrom(bin);
+    setTransferForm({ toBinId: '', qty: '', reason: 'REORGANIZATION' });
+    setError('');
+  }
+
+  async function submitTransfer() {
+    if (!transferForm.toBinId) { setError('Select a destination bin'); return; }
+    if (!transferForm.qty || Number(transferForm.qty) <= 0) { setError('Enter a qty to transfer'); return; }
+    setBusy(true);
+    setError('');
+    try {
+      await api('/stock-location-transfer', {
+        method: 'POST',
+        body: JSON.stringify({
+          itemCode: transferFrom.itemCode, itemName: transferFrom.itemCode, uom: 'PCS',
+          fromBinId: transferFrom.id, toBinId: transferForm.toBinId,
+          qty: Number(transferForm.qty), reason: transferForm.reason,
+        }),
+      });
+      setToast(`Moved ${transferForm.qty} ${transferFrom.itemCode} to another bin`);
+      setTimeout(() => setToast(''), 4000);
+      setTransferFrom(null);
+      await load();
+    } catch (e) { setError(e.message || 'Transfer failed'); }
+    setBusy(false);
+  }
+
   return (
     <div className="space-y-4">
       <select className="border rounded-lg px-3 py-2 text-sm" value={warehouseId} onChange={e => setWarehouseId(e.target.value)}>
         {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
       </select>
+
+      {toast && <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">{toast}</div>}
+
+      {transferFrom && (
+        <div className="bg-white rounded-xl border shadow-sm p-4">
+          <div className="font-semibold text-gray-700 mb-2">Transfer Location - {transferFrom.itemCode} from {transferFrom.code}</div>
+          <p className="text-xs text-gray-400 mb-3">Moving between bins in the same warehouse only - batch, status, and reservation all stay exactly as they are. Total stock never changes.</p>
+          {error && <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2 mb-2">{error}</div>}
+          <div className="flex gap-2 items-end flex-wrap">
+            <select className="border rounded px-2 py-1 text-xs" value={transferForm.toBinId} onChange={e => setTransferForm(prev => ({ ...prev, toBinId: e.target.value }))}>
+              <option value="">Destination bin...</option>
+              {allBins.filter(b => b.id !== transferFrom.id).map(b => (
+                <option key={b.id} value={b.id}>{b.code} {b.status === 'EMPTY' ? '(empty)' : `(${b.itemCode || ''}, ${b.currentQty}${b.maxQty ? `/${b.maxQty}` : ''})`}</option>
+              ))}
+            </select>
+            <input type="number" placeholder={`Qty (max ${transferFrom.currentQty})`} className="border rounded px-2 py-1 text-xs w-32" value={transferForm.qty} onChange={e => setTransferForm(prev => ({ ...prev, qty: e.target.value }))} />
+            <select className="border rounded px-2 py-1 text-xs" value={transferForm.reason} onChange={e => setTransferForm(prev => ({ ...prev, reason: e.target.value }))}>
+              <option value="SPACE_OPTIMIZATION">Space Optimization</option>
+              <option value="BIN_FULL">Bin Full</option>
+              <option value="REORGANIZATION">Reorganization</option>
+              <option value="MATERIAL_CONSOLIDATION">Material Consolidation</option>
+              <option value="PICKING_CONVENIENCE">Picking Convenience</option>
+              <option value="SAFETY">Safety</option>
+              <option value="RACK_MAINTENANCE">Rack Maintenance</option>
+              <option value="OTHER">Other</option>
+            </select>
+            <button onClick={submitTransfer} disabled={busy} className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:opacity-50">{busy ? 'Moving...' : 'Move'}</button>
+            <button onClick={() => setTransferFrom(null)} className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300">Cancel</button>
+          </div>
+        </div>
+      )}
 
       {loading && <div className="text-center py-8 text-gray-400">Loading...</div>}
       {!loading && zones.length === 0 && <div className="text-center py-12 text-gray-400 bg-white rounded-xl border">No zones set up for this warehouse yet.</div>}
@@ -290,7 +360,8 @@ function LocationViewTab({ warehouses }) {
               <div className="text-xs text-gray-500 mb-1">Rack {rack.code}</div>
               <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                 {(bins[rack.id] || []).map(bin => (
-                  <div key={bin.id} className={`rounded-lg border p-2 text-xs ${bin.status === 'EMPTY' ? 'bg-gray-50 border-gray-200' : bin.status === 'FULL' ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+                  <div key={bin.id} onClick={() => bin.status !== 'EMPTY' && openTransfer(bin)}
+                    className={`rounded-lg border p-2 text-xs ${bin.status !== 'EMPTY' ? 'cursor-pointer hover:ring-2 hover:ring-blue-300' : ''} ${bin.status === 'EMPTY' ? 'bg-gray-50 border-gray-200' : bin.status === 'FULL' ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
                     <div className="font-mono font-bold">{bin.code}</div>
                     {bin.status === 'EMPTY' ? <div className="text-gray-400">Empty</div> : (
                       <>
