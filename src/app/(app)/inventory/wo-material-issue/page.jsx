@@ -150,6 +150,7 @@ export default function WoMaterialIssuePage() {
           workOrderId: selectedWo.id, warehouseId,
           itemCode: item.itemCode, itemName: item.itemName, uom: item.uom,
           qty, reason: returnForm[item.itemCode]?.reason || 'EXCESS_UNUSED',
+          condition: returnForm[item.itemCode]?.condition || 'GOOD',
         }),
       });
       notify(`Returned ${qty} ${item.uom} of ${item.itemCode} to Store`);
@@ -329,9 +330,21 @@ export default function WoMaterialIssuePage() {
                       {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </select>
                     <select className="border rounded px-2 py-1 text-xs" value={returnForm[it.itemCode]?.reason || 'EXCESS_UNUSED'} onChange={e => setReturnForm(prev => ({ ...prev, [it.itemCode]: { ...prev[it.itemCode], reason: e.target.value } }))}>
-                      <option value="EXCESS_UNUSED">Excess Unused</option>
+                      <option value="UNUSED_MATERIAL">Unused Material</option>
+                      <option value="EXCESS_ISSUED">Excess Issued</option>
+                      <option value="WO_COMPLETED">WO Completed</option>
+                      <option value="STAGE_COMPLETED">Stage Completed</option>
+                      <option value="MATERIAL_NOT_REQUIRED">Material Not Required</option>
+                      <option value="WRONG_MATERIAL_ISSUED">Wrong Material Issued</option>
+                      <option value="CHANGE_IN_PLAN">Change in Plan</option>
+                      <option value="BALANCE_RETURN">Balance Return</option>
                       <option value="REJECTED_MATERIAL">Rejected Material</option>
                       <option value="OTHER">Other</option>
+                    </select>
+                    <select className="border rounded px-2 py-1 text-xs" value={returnForm[it.itemCode]?.condition || 'GOOD'} onChange={e => setReturnForm(prev => ({ ...prev, [it.itemCode]: { ...prev[it.itemCode], condition: e.target.value } }))}>
+                      <option value="GOOD">Good / Unused</option>
+                      <option value="DAMAGED">Damaged</option>
+                      <option value="SUSPECT">Suspect</option>
                     </select>
                     <button onClick={() => submitReturn(it)} disabled={busy} className="px-3 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800 disabled:opacity-50">Return</button>
                   </div>
