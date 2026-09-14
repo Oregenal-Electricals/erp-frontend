@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -934,6 +935,8 @@ function RejectedTab({ onDone, onError }) {
                         <option value="REWORK">Rework</option>
                         <option value="ACCEPTED">Accepted (override)</option>
                       </select>
+                    ) : it.disposition === 'RTV' ? (
+                      <Link href={`/inventory/rtv-requests?rejectedStockItemId=${it.id}`} className="text-xs text-blue-600 hover:underline">RTV - Manage &rarr;</Link>
                     ) : <span className="text-xs text-gray-500">{it.disposition}</span>}
                   </td>
                   <td className="px-3 py-2 text-xs">{it.disposition === 'PENDING' ? <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs">Pending</span> : <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs">Dispositioned</span>}</td>
