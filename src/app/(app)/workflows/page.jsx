@@ -180,7 +180,7 @@ export default function WorkflowsPage() {
 
         {activeTab==='Workflow Definitions' && (
           <div className="space-y-3">
-            {workflows.length===0?<div className="text-center py-10 text-gray-400">No workflows. Click "Seed Default Workflows".</div>
+            {workflows.length===0?<div className="text-center py-10 text-gray-400">No workflows. Click &quot;Seed Default Workflows&quot;.</div>
             :workflows.map(wf=>(
               <div key={wf.id} className="bg-white rounded-xl border shadow-sm p-4">
                 <div className="flex items-start justify-between">

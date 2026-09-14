@@ -239,7 +239,7 @@ export default function CustomFieldsSettingsPage() {
 
                 <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600">
                   <strong>Preview:</strong> This field will appear as a <strong>{form.fieldType}</strong> input
-                  labeled <strong>"{form.fieldLabel || 'Field Label'}"</strong> in all {MODULE_LABELS[selectedModule]} forms.
+                  labeled <strong>&quot;{form.fieldLabel || 'Field Label'}&quot;</strong> in all {MODULE_LABELS[selectedModule]} forms.
                 </div>
               </div>
               <div className="p-6 border-t flex justify-end gap-3">

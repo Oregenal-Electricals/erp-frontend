@@ -142,7 +142,7 @@ export default function AccountsPage() {
           {loading ? <div className="text-center py-10 text-gray-400">Loading...</div>
           : viewMode==='tree' ? (
             <div className="divide-y">
-              {tree.length===0 ? <div className="text-center py-10 text-gray-400">No accounts yet. Click "Seed Defaults" to create standard accounts.</div>
+              {tree.length===0 ? <div className="text-center py-10 text-gray-400">No accounts yet. Click &quot;Seed Defaults&quot; to create standard accounts.</div>
               : tree.map(root => <AccountTreeNode key={root.id} account={root} depth={0} />)}
             </div>
           ) : (

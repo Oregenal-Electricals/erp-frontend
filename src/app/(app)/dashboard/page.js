@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { getUser } from '@/lib/auth';
-import { ShoppingCart, ClipboardList, Truck, Database, Factory, BadgeCheck, Users2, CreditCard, Shield } from 'lucide-react';
+import { ShoppingCart, ClipboardList, Truck, Database, Factory, BadgeCheck, Users2, CreditCard, Shield, Warehouse } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
@@ -97,6 +97,19 @@ const WIDGETS = [
       { label: 'Vehicles Inside', value: d.liveStats?.vehiclesInside },
       { label: 'Pending Gate Passes', value: d.liveStats?.pendingPasses },
       { label: 'Pending GRN Inward', value: d.liveStats?.pendingGINs },
+    ],
+  },
+  {
+    // STORE-018: the real operational action cards, reusing the same
+    // getActionCards() the Stock hub could also read from - never a
+    // second, separately-maintained set of counts.
+    key: 'storeActions', title: 'Store Actions', icon: Warehouse, color: 'emerald',
+    permission: 'INVENTORY_DASHBOARD_VIEW', endpoint: '/inventory-dashboard/action-cards',
+    stats: (d) => [
+      { label: 'Hold Material', value: d.holdMaterial },
+      { label: 'Stock Count Variance', value: d.stockCountVariancePending },
+      { label: 'RTV Pending', value: (d.rtvApprovalPending || 0) + (d.rtvGateOutPending || 0) },
+      { label: 'Reservation Shortfall', value: d.reservationShortfall },
     ],
   },
 ];

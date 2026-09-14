@@ -11,8 +11,17 @@ async function api(path) {
   return res.json();
 }
 const listOf = d => Array.isArray(d) ? d : (d?.data || []);
+// STORE-009 section 51: "Put-Away Pending Since" / Age - helps spot
+// material that's been sitting in the receiving/IQC area too long.
+function formatAge(dateStr) {
+  if (!dateStr) return '-';
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const hours = Math.floor(ms / 3600000);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
 
-const TABS = ['Available', 'Put-Away Pending', 'Rejected', 'Location View'];
+const TABS = ['Available', 'Put-Away Pending', 'QC Pending', 'Hold', 'Rejected', 'Location View', 'Material View', 'Stock Count'];
 
 export default function StockPage() {
   const [activeTab, setActiveTab] = useState('Available');
@@ -24,7 +33,7 @@ export default function StockPage() {
       <div className="p-6 max-w-6xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Stock</h1>
-          <p className="text-gray-500 text-sm mt-1">Available stock, what's still waiting for a shelf, what's rejected, and where everything physically sits.</p>
+          <p className="text-gray-500 text-sm mt-1">Available stock, what&apos;s still waiting for a shelf, what&apos;s rejected, and where everything physically sits.</p>
         </div>
 
         <div className="flex gap-2 mb-6 border-b overflow-x-auto">
@@ -38,8 +47,12 @@ export default function StockPage() {
 
         {activeTab === 'Available' && <AvailableTab warehouses={warehouses} />}
         {activeTab === 'Put-Away Pending' && <PutAwayPendingTab />}
+        {activeTab === 'QC Pending' && <QcPendingTab />}
+        {activeTab === 'Hold' && <HoldTab />}
         {activeTab === 'Rejected' && <RejectedTab />}
         {activeTab === 'Location View' && <LocationViewTab warehouses={warehouses} />}
+        {activeTab === 'Material View' && <MaterialViewTab />}
+        {activeTab === 'Stock Count' && <StockCountTab warehouses={warehouses} />}
       </div>
     </AppLayout>
   );
@@ -134,8 +147,63 @@ function PutAwayPendingTab() {
             <span className="font-mono text-green-600 font-bold text-sm">{iqc.iqcNumber}</span>
             <span className="text-xs text-gray-500 ml-3">{iqc.grn?.grnNumber}</span>
             <span className="text-xs text-gray-400 ml-3">{iqc.grn?.warehouse?.name}</span>
+            <span className="text-xs text-gray-400 ml-3">Pending {formatAge(iqc.updatedAt)}</span>
           </div>
           <Link href="/inventory/material-in" className="text-sm text-blue-600 hover:underline">Put Away →</Link>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------- QC Pending (summary - actual action is in Material In's IQC Handover tab) ----------
+function QcPendingTab() {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    api('/iqc?limit=100').then(d => setRows(listOf(d).filter(i => !['APPROVED', 'REJECTED'].includes(i.status)))).catch(() => setRows([])).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-center py-12 text-gray-400">Loading...</div>;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-gray-400">Received and handed to IQC, not yet quality-released - not Available, not issueable. To act on these, use Material In&apos;s IQC Handover tab.</p>
+      {rows.length === 0 && <div className="text-center py-12 text-gray-400 bg-white rounded-xl border">Nothing waiting on QC.</div>}
+      {rows.map(iqc => (
+        <div key={iqc.id} className="bg-white rounded-xl border shadow-sm p-4 flex items-center justify-between">
+          <div>
+            <span className="font-mono text-purple-600 font-bold text-sm">{iqc.iqcNumber}</span>
+            <span className="text-xs text-gray-500 ml-3">{iqc.grn?.grnNumber}</span>
+            <span className="text-xs text-gray-400 ml-3">{iqc.grn?.warehouse?.name}</span>
+          </div>
+          <span className="px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-700">{iqc.status}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------- Hold (summary - actual reinspect action is in Material In's Hold tab) ----------
+function HoldTab() {
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { api('/hold-stock?limit=50').then(d => setRecords(listOf(d))).catch(() => setRecords([])).finally(() => setLoading(false)); }, []);
+
+  if (loading) return <div className="text-center py-12 text-gray-400">Loading...</div>;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-gray-400">Held material is never Available Stock or WO-issueable until Quality reinspects it. To reinspect, use the Hold tab in Material In.</p>
+      {records.length === 0 && <div className="text-center py-12 text-gray-400 bg-white rounded-xl border">No held stock.</div>}
+      {records.map(r => (
+        <div key={r.id} className="bg-white rounded-xl border shadow-sm p-4 flex items-center justify-between">
+          <div>
+            <span className="font-mono text-orange-600 font-bold text-sm">{r.holdNumber}</span>
+            <span className="text-xs text-gray-500 ml-3">{r.warehouse?.name}</span>
+            <span className="text-xs text-gray-400 ml-3">Total: {r.totalHoldQty}</span>
+          </div>
+          <span className={`px-2 py-1 rounded-full text-xs ${r.status === 'CLOSED' ? 'bg-gray-100 text-gray-600' : 'bg-orange-100 text-orange-700'}`}>{r.status}</span>
         </div>
       ))}
     </div>
@@ -178,6 +246,12 @@ function LocationViewTab({ warehouses }) {
   const [racks, setRacks] = useState({});
   const [bins, setBins] = useState({});
   const [loading, setLoading] = useState(false);
+  // STORE-015: which bin the transfer form is open for, and the form's own state.
+  const [transferFrom, setTransferFrom] = useState(null);
+  const [transferForm, setTransferForm] = useState({ toBinId: '', qty: '', reason: 'REORGANIZATION' });
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => { if (warehouses.length > 0 && !warehouseId) setWarehouseId(warehouses[0].id); }, [warehouses, warehouseId]);
 
@@ -206,11 +280,75 @@ function LocationViewTab({ warehouses }) {
   }, [warehouseId]);
   useEffect(() => { load(); }, [load]);
 
+  // Flat list of every bin in the current warehouse, for the transfer
+  // form's destination dropdown - reuses the same data already loaded
+  // above rather than a separate fetch.
+  const allBins = Object.values(bins).flat();
+
+  function openTransfer(bin) {
+    setTransferFrom(bin);
+    setTransferForm({ toBinId: '', qty: '', reason: 'REORGANIZATION' });
+    setError('');
+  }
+
+  async function submitTransfer() {
+    if (!transferForm.toBinId) { setError('Select a destination bin'); return; }
+    if (!transferForm.qty || Number(transferForm.qty) <= 0) { setError('Enter a qty to transfer'); return; }
+    setBusy(true);
+    setError('');
+    try {
+      await api('/stock-location-transfer', {
+        method: 'POST',
+        body: JSON.stringify({
+          itemCode: transferFrom.itemCode, itemName: transferFrom.itemCode, uom: 'PCS',
+          fromBinId: transferFrom.id, toBinId: transferForm.toBinId,
+          qty: Number(transferForm.qty), reason: transferForm.reason,
+        }),
+      });
+      setToast(`Moved ${transferForm.qty} ${transferFrom.itemCode} to another bin`);
+      setTimeout(() => setToast(''), 4000);
+      setTransferFrom(null);
+      await load();
+    } catch (e) { setError(e.message || 'Transfer failed'); }
+    setBusy(false);
+  }
+
   return (
     <div className="space-y-4">
       <select className="border rounded-lg px-3 py-2 text-sm" value={warehouseId} onChange={e => setWarehouseId(e.target.value)}>
         {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
       </select>
+
+      {toast && <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">{toast}</div>}
+
+      {transferFrom && (
+        <div className="bg-white rounded-xl border shadow-sm p-4">
+          <div className="font-semibold text-gray-700 mb-2">Transfer Location - {transferFrom.itemCode} from {transferFrom.code}</div>
+          <p className="text-xs text-gray-400 mb-3">Moving between bins in the same warehouse only - batch, status, and reservation all stay exactly as they are. Total stock never changes.</p>
+          {error && <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2 mb-2">{error}</div>}
+          <div className="flex gap-2 items-end flex-wrap">
+            <select className="border rounded px-2 py-1 text-xs" value={transferForm.toBinId} onChange={e => setTransferForm(prev => ({ ...prev, toBinId: e.target.value }))}>
+              <option value="">Destination bin...</option>
+              {allBins.filter(b => b.id !== transferFrom.id).map(b => (
+                <option key={b.id} value={b.id}>{b.code} {b.status === 'EMPTY' ? '(empty)' : `(${b.itemCode || ''}, ${b.currentQty}${b.maxQty ? `/${b.maxQty}` : ''})`}</option>
+              ))}
+            </select>
+            <input type="number" placeholder={`Qty (max ${transferFrom.currentQty})`} className="border rounded px-2 py-1 text-xs w-32" value={transferForm.qty} onChange={e => setTransferForm(prev => ({ ...prev, qty: e.target.value }))} />
+            <select className="border rounded px-2 py-1 text-xs" value={transferForm.reason} onChange={e => setTransferForm(prev => ({ ...prev, reason: e.target.value }))}>
+              <option value="SPACE_OPTIMIZATION">Space Optimization</option>
+              <option value="BIN_FULL">Bin Full</option>
+              <option value="REORGANIZATION">Reorganization</option>
+              <option value="MATERIAL_CONSOLIDATION">Material Consolidation</option>
+              <option value="PICKING_CONVENIENCE">Picking Convenience</option>
+              <option value="SAFETY">Safety</option>
+              <option value="RACK_MAINTENANCE">Rack Maintenance</option>
+              <option value="OTHER">Other</option>
+            </select>
+            <button onClick={submitTransfer} disabled={busy} className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:opacity-50">{busy ? 'Moving...' : 'Move'}</button>
+            <button onClick={() => setTransferFrom(null)} className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300">Cancel</button>
+          </div>
+        </div>
+      )}
 
       {loading && <div className="text-center py-8 text-gray-400">Loading...</div>}
       {!loading && zones.length === 0 && <div className="text-center py-12 text-gray-400 bg-white rounded-xl border">No zones set up for this warehouse yet.</div>}
@@ -223,7 +361,8 @@ function LocationViewTab({ warehouses }) {
               <div className="text-xs text-gray-500 mb-1">Rack {rack.code}</div>
               <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                 {(bins[rack.id] || []).map(bin => (
-                  <div key={bin.id} className={`rounded-lg border p-2 text-xs ${bin.status === 'EMPTY' ? 'bg-gray-50 border-gray-200' : bin.status === 'FULL' ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+                  <div key={bin.id} onClick={() => bin.status !== 'EMPTY' && openTransfer(bin)}
+                    className={`rounded-lg border p-2 text-xs ${bin.status !== 'EMPTY' ? 'cursor-pointer hover:ring-2 hover:ring-blue-300' : ''} ${bin.status === 'EMPTY' ? 'bg-gray-50 border-gray-200' : bin.status === 'FULL' ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
                     <div className="font-mono font-bold">{bin.code}</div>
                     {bin.status === 'EMPTY' ? <div className="text-gray-400">Empty</div> : (
                       <>
@@ -238,6 +377,229 @@ function LocationViewTab({ warehouses }) {
           ))}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ---------- TAB 5: Material View (STORE-009) ----------
+function MaterialViewTab() {
+  const [itemCode, setItemCode] = useState('');
+  const [result, setResult] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function search() {
+    if (!itemCode.trim()) return;
+    setLoading(true);
+    setError('');
+    setResult(null);
+    setSummary(null);
+    try {
+      const [locations, materialSummary] = await Promise.all([
+        api(`/stock-putaway/by-item/${encodeURIComponent(itemCode.trim())}`),
+        api(`/stock-ledger/summary/${encodeURIComponent(itemCode.trim())}`),
+      ]);
+      setResult(locations);
+      setSummary(materialSummary);
+    } catch (e) { setError('Could not load that item.'); }
+    setLoading(false);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <input
+          type="text" placeholder="Search item code (e.g. DRIVER-01)..."
+          className="border rounded-lg px-3 py-2 text-sm flex-1"
+          value={itemCode} onChange={ev => setItemCode(ev.target.value)}
+          onKeyDown={ev => ev.key === 'Enter' && search()}
+        />
+        <button onClick={search} disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
+          {loading ? 'Searching...' : 'Search'}
+        </button>
+      </div>
+
+      {error && <div className="text-sm text-red-600">{error}</div>}
+
+      {summary && (
+        <div className="bg-white rounded-xl border shadow-sm p-4">
+          <div className="flex items-center justify-between mb-4">
+            <span className="font-mono font-bold text-gray-900">{summary.itemCode}</span>
+            <span className="text-xs text-gray-400">{summary.itemName}</span>
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3 text-center">
+            <div><div className="text-xs text-gray-400">Physical Total</div><div className="font-bold text-gray-900">{summary.physicalTotal}</div></div>
+            <div><div className="text-xs text-gray-400">Available</div><div className="font-bold text-green-600">{summary.available}</div></div>
+            <div><div className="text-xs text-gray-400">Reserved</div><div className="font-bold text-blue-600">{summary.reserved}</div></div>
+            <div><div className="text-xs text-gray-400">Free Available</div><div className="font-bold text-green-700">{summary.freeAvailable}</div></div>
+            <div><div className="text-xs text-gray-400">Put-Away Pending</div><div className="font-bold text-yellow-600">{summary.putAwayPending}</div></div>
+            <div><div className="text-xs text-gray-400">QC Pending</div><div className="font-bold text-purple-600">{summary.qcPending}</div></div>
+            <div><div className="text-xs text-gray-400">Hold</div><div className="font-bold text-orange-600">{summary.hold}</div></div>
+            <div><div className="text-xs text-gray-400">Rejected</div><div className="font-bold text-red-600">{summary.rejected}</div></div>
+          </div>
+        </div>
+      )}
+
+      {result && (
+        <div className="bg-white rounded-xl border shadow-sm p-4">
+          <div className="text-xs text-gray-400 mb-3">Available by batch and location</div>
+          {result.locations.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">No completed put-away found for this item yet.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr>{['Warehouse', 'Rack/Bin', 'Batch', 'Qty'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+              <tbody className="divide-y">
+                {result.locations.map((loc, i) => (
+                  <tr key={i}>
+                    <td className="px-3 py-2 text-xs text-gray-500">{loc.putaway?.warehouse?.name}</td>
+                    <td className="px-3 py-2 text-xs font-mono">{loc.bin?.rack?.code}/{loc.bin?.code}</td>
+                    <td className="px-3 py-2 text-xs text-gray-500">{loc.stockBatch?.batchNumber || '-'}</td>
+                    <td className="px-3 py-2 text-xs font-bold text-green-600">{loc.qty}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- TAB 8: Stock Count / Verify Stock (STORE-016) ----------
+function StockCountTab({ warehouses }) {
+  const [warehouseId, setWarehouseId] = useState('');
+  const [itemCode, setItemCode] = useState('');
+  const [itemName, setItemName] = useState('');
+  const [uom, setUom] = useState('PCS');
+  const [status, setStatus] = useState('AVAILABLE');
+  const [physicalQty, setPhysicalQty] = useState('');
+  const [reason, setReason] = useState('COUNTING_ERROR');
+  const [remarks, setRemarks] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [toast, setToast] = useState('');
+  const [adjustments, setAdjustments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { if (warehouses.length > 0 && !warehouseId) setWarehouseId(warehouses[0].id); }, [warehouses, warehouseId]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setAdjustments(listOf(await api('/stock-adjustments?limit=20'))); }
+    catch (e) { /* silent */ }
+    setLoading(false);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  function notify(msg) { setToast(msg); setTimeout(() => setToast(''), 4000); }
+
+  // Store enters ONLY the physical count - ERP Expected Qty is never
+  // typed here, it's computed server-side from the actual system-of-
+  // record for whichever status this line is scoped to.
+  async function submitCount() {
+    if (!itemCode.trim()) { setError('Enter an item code'); return; }
+    if (!physicalQty) { setError('Enter the physical count'); return; }
+    setBusy(true);
+    setError('');
+    try {
+      const created = await api('/stock-adjustments', {
+        method: 'POST',
+        body: JSON.stringify({
+          warehouseId, adjustmentType: 'RECOUNT', reason, remarks,
+          items: [{ itemCode, itemName: itemName || itemCode, uom, status, physicalQty: Number(physicalQty), unitCost: 0 }],
+        }),
+      });
+      const line = created.items?.[0];
+      notify(`Counted ${itemCode}: ERP ${line?.systemQty ?? '?'}, Physical ${physicalQty}, Variance ${line?.adjustmentQty > 0 ? '+' : ''}${line?.adjustmentQty ?? '?'}`);
+      setItemCode(''); setItemName(''); setPhysicalQty('');
+      await load();
+    } catch (e) { setError(e.message || 'Count failed'); }
+    setBusy(false);
+  }
+
+  async function approve(id) {
+    setBusy(true);
+    try { await api(`/stock-adjustments/${id}/approve`, { method: 'POST' }); notify('Adjustment approved and posted'); await load(); }
+    catch (e) { setError(e.message || 'Approval failed'); }
+    setBusy(false);
+  }
+
+  async function cancel(id) {
+    setBusy(true);
+    try { await api(`/stock-adjustments/${id}/cancel`, { method: 'POST' }); notify('Count cancelled'); await load(); }
+    catch (e) { setError(e.message || 'Cancel failed'); }
+    setBusy(false);
+  }
+
+  async function reverse(id) {
+    const reason = window.prompt('Reason for reversing this adjustment?');
+    if (!reason) return;
+    setBusy(true);
+    try { await api(`/stock-adjustments/${id}/reverse`, { method: 'POST', body: JSON.stringify({ reason }) }); notify('Adjustment reversed'); await load(); }
+    catch (e) { setError(e.message || 'Reversal failed'); }
+    setBusy(false);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border shadow-sm p-4">
+        <div className="font-semibold text-gray-700 mb-2">Count a Material</div>
+        <p className="text-xs text-gray-400 mb-3">Enter the physical count you found - the ERP expected qty is looked up automatically, you never type it. A variance does not change stock by itself; it needs approval below first.</p>
+        {error && <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2 mb-2">{error}</div>}
+        <div className="flex gap-2 items-end flex-wrap">
+          <select className="border rounded px-2 py-1 text-xs" value={warehouseId} onChange={e => setWarehouseId(e.target.value)}>
+            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </select>
+          <input placeholder="Item code" className="border rounded px-2 py-1 text-xs w-32" value={itemCode} onChange={e => setItemCode(e.target.value)} />
+          <input placeholder="Item name (optional)" className="border rounded px-2 py-1 text-xs w-40" value={itemName} onChange={e => setItemName(e.target.value)} />
+          <input placeholder="UOM" className="border rounded px-2 py-1 text-xs w-16" value={uom} onChange={e => setUom(e.target.value)} />
+          <select className="border rounded px-2 py-1 text-xs" value={status} onChange={e => setStatus(e.target.value)}>
+            <option value="AVAILABLE">Available</option>
+            <option value="HOLD">Hold</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="QC_PENDING">QC Pending</option>
+          </select>
+          <input type="number" placeholder="Physical count" className="border rounded px-2 py-1 text-xs w-32" value={physicalQty} onChange={e => setPhysicalQty(e.target.value)} />
+          <select className="border rounded px-2 py-1 text-xs" value={reason} onChange={e => setReason(e.target.value)}>
+            <option value="COUNTING_ERROR">Counting Error</option>
+            <option value="UNRECORDED_LOCATION_TRANSFER">Unrecorded Location Transfer</option>
+            <option value="MATERIAL_LOSS">Material Loss</option>
+            <option value="MATERIAL_FOUND">Material Found</option>
+            <option value="INCORRECT_PREVIOUS_ISSUE">Incorrect Previous Issue</option>
+            <option value="INCORRECT_RETURN">Incorrect Return</option>
+            <option value="DAMAGE">Damage</option>
+            <option value="PACKING_DIFFERENCE">Packing Difference</option>
+            <option value="OTHER">Other</option>
+          </select>
+          <button onClick={submitCount} disabled={busy} className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:opacity-50">Submit Count</button>
+        </div>
+      </div>
+
+      {toast && <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">{toast}</div>}
+
+      <div className="bg-white rounded-xl border shadow-sm">
+        <div className="p-4 border-b font-semibold text-gray-700">Recent Counts / Adjustments</div>
+        {loading && <div className="text-center py-8 text-gray-400">Loading...</div>}
+        {!loading && adjustments.length === 0 && <div className="text-center py-8 text-gray-400">No counts yet.</div>}
+        <div className="divide-y">
+          {adjustments.map(adj => (
+            <div key={adj.id} className="p-4 flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <span className="font-mono text-blue-600 font-bold text-sm">{adj.adjustmentNumber}</span>
+                <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${adj.status === 'APPROVED' ? 'bg-green-100 text-green-700' : adj.status === 'REVERSED' ? 'bg-gray-200 text-gray-600' : adj.status === 'CANCELLED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{adj.status}</span>
+                <span className="ml-2 text-xs text-gray-400">{adj._count?.items ?? ''} item(s)</span>
+              </div>
+              <div className="flex gap-2">
+                {adj.status === 'DRAFT' && <button onClick={() => approve(adj.id)} disabled={busy} className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50">Approve &amp; Post</button>}
+                {adj.status === 'DRAFT' && <button onClick={() => cancel(adj.id)} disabled={busy} className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 disabled:opacity-50">Cancel</button>}
+                {adj.status === 'APPROVED' && <button onClick={() => reverse(adj.id)} disabled={busy} className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 disabled:opacity-50">Reverse</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

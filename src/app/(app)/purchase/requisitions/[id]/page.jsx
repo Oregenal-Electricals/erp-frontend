@@ -151,7 +151,7 @@ export default function PurchaseRequisitionDetailPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {!pr.items || pr.items.length === 0 ? (
-                  <tr><td colSpan={10} className="text-center py-10 text-gray-400">No items yet. Click "+ Add Item" to start.</td></tr>
+                  <tr><td colSpan={10} className="text-center py-10 text-gray-400">No items yet. Click &quot;+ Add Item&quot; to start.</td></tr>
                 ) : pr.items.map(item => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-500">{item.sequence}</td>

@@ -87,7 +87,7 @@ export default function ProductSellingPricesPage() {
       <div className="p-6 max-w-4xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Selling Prices</h1>
-          <p className="text-gray-500 text-sm mt-1">Set or revise the selling price per product. Revising never edits history - a completed sale's P&L always reflects the price actually in force at the time.</p>
+          <p className="text-gray-500 text-sm mt-1">Set or revise the selling price per product. Revising never edits history - a completed sale&apos;s P&L always reflects the price actually in force at the time.</p>
         </div>
 
         {!selectedProduct && (

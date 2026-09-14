@@ -1735,7 +1735,7 @@ export default function CustomerPoPage() {
                     Enter Additional Quantity Per Item
                   </h3>
                   <p className="text-xs text-gray-400 mb-3">
-                    Leave qty blank/0 for items you don't want to increase.
+                    Leave qty blank/0 for items you don&apos;t want to increase.
                   </p>
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 text-xs text-gray-500">
@@ -1853,7 +1853,7 @@ export default function CustomerPoPage() {
                 onClick={openNewCustomerModal}
                 className="w-full text-left px-3 py-2 text-xs hover:bg-green-50 border-b font-medium text-green-700"
               >
-                + Add "{form.customerName}" as new customer
+                + Add &quot;{form.customerName}&quot; as new customer
               </button>
             )}
 

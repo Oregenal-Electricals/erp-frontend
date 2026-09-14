@@ -319,7 +319,7 @@ export default function ProductionReportsPage() {
               <div className="bg-blue-50 rounded-xl p-4"><div className="text-xl font-bold text-blue-700">{fmt(data.totals.netActualCost)}</div><div className="text-xs text-gray-500 mt-1">Total Net Actual Cost</div></div>
               <div className="bg-gray-50 rounded-xl p-4"><div className="text-xl font-bold text-gray-700">{data.totalWos}</div><div className="text-xs text-gray-500 mt-1">Work Orders</div></div>
             </div>
-            <p className="text-xs text-gray-400">Only WO closure-finalized cost sheets are included - a still-open WO's cost is not yet final and would shift the trend retroactively.</p>
+            <p className="text-xs text-gray-400">Only WO closure-finalized cost sheets are included - a still-open WO&apos;s cost is not yet final and would shift the trend retroactively.</p>
             <div className="bg-white rounded-xl border shadow-sm">
               <div className="p-4 border-b font-semibold text-gray-700">{data.granularity === "HOUR" ? "Hourly" : data.granularity === "MONTH" ? "Monthly" : "Daily"} Trend</div>
               <table className="w-full text-sm">
@@ -370,7 +370,7 @@ export default function ProductionReportsPage() {
               <div className="bg-blue-50 rounded-xl p-4"><div className="text-xl font-bold text-blue-700">{fmt(data.totals.cost)}</div><div className="text-xs text-gray-500 mt-1">Total Cost</div></div>
               <div className={`rounded-xl p-4 ${data.totals.profit >= 0 ? 'bg-purple-50' : 'bg-red-50'}`}><div className={`text-xl font-bold ${data.totals.profit >= 0 ? 'text-purple-700' : 'text-red-700'}`}>{fmt(data.totals.profit)}</div><div className="text-xs text-gray-500 mt-1">Profit</div></div>
             </div>
-            <p className="text-xs text-gray-400">Revenue uses the selling price actually effective on each WO's closure date, not today's price. Only WO closure-finalized cost sheets are included.</p>
+            <p className="text-xs text-gray-400">Revenue uses the selling price actually effective on each WO&apos;s closure date, not today&apos;s price. Only WO closure-finalized cost sheets are included.</p>
             {data.noPriceProducts && data.noPriceProducts.length > 0 && (
               <div className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
                 No selling price set for: {data.noPriceProducts.join(', ')} - their cost is counted but revenue shows as 0 until a price is set.

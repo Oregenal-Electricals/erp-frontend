@@ -140,7 +140,7 @@ export default function PayrollPage() {
         {activeTab==='Payroll Runs' && (
           <div className="bg-white rounded-xl border shadow-sm">
             {loading?<div className="text-center py-10 text-gray-400">Loading...</div>
-            :runs.length===0?<div className="text-center py-10 text-gray-400">No payroll runs yet. Use "Run Payroll" to process.</div>:(
+            :runs.length===0?<div className="text-center py-10 text-gray-400">No payroll runs yet. Use &quot;Run Payroll&quot; to process.</div>:(
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
                   <tr>{['Run No','Month','Employees','Gross','Deductions','Net Pay','OT','Status',''].map(h=><th key={h} className="px-4 py-3 text-left">{h}</th>)}</tr>
@@ -205,7 +205,7 @@ export default function PayrollPage() {
         {activeTab==='Payroll Register' && (
           <div className="space-y-4">
             {!selectedRun ? (
-              <div className="text-center py-10 text-gray-400">Select a payroll run from "Payroll Runs" tab to view the register.</div>
+              <div className="text-center py-10 text-gray-400">Select a payroll run from &quot;Payroll Runs&quot; tab to view the register.</div>
             ) : (
               <>
                 <div className="bg-white rounded-xl border shadow-sm p-5">

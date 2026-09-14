@@ -2,6 +2,7 @@
 'use client';
 
 import { useState } from 'react';
+import { setDragId, getDragId, setDragOrigin, getDragOrigin } from '@/lib/dragState';
 
 /**
  * Generic drag-to-reorder list. No external DnD library required (native HTML5
@@ -22,8 +23,8 @@ export default function SortableList({ items, onReorder, renderItem, onExternalD
 
   const handleDragStart = (item) => {
     setDraggingLocalId(item.id);
-    window.__uiControlDragId = item.id;
-    window.__uiControlDragOrigin = dropZoneId;
+    setDragId(item.id);
+    setDragOrigin(dropZoneId);
   };
 
   const handleDragOver = (e, index) => {
@@ -34,14 +35,14 @@ export default function SortableList({ items, onReorder, renderItem, onExternalD
   const handleDrop = (e, index) => {
     e.preventDefault();
     e.stopPropagation(); // don't let this also trigger the container's onDrop below
-    const draggedId = window.__uiControlDragId;
+    const draggedId = getDragId();
     setDragOverIndex(null);
 
-    if (window.__uiControlDragOrigin !== dropZoneId) {
+    if (getDragOrigin() !== dropZoneId) {
       // Item came from a different list (different sidebar section) — let the
       // parent decide how to reparent it; this list doesn't own that item.
       onExternalDrop?.(draggedId, index);
-      window.__uiControlDragId = null;
+      setDragId(null);
       return;
     }
 
@@ -52,17 +53,17 @@ export default function SortableList({ items, onReorder, renderItem, onExternalD
     const [moved] = reordered.splice(fromIndex, 1);
     reordered.splice(index, 0, moved);
     onReorder(reordered);
-    window.__uiControlDragId = null;
+    setDragId(null);
   };
 
   const handleContainerDrop = (e) => {
     e.preventDefault();
     if (items.length > 0) return; // handled per-row above
-    const draggedId = window.__uiControlDragId;
-    if (window.__uiControlDragOrigin !== dropZoneId) {
+    const draggedId = getDragId();
+    if (getDragOrigin() !== dropZoneId) {
       onExternalDrop?.(draggedId, 0);
     }
-    window.__uiControlDragId = null;
+    setDragId(null);
   };
 
   return (

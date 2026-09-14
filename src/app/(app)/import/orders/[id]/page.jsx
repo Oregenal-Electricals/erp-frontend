@@ -160,7 +160,7 @@ export default function ImportOrderDetailPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {!ipo.items?.length ? (
-                  <tr><td colSpan={11} className="text-center py-8 text-gray-400">No items. Click "+ Add Item".</td></tr>
+                  <tr><td colSpan={11} className="text-center py-8 text-gray-400">No items. Click &quot;+ Add Item&quot;.</td></tr>
                 ) : ipo.items.map(item => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-3 py-2 font-mono text-xs text-blue-600">{item.itemCode}</td>

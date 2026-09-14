@@ -28,8 +28,16 @@ export default function WoMaterialIssuePage() {
   const [busy, setBusy] = useState(false);
   const [warehouses, setWarehouses] = useState([]);
   const [returnForm, setReturnForm] = useState({});
-  const [overrideReason, setOverrideReason] = useState('');
-  const [activeOverride, setActiveOverride] = useState(null);
+  // STORE-012: override requests are now per-item and qty-specific, not
+  // one blanket request for the whole WO - keyed by itemCode, same
+  // pattern as returnForm below.
+  const [overrideForm, setOverrideForm] = useState({});
+  const [activeOverrides, setActiveOverrides] = useState({});
+  // STORE-013: separate from the override flow above - this increases
+  // the approved material demand for the WO/item, it does not bypass
+  // the previous-material-status block.
+  const [additionalForm, setAdditionalForm] = useState({});
+  const [activeAdditionalRequests, setActiveAdditionalRequests] = useState({});
 
   useEffect(() => { api('/warehouses?limit=100').then(d => setWarehouses(listOf(d))).catch(() => {}); }, []);
 
@@ -54,23 +62,49 @@ export default function WoMaterialIssuePage() {
     setDraftIssue(null);
     try {
       setStatus(await api(`/production/material-returns/status/${wo.id}`));
-      setActiveOverride(null);
+      setActiveOverrides({});
     }
     catch (e) { fail(e); }
     setLoadingStatus(false);
   }, []);
 
-  async function requestOverride() {
-    if (!overrideReason.trim()) { fail(new Error('Enter a reason for the override request')); return; }
+  async function requestAdditionalMaterial(item) {
+    const form = additionalForm[item.itemCode] || {};
+    if (!form.qty || Number(form.qty) <= 0) { fail(new Error('Enter the additional qty needed')); return; }
+    if (!form.reasonCategory) { fail(new Error('Select a reason category')); return; }
+    if (!form.reason?.trim()) { fail(new Error('Enter a reason')); return; }
+    setBusy(true);
+    try {
+      const request = await api('/production/additional-material-requests', {
+        method: 'POST',
+        body: JSON.stringify({
+          workOrderId: selectedWo.id, itemCode: item.itemCode, itemName: item.itemName,
+          requestedQty: Number(form.qty), reasonCategory: form.reasonCategory, reason: form.reason,
+        }),
+      });
+      setActiveAdditionalRequests(prev => ({ ...prev, [item.itemCode]: request }));
+      notify(`Additional material requested for ${item.itemCode} - waiting on approval.`);
+      setAdditionalForm(prev => ({ ...prev, [item.itemCode]: { qty: '', reasonCategory: '', reason: '' } }));
+    } catch (e) { fail(e); }
+    setBusy(false);
+  }
+
+  async function requestOverride(item) {
+    const form = overrideForm[item.itemCode] || {};
+    if (!form.qty || Number(form.qty) <= 0) { fail(new Error('Enter the new issue qty you need approved')); return; }
+    if (!form.reason?.trim()) { fail(new Error('Enter a reason for the override request')); return; }
     setBusy(true);
     try {
       const override = await api('/production/material-issue-overrides', {
         method: 'POST',
-        body: JSON.stringify({ workOrderId: selectedWo.id, reason: overrideReason }),
+        body: JSON.stringify({
+          workOrderId: selectedWo.id, itemCode: item.itemCode, itemName: item.itemName,
+          requestedQty: Number(form.qty), reason: form.reason,
+        }),
       });
-      setActiveOverride(override);
-      notify('Override requested - waiting on management approval (5-hour window).');
-      setOverrideReason('');
+      setActiveOverrides(prev => ({ ...prev, [item.itemCode]: override }));
+      notify(`Override requested for ${item.itemCode} - waiting on management approval (5-hour window).`);
+      setOverrideForm(prev => ({ ...prev, [item.itemCode]: { qty: '', reason: '' } }));
     } catch (e) { fail(e); }
     setBusy(false);
   }
@@ -116,6 +150,7 @@ export default function WoMaterialIssuePage() {
           workOrderId: selectedWo.id, warehouseId,
           itemCode: item.itemCode, itemName: item.itemName, uom: item.uom,
           qty, reason: returnForm[item.itemCode]?.reason || 'EXCESS_UNUSED',
+          condition: returnForm[item.itemCode]?.condition || 'GOOD',
         }),
       });
       notify(`Returned ${qty} ${item.uom} of ${item.itemCode} to Store`);
@@ -224,20 +259,61 @@ export default function WoMaterialIssuePage() {
               </div>
             )}
 
+            {status?.items?.length > 0 && (
+              <div className="bg-white rounded-xl border shadow-sm p-4">
+                <div className="font-semibold text-gray-700 mb-2">Request Additional Material</div>
+                <p className="text-xs text-gray-400 mb-3">Use this only when Production needs more than the original approved WO requirement (e.g. rejection, damage, rework) - not for a plain remaining-qty issue, which needs no approval. This is separate from a previous-material override and does not bypass it.</p>
+                {status.items.map(it => (
+                  <div key={it.itemCode} className="flex gap-2 items-end flex-wrap mb-3 pb-3 border-b last:border-0">
+                    <div className="text-xs text-gray-600 w-40">{it.itemName} ({it.itemCode})</div>
+                    {activeAdditionalRequests[it.itemCode] ? (
+                      <div className="text-xs px-3 py-2 rounded-lg bg-purple-50 text-purple-700 flex-1">
+                        Requested {activeAdditionalRequests[it.itemCode].requestedQty} extra (status: {activeAdditionalRequests[it.itemCode].status})
+                      </div>
+                    ) : (
+                      <>
+                        <input type="number" placeholder="Extra qty" className="border rounded px-2 py-1 text-xs w-24" value={additionalForm[it.itemCode]?.qty || ''} onChange={e => setAdditionalForm(prev => ({ ...prev, [it.itemCode]: { ...prev[it.itemCode], qty: e.target.value } }))} />
+                        <select className="border rounded px-2 py-1 text-xs" value={additionalForm[it.itemCode]?.reasonCategory || ''} onChange={e => setAdditionalForm(prev => ({ ...prev, [it.itemCode]: { ...prev[it.itemCode], reasonCategory: e.target.value } }))}>
+                          <option value="">Reason category...</option>
+                          <option value="PROCESS_REJECTION">Process Rejection</option>
+                          <option value="MATERIAL_DAMAGE">Material Damage</option>
+                          <option value="PRODUCTION_LOSS">Production Loss</option>
+                          <option value="REWORK">Rework</option>
+                          <option value="BOM_CHANGE">BOM/Engineering Change</option>
+                          <option value="SHORT_ISSUE_CORRECTION">Short Issue Correction</option>
+                          <option value="TRIAL_TESTING">Trial / Testing</option>
+                          <option value="APPROVED_QTY_INCREASE">Approved Quantity Increase</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                        <input className="border rounded px-2 py-1 text-xs flex-1 min-w-[160px]" placeholder="Reason..." value={additionalForm[it.itemCode]?.reason || ''} onChange={e => setAdditionalForm(prev => ({ ...prev, [it.itemCode]: { ...prev[it.itemCode], reason: e.target.value } }))} />
+                        <button onClick={() => requestAdditionalMaterial(it)} disabled={busy} className="px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 disabled:opacity-50">Request</button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
             {!loadingStatus && status?.overallStatus === 'PENDING' && (
               <div className="bg-white rounded-xl border shadow-sm p-4">
                 <div className="font-semibold text-gray-700 mb-2">Request Management Override</div>
-                <p className="text-xs text-gray-400 mb-3">If the outstanding quantity can't be returned or accounted for right now, request a one-time exception. Management has a 5-hour window to decide.</p>
-                {activeOverride ? (
-                  <div className="text-xs px-3 py-2 rounded-lg bg-blue-50 text-blue-700">
-                    Override requested (status: {activeOverride.status}) - waiting on approval. Deadline: {new Date(activeOverride.deadlineAt).toLocaleString()}
+                <p className="text-xs text-gray-400 mb-3">If the outstanding quantity can&apos;t be returned or accounted for right now, request a one-time exception for the specific new qty you need to issue. Management has a 5-hour window to decide, and may approve less than requested.</p>
+                {status.items.filter(i => i.status === 'PENDING').map(it => (
+                  <div key={it.itemCode} className="flex gap-2 items-end flex-wrap mb-3 pb-3 border-b last:border-0">
+                    <div className="text-xs text-gray-600 w-40">{it.itemName} ({it.itemCode})<br/><span className="text-red-600 font-bold">{it.outstandingQty} {it.uom} outstanding</span></div>
+                    {activeOverrides[it.itemCode] ? (
+                      <div className="text-xs px-3 py-2 rounded-lg bg-blue-50 text-blue-700 flex-1">
+                        Requested {activeOverrides[it.itemCode].requestedQty} {it.uom} (status: {activeOverrides[it.itemCode].status}) - deadline {new Date(activeOverrides[it.itemCode].deadlineAt).toLocaleString()}
+                      </div>
+                    ) : (
+                      <>
+                        <input type="number" placeholder="New issue qty" className="border rounded px-2 py-1 text-xs w-28" value={overrideForm[it.itemCode]?.qty || ''} onChange={e => setOverrideForm(prev => ({ ...prev, [it.itemCode]: { ...prev[it.itemCode], qty: e.target.value } }))} />
+                        <input className="border rounded px-2 py-1 text-xs flex-1 min-w-[160px]" placeholder="Reason for override..." value={overrideForm[it.itemCode]?.reason || ''} onChange={e => setOverrideForm(prev => ({ ...prev, [it.itemCode]: { ...prev[it.itemCode], reason: e.target.value } }))} />
+                        <button onClick={() => requestOverride(it)} disabled={busy} className="px-3 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700 disabled:opacity-50">Request Override</button>
+                      </>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex gap-2 flex-wrap items-end">
-                    <input className="border rounded px-2 py-1 text-xs flex-1 min-w-[200px]" placeholder="Reason for override..." value={overrideReason} onChange={e => setOverrideReason(e.target.value)} />
-                    <button onClick={requestOverride} disabled={busy} className="px-3 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700 disabled:opacity-50">Request Override</button>
-                  </div>
-                )}
+                ))}
               </div>
             )}
 
@@ -254,9 +330,21 @@ export default function WoMaterialIssuePage() {
                       {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </select>
                     <select className="border rounded px-2 py-1 text-xs" value={returnForm[it.itemCode]?.reason || 'EXCESS_UNUSED'} onChange={e => setReturnForm(prev => ({ ...prev, [it.itemCode]: { ...prev[it.itemCode], reason: e.target.value } }))}>
-                      <option value="EXCESS_UNUSED">Excess Unused</option>
+                      <option value="UNUSED_MATERIAL">Unused Material</option>
+                      <option value="EXCESS_ISSUED">Excess Issued</option>
+                      <option value="WO_COMPLETED">WO Completed</option>
+                      <option value="STAGE_COMPLETED">Stage Completed</option>
+                      <option value="MATERIAL_NOT_REQUIRED">Material Not Required</option>
+                      <option value="WRONG_MATERIAL_ISSUED">Wrong Material Issued</option>
+                      <option value="CHANGE_IN_PLAN">Change in Plan</option>
+                      <option value="BALANCE_RETURN">Balance Return</option>
                       <option value="REJECTED_MATERIAL">Rejected Material</option>
                       <option value="OTHER">Other</option>
+                    </select>
+                    <select className="border rounded px-2 py-1 text-xs" value={returnForm[it.itemCode]?.condition || 'GOOD'} onChange={e => setReturnForm(prev => ({ ...prev, [it.itemCode]: { ...prev[it.itemCode], condition: e.target.value } }))}>
+                      <option value="GOOD">Good / Unused</option>
+                      <option value="DAMAGED">Damaged</option>
+                      <option value="SUSPECT">Suspect</option>
                     </select>
                     <button onClick={() => submitReturn(it)} disabled={busy} className="px-3 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800 disabled:opacity-50">Return</button>
                   </div>

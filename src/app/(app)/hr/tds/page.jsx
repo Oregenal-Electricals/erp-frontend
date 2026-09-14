@@ -116,7 +116,7 @@ export default function TdsPage() {
             </div>
             <div className="bg-white rounded-xl border shadow-sm">
               {loading?<div className="text-center py-10 text-gray-400">Loading...</div>
-              :declarations.length===0?<div className="text-center py-10 text-gray-400">No declarations for FY {fy}. Use "Save Declaration" to add.</div>:(
+              :declarations.length===0?<div className="text-center py-10 text-gray-400">No declarations for FY {fy}. Use &quot;Save Declaration&quot; to add.</div>:(
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
                     <tr>{['Employee','PAN','Regime','Annual Gross','Taxable Income','Annual Tax','Monthly TDS','80C','80D'].map(h=><th key={h} className="px-3 py-3 text-left whitespace-nowrap">{h}</th>)}</tr>
