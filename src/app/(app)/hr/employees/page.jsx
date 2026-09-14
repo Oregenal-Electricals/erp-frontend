@@ -148,7 +148,7 @@ export default function EmployeesPage() {
 
             <div className="bg-white rounded-xl shadow-sm border">
               {loading?<div className="text-center py-10 text-gray-400">Loading...</div>
-              :employees.length===0?<div className="text-center py-10 text-gray-400">No employees found. Click "Create Employee" to add one.</div>
+              :employees.length===0?<div className="text-center py-10 text-gray-400">No employees found. Click &quot;Create Employee&quot; to add one.</div>
               :(
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 text-xs text-gray-500 uppercase"><tr>{['Employee','Department','Designation','Type','Gross Salary','Joining Date','Status',''].map(h=><th key={h} className="px-4 py-3 text-left">{h}</th>)}</tr></thead>

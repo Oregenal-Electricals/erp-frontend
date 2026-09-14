@@ -10,12 +10,14 @@ export default function ActiveVisitorsPage() {
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState('');
   const [message, setMessage] = useState('');
+  const [now, setNow] = useState(() => Date.now());
 
   const fetchActive = async () => {
     setLoading(true);
     try {
       const { data } = await api.get('/visitor-logs/active');
       setLogs(data);
+      setNow(Date.now());
     } finally { setLoading(false); }
   };
 
@@ -36,7 +38,7 @@ export default function ActiveVisitorsPage() {
 
   const formatTime = (d) => d ? new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
   const getDuration = (checkIn) => {
-    const mins = Math.floor((Date.now() - new Date(checkIn)) / 60000);
+    const mins = Math.floor((now - new Date(checkIn)) / 60000);
     if (mins < 60) return `${mins}m`;
     return `${Math.floor(mins / 60)}h ${mins % 60}m`;
   };

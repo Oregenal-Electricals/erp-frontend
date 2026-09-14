@@ -186,7 +186,7 @@ export default function NumberingSeriesPage() {
               <tbody className="divide-y divide-gray-100">
                 {series.length === 0 ? (
                   <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">
-                    No series found. Click "Initialize Defaults" to create standard series.
+                    No series found. Click &quot;Initialize Defaults&quot; to create standard series.
                   </td></tr>
                 ) : series.map((s) => (
                   <tr key={s.id} className="hover:bg-gray-50">
@@ -196,7 +196,7 @@ export default function NumberingSeriesPage() {
                     <td className="px-4 py-3 font-mono text-blue-600">{s.prefix}</td>
                     <td className="px-4 py-3 text-gray-600">
                       {s.includeYear ? s.yearFormat : 'No Year'}
-                      <span className="text-gray-400 ml-1">sep: "{s.separator}"</span>
+                      <span className="text-gray-400 ml-1">sep: &quot;{s.separator}&quot;</span>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{s.padding} digits</td>
                     <td className="px-4 py-3">

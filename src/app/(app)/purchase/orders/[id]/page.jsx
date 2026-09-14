@@ -167,7 +167,7 @@ export default function PurchaseOrderDetailPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {!po.items?.length ? (
-                  <tr><td colSpan={13} className="text-center py-10 text-gray-400">No items yet. Click "+ Add Item" to begin.</td></tr>
+                  <tr><td colSpan={13} className="text-center py-10 text-gray-400">No items yet. Click &quot;+ Add Item&quot; to begin.</td></tr>
                 ) : po.items.map(item => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-3 py-3 text-gray-500">{item.sequence}</td>

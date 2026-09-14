@@ -190,7 +190,7 @@ export default function ScrapPage() {
                     <div className="text-xs text-gray-500">Pending Disposition</div>
                   </div>
                 </div>
-                <p className="text-xs text-gray-400">Partial disposition is supported - enter only what you're dispositioning now.</p>
+                <p className="text-xs text-gray-400">Partial disposition is supported - enter only what you&apos;re dispositioning now.</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Scrap Qty</label>

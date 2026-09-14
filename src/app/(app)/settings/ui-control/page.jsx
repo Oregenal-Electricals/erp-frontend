@@ -297,7 +297,7 @@ export default function UiControlCenterPage() {
               <h1 className="text-xl font-semibold">UI Control Center</h1>
               <p className="text-sm text-gray-500">
                 Drag, reorder, move items, or toggle visibility freely — nothing saves until you
-                click "Save Changes" above.
+                click &quot;Save Changes&quot; above.
               </p>
             </div>
             <div className="flex gap-2 shrink-0">
@@ -496,7 +496,7 @@ export default function UiControlCenterPage() {
               {Object.keys(pageElements).length === 0 && (
                 <p className="text-sm text-gray-400">
                   No page elements registered yet. Add FIELD/COLUMN/BUTTON entries to
-                  uiControlManifest.js and click "Sync New Elements from Manifest" above.
+                  uiControlManifest.js and click &quot;Sync New Elements from Manifest&quot; above.
                 </p>
               )}
             </div>

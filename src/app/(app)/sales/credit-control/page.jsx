@@ -162,7 +162,7 @@ export default function CreditControlPage() {
         {activeTab==='Credit Limits' && (
           <div className="bg-white rounded-xl shadow-sm border">
             {loading ? <div className="text-center py-10 text-gray-400">Loading...</div>
-            : limits.length===0 ? <div className="text-center py-10 text-gray-400">No credit limits set. Click "+ Set Credit Limit" to add one.</div>
+            : limits.length===0 ? <div className="text-center py-10 text-gray-400">No credit limits set. Click &quot;+ Set Credit Limit&quot; to add one.</div>
             : (
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-xs text-gray-500 uppercase"><tr>{['Customer','Credit Limit','Outstanding','Available','Utilization','Days','Status','Action'].map(h=><th key={h} className="px-4 py-3 text-left">{h}</th>)}</tr></thead>

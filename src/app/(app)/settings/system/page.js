@@ -20,8 +20,6 @@ export default function SystemSettingsPage() {
   const [success, setSuccess]   = useState('');
   const [error, setError]       = useState('');
 
-  useEffect(() => { fetchSettings(); }, []);
-
   const fetchSettings = async () => {
     setLoading(true);
     try {
@@ -34,6 +32,8 @@ export default function SystemSettingsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => { fetchSettings(); }, []);
 
   const handleSave = async (key) => {
     setSaving((prev) => ({ ...prev, [key]: true }));

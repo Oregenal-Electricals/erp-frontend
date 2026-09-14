@@ -78,7 +78,7 @@ export default function MaterialIssueOverridesPage() {
                 <span className="text-xs text-gray-400">Deadline: {new Date(o.deadlineAt).toLocaleString()}</span>
               </div>
               <div className="text-xs text-gray-500 mb-2">
-                Requesting to issue <span className="font-bold text-gray-700">{o.requestedQty} {o.itemsSnapshot?.[0]?.uom}</span> of <span className="font-mono">{o.itemCode}</span> despite the pending previous material below - requested by {o.requestedBy?.firstName} {o.requestedBy?.lastName}, reason: "{o.reason}"
+                Requesting to issue <span className="font-bold text-gray-700">{o.requestedQty} {o.itemsSnapshot?.[0]?.uom}</span> of <span className="font-mono">{o.itemCode}</span> despite the pending previous material below - requested by {o.requestedBy?.firstName} {o.requestedBy?.lastName}, reason: &quot;{o.reason}&quot;
               </div>
               <table className="w-full text-xs mb-3">
                 <thead className="text-gray-400 uppercase"><tr>{['Item','Issued','Outstanding'].map(h=><th key={h} className="px-2 py-1 text-left">{h}</th>)}</tr></thead>

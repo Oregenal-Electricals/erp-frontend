@@ -175,6 +175,57 @@ function actionLabel(perm) {
   return ACTION_LABELS[key] || last;
 }
 
+// React Compiler: components must not be defined inside another component's render body - PermissionGrid takes everything via props plus module-scope PERMISSION_SECTIONS/actionLabel, so it's hoisted here.
+function PermissionGrid({ selected, onToggle, onToggleAll }) {
+  return (
+    <div className="space-y-3">
+      {PERMISSION_SECTIONS.map(section => {
+        const allPerms = [...section.tabs.map(t => t.perm), ...section.actions];
+        const allChecked = allPerms.length > 0 && allPerms.every(p => selected.has(p));
+        const someChecked = allPerms.some(p => selected.has(p));
+        return (
+          <div key={section.label} className="border rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b">
+              <input type="checkbox" checked={allChecked}
+                ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }}
+                onChange={() => onToggleAll(allPerms, allChecked)} />
+              <span className="font-semibold text-sm text-gray-800">{section.label}</span>
+            </div>
+
+            {section.tabs.length > 0 && (
+              <div className="mb-2">
+                <div className="text-xs text-gray-400 font-medium mb-1 pl-6">Tabs (view access)</div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 pl-6">
+                  {section.tabs.map(tab => (
+                    <label key={tab.perm} className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                      <input type="checkbox" checked={selected.has(tab.perm)} onChange={() => onToggle(tab.perm)} />
+                      {tab.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {section.actions.length > 0 && (
+              <div>
+                <div className="text-xs text-gray-400 font-medium mb-1 pl-6">Actions (whole section)</div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 pl-6">
+                  {section.actions.map(perm => (
+                    <label key={perm} className="flex items-center gap-1.5 text-xs text-indigo-700 cursor-pointer">
+                      <input type="checkbox" checked={selected.has(perm)} onChange={() => onToggle(perm)} />
+                      {actionLabel(perm)}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function RolesPermissionsPage() {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -244,56 +295,6 @@ export default function RolesPermissionsPage() {
     const data = await res.json();
     if (res.ok) { setDeleteConfirm(null); fetchRoles(); }
     else alert(data.message || 'Failed to delete role');
-  }
-
-  function PermissionGrid({ selected, onToggle, onToggleAll }) {
-    return (
-      <div className="space-y-3">
-        {PERMISSION_SECTIONS.map(section => {
-          const allPerms = [...section.tabs.map(t => t.perm), ...section.actions];
-          const allChecked = allPerms.length > 0 && allPerms.every(p => selected.has(p));
-          const someChecked = allPerms.some(p => selected.has(p));
-          return (
-            <div key={section.label} className="border rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2 pb-2 border-b">
-                <input type="checkbox" checked={allChecked}
-                  ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }}
-                  onChange={() => onToggleAll(allPerms, allChecked)} />
-                <span className="font-semibold text-sm text-gray-800">{section.label}</span>
-              </div>
-
-              {section.tabs.length > 0 && (
-                <div className="mb-2">
-                  <div className="text-xs text-gray-400 font-medium mb-1 pl-6">Tabs (view access)</div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 pl-6">
-                    {section.tabs.map(tab => (
-                      <label key={tab.perm} className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
-                        <input type="checkbox" checked={selected.has(tab.perm)} onChange={() => onToggle(tab.perm)} />
-                        {tab.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {section.actions.length > 0 && (
-                <div>
-                  <div className="text-xs text-gray-400 font-medium mb-1 pl-6">Actions (whole section)</div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 pl-6">
-                    {section.actions.map(perm => (
-                      <label key={perm} className="flex items-center gap-1.5 text-xs text-indigo-700 cursor-pointer">
-                        <input type="checkbox" checked={selected.has(perm)} onChange={() => onToggle(perm)} />
-                        {actionLabel(perm)}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
   }
 
   return (
@@ -406,7 +407,7 @@ export default function RolesPermissionsPage() {
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
               <div className="p-6 border-b">
-                <h2 className="text-lg font-bold text-red-700">Delete "{deleteConfirm.label}"?</h2>
+                <h2 className="text-lg font-bold text-red-700">Delete &quot;{deleteConfirm.label}&quot;?</h2>
               </div>
               <div className="p-6 text-sm text-gray-600">
                 {deleteConfirm.userCount > 0 ? (

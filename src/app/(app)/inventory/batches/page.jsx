@@ -30,6 +30,7 @@ export default function BatchesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [createMsg, setCreateMsg] = useState('');
+  const [expiringSoonThreshold, setExpiringSoonThreshold] = useState(() => new Date(Date.now() + 30*24*60*60*1000));
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -46,6 +47,7 @@ export default function BatchesPage() {
     if (statsRes.ok) setStats(await statsRes.json());
     if (whRes.ok) { const d = await whRes.json(); setWarehouses(d.data || d); }
     if (grnRes.ok) { const d = await grnRes.json(); setAcceptedGrns(d.data?.filter(g => ['ACCEPTED','PARTIALLY_ACCEPTED'].includes(g.status)) || []); }
+    setExpiringSoonThreshold(new Date(Date.now() + 30*24*60*60*1000));
     setLoading(false);
   }, [page, search, status]);
 
@@ -86,7 +88,7 @@ export default function BatchesPage() {
     else { const d = await res.json(); alert(d.message); }
   }
 
-  const isExpiringSoon = (b) => b.expiryDate && new Date(b.expiryDate) <= new Date(Date.now() + 30*24*60*60*1000) && b.status === 'ACTIVE';
+  const isExpiringSoon = (b) => b.expiryDate && new Date(b.expiryDate) <= expiringSoonThreshold && b.status === 'ACTIVE';
 
   return (
     <AppLayout>

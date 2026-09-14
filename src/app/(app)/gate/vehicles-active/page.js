@@ -11,12 +11,14 @@ export default function ActiveVehiclesPage() {
   const [exiting, setExiting] = useState('');
   const [outWeight, setOutWeight] = useState({});
   const [message, setMessage] = useState('');
+  const [now, setNow] = useState(() => Date.now());
 
   const fetchActive = async () => {
     setLoading(true);
     try {
       const { data } = await api.get('/vehicle-logs/active');
       setLogs(data);
+      setNow(Date.now());
     } finally { setLoading(false); }
   };
 
@@ -38,7 +40,7 @@ export default function ActiveVehiclesPage() {
   };
 
   const formatTime = (d) => d ? new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
-  const getDuration = (t) => { const m = Math.floor((Date.now() - new Date(t)) / 60000); return m < 60 ? `${m}m` : `${Math.floor(m/60)}h ${m%60}m`; };
+  const getDuration = (t) => { const m = Math.floor((now - new Date(t)) / 60000); return m < 60 ? `${m}m` : `${Math.floor(m/60)}h ${m%60}m`; };
 
   return (
     <AppLayout>

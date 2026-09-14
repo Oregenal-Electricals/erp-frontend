@@ -297,7 +297,7 @@ export default function WoMaterialIssuePage() {
             {!loadingStatus && status?.overallStatus === 'PENDING' && (
               <div className="bg-white rounded-xl border shadow-sm p-4">
                 <div className="font-semibold text-gray-700 mb-2">Request Management Override</div>
-                <p className="text-xs text-gray-400 mb-3">If the outstanding quantity can't be returned or accounted for right now, request a one-time exception for the specific new qty you need to issue. Management has a 5-hour window to decide, and may approve less than requested.</p>
+                <p className="text-xs text-gray-400 mb-3">If the outstanding quantity can&apos;t be returned or accounted for right now, request a one-time exception for the specific new qty you need to issue. Management has a 5-hour window to decide, and may approve less than requested.</p>
                 {status.items.filter(i => i.status === 'PENDING').map(it => (
                   <div key={it.itemCode} className="flex gap-2 items-end flex-wrap mb-3 pb-3 border-b last:border-0">
                     <div className="text-xs text-gray-600 w-40">{it.itemName} ({it.itemCode})<br/><span className="text-red-600 font-bold">{it.outstandingQty} {it.uom} outstanding</span></div>

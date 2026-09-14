@@ -310,7 +310,7 @@ export default function BomDetailPage() {
         {bom.bomType === 'MASTER' && (bom.status === 'DRAFT' || stages.length > 0) && (
           <div className="bg-white rounded-xl shadow-sm border-2 border-blue-200 p-5 mb-6">
             <h2 className="font-semibold text-gray-800 mb-1">Set Up Production</h2>
-            <p className="text-xs text-gray-500 mb-4">Build out the production routing while this BOM is still in draft — stages and the routing move through Verify/Approve together with the BOM once you're ready.</p>
+            <p className="text-xs text-gray-500 mb-4">Build out the production routing while this BOM is still in draft — stages and the routing move through Verify/Approve together with the BOM once you&apos;re ready.</p>
 
             {setupError && <div className="mb-3 bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{setupError}</div>}
 
@@ -431,7 +431,7 @@ export default function BomDetailPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {!bom.items || bom.items.length === 0 ? (
-                  <tr><td colSpan={10} className="text-center py-10 text-gray-400">No items yet. Click "+ Add Item" to start.</td></tr>
+                  <tr><td colSpan={10} className="text-center py-10 text-gray-400">No items yet. Click &quot;+ Add Item&quot; to start.</td></tr>
                 ) : (() => {
                   // Group items by section, preserving the order each section first appears in (matches the order sections appeared in the uploaded BOM sheet, if any)
                   const order = [];
@@ -584,7 +584,7 @@ export default function BomDetailPage() {
           return (
             <div className="bg-white rounded-xl shadow-sm border-2 border-indigo-200 p-5 mt-6 flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                You've reviewed the items{stages.length > 0 ? ', stages, and routing' : ''} above. Ready to act?
+                You&apos;ve reviewed the items{stages.length > 0 ? ', stages, and routing' : ''} above. Ready to act?
                 {hasOpenQuery && <span className="ml-2 text-amber-600 font-medium">An open query must be resolved first.</span>}
               </div>
               <div className="flex gap-2">

@@ -12,6 +12,18 @@ const SEV_COLORS = { MINOR:'bg-gray-100 text-gray-600', MAJOR:'bg-orange-100 tex
 const STATUS_COLORS_NCR = { OPEN:'bg-blue-100 text-blue-700', ROOT_CAUSE_PENDING:'bg-yellow-100 text-yellow-700', CAPA_PENDING:'bg-orange-100 text-orange-700', VERIFICATION_PENDING:'bg-purple-100 text-purple-700', CLOSED:'bg-green-100 text-green-700' };
 const AVL_COLORS = { APPROVED:'bg-green-100 text-green-700', PROBATION:'bg-yellow-100 text-yellow-700', BLACKLISTED:'bg-red-100 text-red-700' };
 
+// React Compiler: components must not be defined inside another
+// component's render body (a new identity every render can cause
+// React to remount it and lose state) - KpiCard is purely
+// presentational and takes everything via props, so it's hoisted here.
+const KpiCard = ({label, value, sub, color='text-gray-800'}) => (
+  <div className="bg-white rounded-xl border shadow-sm p-4">
+    <div className="text-xs text-gray-500 mb-1">{label}</div>
+    <div className={`text-2xl font-bold ${color}`}>{value}</div>
+    {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
+  </div>
+);
+
 export default function QualityReportsPage() {
   const [activeTab, setActiveTab] = useState('KPI Summary');
   const [data, setData] = useState(null);
@@ -41,14 +53,6 @@ export default function QualityReportsPage() {
   }
 
   useEffect(() => { fetchData(); }, [activeTab]);
-
-  const KpiCard = ({label, value, sub, color='text-gray-800'}) => (
-    <div className="bg-white rounded-xl border shadow-sm p-4">
-      <div className="text-xs text-gray-500 mb-1">{label}</div>
-      <div className={`text-2xl font-bold ${color}`}>{value}</div>
-      {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
-    </div>
-  );
 
   return (
     <AppLayout>

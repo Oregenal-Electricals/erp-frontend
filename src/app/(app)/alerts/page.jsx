@@ -115,7 +115,7 @@ export default function AlertsPage() {
             : templates.length===0 ? (
               <div className="text-center py-16">
                 <div className="text-4xl mb-3">📧</div>
-                <div className="text-gray-500">No templates yet. Click "Seed Default Templates" to get started.</div>
+                <div className="text-gray-500">No templates yet. Click &quot;Seed Default Templates&quot; to get started.</div>
               </div>
             ) : templates.map(t=>(
               <div key={t.id} className={`bg-white rounded-xl border shadow-sm p-4 ${!t.isActive?'opacity-50':''}`}>

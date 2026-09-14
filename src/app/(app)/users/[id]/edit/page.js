@@ -134,7 +134,7 @@ export default function EditUserPage() {
                 <option value="Assembly">Assembly</option>
                 <option value="Packaging">Packaging</option>
               </select>
-              <p className="text-xs text-gray-500 mt-1">If set, this user's Work Orders list is filtered to only this stage. Supervisors and above always see every stage regardless of this setting.</p>
+              <p className="text-xs text-gray-500 mt-1">If set, this user&apos;s Work Orders list is filtered to only this stage. Supervisors and above always see every stage regardless of this setting.</p>
             </div>
 
             <div className="col-span-2 p-3 bg-orange-50 border-2 border-orange-200 rounded-lg flex items-center gap-3">

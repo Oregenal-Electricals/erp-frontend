@@ -109,7 +109,7 @@ export default function PriceListDetailPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {!priceList.items || priceList.items.length === 0 ? (
-                  <tr><td colSpan={10} className="text-center py-10 text-gray-400">No price items yet. Click "+ Add Price" to add.</td></tr>
+                  <tr><td colSpan={10} className="text-center py-10 text-gray-400">No price items yet. Click &quot;+ Add Price&quot; to add.</td></tr>
                 ) : priceList.items.map(item => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono text-blue-600">{item.itemCode}</td>

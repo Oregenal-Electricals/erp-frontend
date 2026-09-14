@@ -33,7 +33,7 @@ export default function StockPage() {
       <div className="p-6 max-w-6xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Stock</h1>
-          <p className="text-gray-500 text-sm mt-1">Available stock, what's still waiting for a shelf, what's rejected, and where everything physically sits.</p>
+          <p className="text-gray-500 text-sm mt-1">Available stock, what&apos;s still waiting for a shelf, what&apos;s rejected, and where everything physically sits.</p>
         </div>
 
         <div className="flex gap-2 mb-6 border-b overflow-x-auto">
@@ -168,7 +168,7 @@ function QcPendingTab() {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-gray-400">Received and handed to IQC, not yet quality-released - not Available, not issueable. To act on these, use Material In's IQC Handover tab.</p>
+      <p className="text-xs text-gray-400">Received and handed to IQC, not yet quality-released - not Available, not issueable. To act on these, use Material In&apos;s IQC Handover tab.</p>
       {rows.length === 0 && <div className="text-center py-12 text-gray-400 bg-white rounded-xl border">Nothing waiting on QC.</div>}
       {rows.map(iqc => (
         <div key={iqc.id} className="bg-white rounded-xl border shadow-sm p-4 flex items-center justify-between">

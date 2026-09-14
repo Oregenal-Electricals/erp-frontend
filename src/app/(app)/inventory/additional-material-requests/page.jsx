@@ -57,7 +57,7 @@ export default function AdditionalMaterialRequestsPage() {
       <div className="p-6 max-w-4xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Additional Material Requests</h1>
-          <p className="text-gray-500 text-sm mt-1">Requests to issue material beyond the original approved Work Order requirement. This increases the approved demand - it's separate from a previous-material-status override.</p>
+          <p className="text-gray-500 text-sm mt-1">Requests to issue material beyond the original approved Work Order requirement. This increases the approved demand - it&apos;s separate from a previous-material-status override.</p>
         </div>
 
         {toast && <div className="mb-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">{toast}</div>}
@@ -77,7 +77,7 @@ export default function AdditionalMaterialRequestsPage() {
                 <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-700">{r.reasonCategory}</span>
               </div>
               <div className="text-xs text-gray-500 mb-3">
-                Requesting <span className="font-bold text-gray-700">{r.requestedQty}</span> extra of <span className="font-mono">{r.itemCode}</span> ({r.itemName}) beyond the original approved requirement - requested by {r.requestedBy?.firstName} {r.requestedBy?.lastName}, reason: "{r.reason}"
+                Requesting <span className="font-bold text-gray-700">{r.requestedQty}</span> extra of <span className="font-mono">{r.itemCode}</span> ({r.itemName}) beyond the original approved requirement - requested by {r.requestedBy?.firstName} {r.requestedBy?.lastName}, reason: &quot;{r.reason}&quot;
               </div>
               <div className="flex gap-2 items-end flex-wrap">
                 <input type="number" placeholder={`Approve qty (max ${r.requestedQty})`} className="border rounded px-2 py-1 text-xs w-40" value={approvedQtyForm[r.id] || ''} onChange={e => setApprovedQtyForm(prev => ({ ...prev, [r.id]: e.target.value }))} />
