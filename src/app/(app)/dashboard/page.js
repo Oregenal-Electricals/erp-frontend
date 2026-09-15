@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { getUser } from '@/lib/auth';
-import { ShoppingCart, ClipboardList, Truck, Database, Factory, BadgeCheck, Users2, CreditCard, Shield, Warehouse } from 'lucide-react';
+import { ShoppingCart, ClipboardList, Truck, Database, Factory, BadgeCheck, Users2, CreditCard, Shield, Warehouse, Layers } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
@@ -110,6 +110,16 @@ const WIDGETS = [
       { label: 'Stock Count Variance', value: d.stockCountVariancePending },
       { label: 'RTV Pending', value: (d.rtvApprovalPending || 0) + (d.rtvGateOutPending || 0) },
       { label: 'Reservation Shortfall', value: d.reservationShortfall },
+    ],
+  },
+  {
+    key: 'bom', title: 'BOM', icon: Layers, color: 'violet',
+    permission: 'BOM_VIEW', endpoint: '/boms/stats',
+    stats: (d) => [
+      { label: 'Total BOMs', value: d.total },
+      { label: 'Draft', value: d.draft },
+      { label: 'Approved', value: d.approved },
+      { label: 'Total Items', value: d.totalItems },
     ],
   },
 ];
