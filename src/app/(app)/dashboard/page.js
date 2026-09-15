@@ -116,7 +116,7 @@ const WIDGETS = [
     key: 'bom', title: 'BOM', icon: Layers, color: 'violet',
     permission: 'BOM_VIEW', endpoint: '/boms/stats',
     stats: (d) => [
-      { label: 'Total BOMs', value: d.total },
+      { label: 'Active BOMs', value: (d.total || 0) - (d.obsolete || 0) },
       { label: 'Draft', value: d.draft },
       { label: 'Approved', value: d.approved },
       { label: 'Total Items', value: d.totalItems },
