@@ -20,7 +20,12 @@ const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 
 const STATUS_COLORS = { DRAFT:'bg-gray-100 text-gray-600', CONFIRMED:'bg-blue-100 text-blue-700', IN_PRODUCTION:'bg-yellow-100 text-yellow-700', DISPATCHED:'bg-purple-100 text-purple-700', COMPLETED:'bg-green-100 text-green-700', CANCELLED:'bg-red-100 text-red-600' };
-const BLANK_ITEM = { itemCode:'', itemName:'', qty:1, uom:'PCS', unitPrice:'', discount:0, gstRate:18 };
+// DSP-001 sections 4-5: saleType defaults to FG - the vast majority of
+// lines are still normal Finished Goods sales, and this keeps the
+// existing CPO-derived flow (which never sets saleType) working exactly
+// as before.
+const BLANK_ITEM = { itemCode:'', itemName:'', qty:1, uom:'PCS', unitPrice:'', discount:0, gstRate:18, saleType:'FG', requiredStageId:'' };
+const SALE_TYPE_COLORS = { RM:'bg-amber-100 text-amber-700', SFG:'bg-cyan-100 text-cyan-700', FG:'bg-green-100 text-green-700' };
 
 function calcItem(item) {
   const qty = parseFloat(item.qty)||0;
@@ -28,7 +33,7 @@ function calcItem(item) {
   const disc = parseFloat(item.discount)||0;
   const gst = parseFloat(item.gstRate)||0;
   const gross = qty * unit;
-  const discAmt = Math.round(gross * disc / 100 * 100) / 100;
+  const discAmt = Math.round(gross* disc / 100 * 100) / 100;
   const taxable = gross - discAmt;
   const gstAmt = Math.round(taxable * gst / 100 * 100) / 100;
   return { total: Math.round((taxable + gstAmt) * 100) / 100, gstAmt };
@@ -51,6 +56,10 @@ export default function SalesOrdersPage() {
   const [form, setForm] = useState({ cpoId:'', deliveryDate:'', remarks:'', items:[{...BLANK_ITEM}] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // DSP-001 sections 7-10: cache of saleable stages per item code, so
+  // switching an already-fetched item back to SFG doesn't re-fetch.
+  const [stagesCache, setStagesCache] = useState({});
+  const [releasingId, setReleasingId] = useState('');
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
@@ -63,19 +72,19 @@ export default function SalesOrdersPage() {
       fetch(`${API}/sales-orders/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/customer-po?status=ACKNOWLEDGED&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
-    if (oRes.ok) { const d = await oRes.json(); setOrders(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
+    if (oRes.ok) { const d = awaitoRes.json(); setOrders(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
     if (sRes.ok) setStats(await sRes.json());
-    if (cRes.ok) { const d = await cRes.json(); setCpos(d.data||[]); }
+    if (cRes.ok) { const d = awaitcRes.json(); setCpos(d.data||[]); }
     setLoading(false);
   }
 
-  useEffect(() => { fetchAll(); }, [page, search, status]);
+  useEffect(() => { fetchAll(); },[page, search, status]);
 
   function handleCpoSelect(cpoId) {
     const cpo = cpos.find(c => c.id === cpoId);
     if (cpo) {
-      const items = cpo.items?.map(i => ({ itemCode:i.itemCode, itemName:i.itemName, qty:i.qty, uom:i.uom, unitPrice:i.unitPrice, discount:i.discount||0, gstRate:i.gstRate||18, cpoItemId:i.id })) || [{...BLANK_ITEM}];
-      setForm(f => ({ ...f, cpoId, deliveryDate: cpo.deliveryDate ? new Date(cpo.deliveryDate).toISOString().split('T')[0] : f.deliveryDate, items }));
+      const items = cpo.items?.map(i => ({ itemCode:i.itemCode, itemName:i.itemName, qty:i.qty, uom:i.uom, unitPrice:i.unitPrice, discount:i.discount||0, gstRate:i.gstRate||18, cpoItemId:i.id, saleType:'FG', requiredStageId:'' })) || [{...BLANK_ITEM}];
+      setForm(f => ({ ...f, cpoId,deliveryDate: cpo.deliveryDate ? new Date(cpo.deliveryDate).toISOString().split('T')[0] : f.deliveryDate, items }));
     } else {
       setForm(f => ({ ...f, cpoId }));
     }
@@ -83,19 +92,45 @@ export default function SalesOrdersPage() {
 
   function addItem() { setForm(f => ({ ...f, items: [...f.items, {...BLANK_ITEM}] })); }
   function removeItem(i) { setForm(f => ({ ...f, items: f.items.filter((_,idx) => idx !== i) })); }
-  function updateItem(i, key, val) { setForm(f => { const items = [...f.items]; items[i] = { ...items[i], [key]: val }; return { ...f, items }; }); }
+  function updateItem(i, key, val){ setForm(f => { const items = [...f.items]; items[i] = { ...items[i], [key]: val }; return { ...f, items }; }); }
+
+  // DSP-001 sections 7-10: when a line is set to SFG (or its item code
+  // changes while already SFG), fetch that specific product's saleable
+  // stages so the dropdown only ever offers valid choices - never a
+  // free-text stage name.
+  async function fetchSaleableStages(itemCode) {
+    if (!itemCode || stagesCache[itemCode]) return;
+    const res = await fetch(`${API}/sales-orders/saleable-stages/${encodeURIComponent(itemCode)}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) {
+      const stages = await res.json();
+      setStagesCache(c => ({ ...c, [itemCode]: stages }));
+    }
+  }
+  function handleSaleTypeChange(i, saleType) {
+    updateItem(i, 'saleType', saleType);
+    updateItem(i, 'requiredStageId', '');
+    if (saleType === 'SFG' && form.items[i]?.itemCode) fetchSaleableStages(form.items[i].itemCode);
+  }
+  function handleItemCodeChange(i, itemCode) {
+    updateItem(i, 'itemCode', itemCode);
+    if (form.items[i]?.saleType === 'SFG') fetchSaleableStages(itemCode);
+  }
 
   const totals = form.items.reduce((acc, item) => {
     const c = calcItem(item);
     return { subtotal: acc.subtotal + (parseFloat(item.qty)||0)*(parseFloat(item.unitPrice)||0), gst: acc.gst + c.gstAmt, total: acc.total + c.total };
-  }, { subtotal: 0, gst: 0, total: 0 });
+  }, { subtotal: 0, gst: 0, total:0 });
 
   async function handleCreate() {
     setSaving(true); setError('');
     const body = {
       ...form,
       deliveryDate: new Date(form.deliveryDate).toISOString(),
-      items: form.items.map(i => ({ ...i, qty: parseFloat(i.qty)||1, unitPrice: parseFloat(i.unitPrice)||0, discount: parseFloat(i.discount)||0, gstRate: parseFloat(i.gstRate)||18 })),
+      items: form.items.map(i => ({
+        ...i,
+        qty: parseFloat(i.qty)||1, unitPrice: parseFloat(i.unitPrice)||0, discount: parseFloat(i.discount)||0, gstRate: parseFloat(i.gstRate)||18,
+        requiredStageId: i.saleType === 'SFG' ? (i.requiredStageId || undefined) : undefined,
+      })),
     };
     if (!body.remarks) delete body.remarks;
     const res = await fetch(`${API}/sales-orders`, {
@@ -103,14 +138,14 @@ export default function SalesOrdersPage() {
       body: JSON.stringify(body),
     });
     const data = await res.json();
-    if (res.ok) { setShowModal(false); fetchAll(); }
+    if (res.ok) { setShowModal(false); setForm({ cpoId:'', deliveryDate:'', remarks:'', items:[{...BLANK_ITEM}] }); fetchAll(); }
     else setError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed');
     setSaving(false);
   }
 
-  async function handleConfirm(id) {
+  async function handleConfirm(id){
     const res = await fetch(`${API}/sales-orders/${id}/confirm`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
-    if (res.ok) { fetchAll(); if (viewDetail?.id===id) { const d = await fetch(`${API}/sales-orders/${id}`, {headers:{Authorization:`Bearer ${getToken()}`}}); if (d.ok) setViewDetail(await d.json()); } }
+    if (res.ok) { fetchAll(); if (viewDetail?.id===id) { const d = await fetch(`${API}/sales-orders/${id}`, {headers:{Authorization: `Bearer ${getToken()}`}}); if (d.ok) setViewDetail(await d.json()); } }
     else { const d = await res.json(); alert(d.message); }
   }
 
@@ -125,8 +160,24 @@ export default function SalesOrdersPage() {
   }
 
   async function openDetail(id) {
-    const res = await fetch(`${API}/sales-orders/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    const res = await fetch(`${API}/sales-orders/${id}`, { headers: {Authorization: `Bearer ${getToken()}` } });
     if (res.ok) setViewDetail(await res.json());
+  }
+
+  // DSP-001 sections 13-15, 21: explicit per-line release action - Sales
+  // does this once the SO is approved, separate from Dispatch's own
+  // read-only view of what's already been released.
+  async function handleRelease(itemId) {
+    setReleasingId(itemId);
+    const res = await fetch(`${API}/sales-orders/items/${itemId}/release-for-dispatch`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
+    const data = await res.json();
+    if (res.ok && viewDetail) {
+      const d = await fetch(`${API}/sales-orders/${viewDetail.id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (d.ok) setViewDetail(await d.json());
+    } else if (!res.ok) {
+      alert(data.message || 'Failed to release for Dispatch');
+    }
+    setReleasingId('');
   }
 
   const isOverdue = o => ['CONFIRMED','IN_PRODUCTION'].includes(o.status) && new Date(o.deliveryDate) < new Date();
@@ -139,7 +190,10 @@ export default function SalesOrdersPage() {
             <h1 className="text-2xl font-bold text-gray-900">Sales Orders</h1>
             <p className="text-gray-500 text-sm mt-1">Internal fulfillment commitments created from Customer POs</p>
           </div>
-          <button onClick={()=>downloadExcel('/excel/sales-orders','Sales Orders')} className="px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">⬇ Excel</button>
+          <div className="flex gap-2">
+            <button onClick={()=>setShowModal(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">+ Create SO</button>
+            <button onClick={()=>downloadExcel('/excel/sales-orders','Sales Orders')} className="px-3 py-2text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">⬇ Excel</button>
+          </div>
         </div>
 
         {stats && (
@@ -165,9 +219,9 @@ export default function SalesOrdersPage() {
 
         <div className="bg-white rounded-xl shadow-sm border">
           <div className="p-4 border-b flex gap-3 flex-wrap">
-            <input className="border rounded-lg px-3 py-2 text-sm flex-1" placeholder="Search SO number, customer..." value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} />
+            <input className="border rounded-lg px-3 py-2 text-sm flex-1" placeholder="Search SO number,customer..." value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} />
             <select className="border rounded-lg px-3 py-2 text-sm" value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}>
-              <option value="">All Status</option>
+              <option value="">AllStatus</option>
               {Object.keys(STATUS_COLORS).map(s=><option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
             </select>
             <span className="text-sm text-gray-500 self-center">{total} SOs</span>
@@ -212,6 +266,93 @@ export default function SalesOrdersPage() {
           )}
         </div>
 
+        {showModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-screen overflow-y-auto">
+              <div className="p-6 border-b flex justify-between sticky top-0 bg-white">
+                <h2 className="text-lg font-bold">Create Sales Order</h2>
+                <button onClick={()=>setShowModal(false)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="p-6 space-y-4">
+                {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Customer PO (Acknowledged) *</label>
+                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.cpoId} onChange={e=>handleCpoSelect(e.target.value)}>
+                      <option value="">Select a CPO...</option>
+                      {cpos.map(c=><option key={c.id} value={c.id}>{c.cpoNumber} - {c.customerName}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Delivery Date *</label>
+                    <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.deliveryDate} onChange={e=>setForm(f=>({...f, deliveryDate:e.target.value}))} />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold text-gray-700 text-sm">Line Items</h3>
+                    <button onClick={addItem} className="text-xs text-indigo-600 hover:underline">+ Add Item</button>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-2">Each line can independently be an RM, SFG, or FG sale - one Sales Order can mix all three.</p>
+                  <div className="space-y-2">
+                    {form.items.map((item,i)=>(
+                      <div key={i} className="border rounded-lg p-3">
+                        <div className="grid grid-cols-6 gap-2 mb-2">
+                          <input className="col-span-2 border rounded px-2 py-1 text-xs" placeholder="Item Code" value={item.itemCode} onChange={e=>handleItemCodeChange(i, e.target.value)} />
+                          <input className="col-span-2 border rounded px-2 py-1 text-xs" placeholder="Item Name" value={item.itemName} onChange={e=>updateItem(i,'itemName',e.target.value)} />
+                          <select className="border rounded px-2 py-1 text-xs" value={item.saleType} onChange={e=>handleSaleTypeChange(i, e.target.value)}>
+                            <option value="RM">RM</option>
+                            <option value="SFG">SFG</option>
+                            <option value="FG">FG</option>
+                          </select>
+                          <button onClick={()=>removeItem(i)} disabled={form.items.length===1} className="text-red-500 text-xs disabled:opacity-30">Remove</button>
+                        </div>
+                        {item.saleType === 'SFG' && (
+                          <div className="mb-2">
+                            <select className="w-full border rounded px-2 py-1 text-xs border-cyan-300" value={item.requiredStageId} onChange={e=>updateItem(i,'requiredStageId',e.target.value)}>
+                              <option value="">Select required saleable stage...</option>
+                              {(stagesCache[item.itemCode]||[]).map(s=><option key={s.id} value={s.id}>{s.stageName}</option>)}
+                            </select>
+                            {item.itemCode && stagesCache[item.itemCode]?.length===0 && (
+                              <p className="text-xs text-orange-600 mt-1">No saleable stages configured for this product yet.</p>
+                            )}
+                          </div>
+                        )}
+                        <div className="grid grid-cols-6 gap-2">
+                          <input type="number" className="border rounded px-2 py-1 text-xs" placeholder="Qty" value={item.qty} onChange={e=>updateItem(i,'qty',e.target.value)} />
+                          <input className="border rounded px-2 py-1 text-xs" placeholder="UOM" value={item.uom} onChange={e=>updateItem(i,'uom',e.target.value)} />
+                          <input type="number" className="border rounded px-2 py-1 text-xs" placeholder="Unit Price" value={item.unitPrice} onChange={e=>updateItem(i,'unitPrice',e.target.value)} />
+                          <input type="number" className="border rounded px-2 py-1 text-xs" placeholder="Discount %" value={item.discount} onChange={e=>updateItem(i,'discount',e.target.value)} />
+                          <input type="number" className="border rounded px-2 py-1 text-xs" placeholder="GST %" value={item.gstRate} onChange={e=>updateItem(i,'gstRate',e.target.value)} />
+                          <div className="text-xs font-bold self-center text-right">{fmt(calcItem(item).total)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <div className="w-56 space-y-1 text-sm">
+                    <div className="flex justify-between"><span className="text-gray-500">Subtotal:</span><span>{fmt(totals.subtotal)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">GST:</span><span>{fmt(totals.gst)}</span></div>
+                    <div className="flex justify-between font-bold border-t pt-1"><span>Total:</span><span>{fmt(totals.total)}</span></div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Remarks</label>
+                  <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} value={form.remarks} onChange={e=>setForm(f=>({...f, remarks:e.target.value}))} />
+                </div>
+              </div>
+              <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
+                <button onClick={()=>setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                <button onClick={handleCreate} disabled={saving || !form.cpoId || !form.deliveryDate} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm disabled:opacity-50">{saving?'Creating...':'Create Sales Order'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {viewDetail && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-screen overflow-y-auto">
@@ -231,26 +372,37 @@ export default function SalesOrdersPage() {
                   </div>
                   <div className="text-sm space-y-1">
                     <div className="flex justify-between"><span className="text-gray-500">Delivery Date:</span><span className={isOverdue(viewDetail)?'text-orange-600 font-bold':''}>{fmtDate(viewDetail.deliveryDate)}</span></div>
-                    {viewDetail.confirmedDate && <div className="flex justify-between"><span className="text-gray-500">Confirmed:</span><span>{fmtDate(viewDetail.confirmedDate)}</span></div>}
+                    {viewDetail.confirmedDate && <div className="flexjustify-between"><span className="text-gray-500">Confirmed:</span><span>{fmtDate(viewDetail.confirmedDate)}</span></div>}
                     {viewDetail.cancelReason && <div className="mt-2 p-2 bg-red-50 rounded text-xs text-red-600">Cancelled: {viewDetail.cancelReason}</div>}
                   </div>
                 </div>
 
                 <table className="w-full text-sm mb-6">
                   <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
-                    <tr>{['#','Item','Qty','Unit Price','GST%','Total','Dispatched','Pending'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
+                    <tr>{['#','Item','Type','Qty','Total','Dispatched','Pending','Dispatch'].map(h=><th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
                   </thead>
                   <tbody className="divide-y">
                     {viewDetail.items?.map((item,i)=>(
                       <tr key={i}>
                         <td className="px-3 py-2 text-xs text-gray-400">{i+1}</td>
                         <td className="px-3 py-2"><div className="font-mono text-xs text-blue-600">{item.itemCode}</div><div className="text-xs">{item.itemName}</div></td>
+                        <td className="px-3 py-2">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${SALE_TYPE_COLORS[item.saleType]||SALE_TYPE_COLORS.FG}`}>{item.saleType||'FG'}</span>
+                          {item.requiredStage?.stageName && <div className="text-xs text-cyan-600 mt-0.5">{item.requiredStage.stageName}</div>}
+                        </td>
                         <td className="px-3 py-2 text-xs">{item.qty} {item.uom}</td>
-                        <td className="px-3 py-2 text-xs">{fmt(item.unitPrice)}</td>
-                        <td className="px-3 py-2 text-xs">{item.gstRate}%</td>
                         <td className="px-3 py-2 text-xs font-bold">{fmt(item.totalAmount)}</td>
                         <td className="px-3 py-2 text-xs text-purple-600">{item.dispatchedQty}</td>
                         <td className={`px-3 py-2 text-xs font-bold ${item.pendingQty>0?'text-orange-600':'text-green-600'}`}>{item.pendingQty}</td>
+                        <td className="px-3 py-2">
+                          {item.releasedForDispatch ? (
+                            <span className="text-xs text-green-600 font-medium">✓ Released</span>
+                          ) : ['CONFIRMED','IN_PRODUCTION'].includes(viewDetail.status) ? (
+                            <button onClick={()=>handleRelease(item.id)} disabled={releasingId===item.id} className="px-2 py-1 text-xs bg-indigo-600 text-white rounded disabled:opacity-50">{releasingId===item.id?'...':'Release'}</button>
+                          ) : (
+                            <span className="text-xs text-gray-400">Not yet</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -280,7 +432,7 @@ export default function SalesOrdersPage() {
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
               <div className="p-6 border-b flex justify-between">
-                <h2 className="text-lg font-bold text-red-700">Cancel Sales Order</h2>
+                <h2 className="text-lg font-bold text-red-700">CancelSales Order</h2>
                 <button onClick={()=>setCancelModal(null)} className="text-gray-400 text-xl">✕</button>
               </div>
               <div className="p-6">

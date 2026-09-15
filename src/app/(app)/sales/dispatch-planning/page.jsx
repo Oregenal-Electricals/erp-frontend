@@ -28,6 +28,9 @@ export default function DispatchPlanningPage() {
   const [form, setForm] = useState({ soId:'', plannedDate:'', deliveryAddress:'', transportMode:'ROAD', transporterName:'', vehicleNumber:'', driverName:'', driverPhone:'', remarks:'', items:[] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [readyLines, setReadyLines] = useState([]);
+  const [readyFilter, setReadyFilter] = useState('');
+  const [readyLoading, setReadyLoading] = useState(true);
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
@@ -47,6 +50,16 @@ export default function DispatchPlanningPage() {
   }
 
   useEffect(() => { fetchAll(); }, [page, search, status]);
+
+  async function fetchReadyLines() {
+    setReadyLoading(true);
+    const params = new URLSearchParams();
+    if (readyFilter) params.set('saleType', readyFilter);
+    const res = await fetch(`${API}/sales-orders/dispatch-ready?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) setReadyLines(await res.json());
+    setReadyLoading(false);
+  }
+  useEffect(() => { fetchReadyLines(); }, [readyFilter]);
 
   async function handleSoSelect(soId) {
     setForm(f => ({ ...f, soId, items:[] }));
@@ -142,6 +155,39 @@ export default function DispatchPlanningPage() {
             ))}
           </div>
         )}
+
+        <div className="bg-white rounded-xl shadow-sm border mb-6">
+          <div className="p-4 border-b flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 className="font-semibold text-gray-700 text-sm">Released for Dispatch</h3>
+              <p className="text-xs text-gray-400">Sales Order lines Sales has approved and released - RM, SFG, or FG.</p>
+            </div>
+            <div className="flex gap-1">
+              {['', 'RM', 'SFG', 'FG'].map(t => (
+                <button key={t||'ALL'} onClick={()=>setReadyFilter(t)} className={`px-3 py-1 rounded-full text-xs font-medium ${readyFilter===t?'bg-indigo-600 text-white':'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{t||'ALL'}</button>
+              ))}
+            </div>
+          </div>
+          <div className="divide-y max-h-72 overflow-y-auto">
+            {readyLoading ? <div className="text-center py-6 text-gray-400 text-sm">Loading...</div>
+            : readyLines.length===0 ? <div className="text-center py-6 text-gray-400 text-sm">Nothing released yet.</div>
+            : readyLines.map(l => (
+              <div key={l.soItemId} className="p-3 flex items-center justify-between flex-wrap gap-2 text-sm">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="font-mono font-bold text-indigo-600 text-xs">{l.soNumber}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${l.saleType==='RM'?'bg-amber-100 text-amber-700':l.saleType==='SFG'?'bg-cyan-100 text-cyan-700':'bg-green-100 text-green-700'}`}>{l.saleType}</span>
+                  <span className="text-gray-700">{l.itemName}</span>
+                  {l.requiredStageName && <span className="text-xs text-cyan-600">({l.requiredStageName})</span>}
+                  <span className="text-xs text-gray-400">{l.customerName}</span>
+                </div>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="text-gray-500">Pending: <span className="font-bold text-orange-600">{l.pendingQty}</span> {l.uom}</span>
+                  <span className="text-gray-400">Due {fmtDate(l.deliveryDate)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
         <div className="bg-white rounded-xl shadow-sm border">
           <div className="p-4 border-b flex gap-3 flex-wrap">
