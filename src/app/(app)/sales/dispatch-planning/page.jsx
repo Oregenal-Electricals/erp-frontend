@@ -31,6 +31,8 @@ export default function DispatchPlanningPage() {
   const [readyLines, setReadyLines] = useState([]);
   const [readyFilter, setReadyFilter] = useState('');
   const [readyLoading, setReadyLoading] = useState(true);
+  const [availability, setAvailability] = useState({});
+  const [checkingId, setCheckingId] = useState('');
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
@@ -60,6 +62,13 @@ export default function DispatchPlanningPage() {
     setReadyLoading(false);
   }
   useEffect(() => { fetchReadyLines(); }, [readyFilter]);
+
+  async function checkAvail(soItemId) {
+    setCheckingId(soItemId);
+    const res = await fetch(`${API}/sales-orders/items/${soItemId}/availability`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) { const data = await res.json(); setAvailability(a => ({ ...a, [soItemId]: data })); }
+    setCheckingId('');
+  }
 
   async function handleSoSelect(soId) {
     setForm(f => ({ ...f, soId, items:[] }));
@@ -187,7 +196,16 @@ export default function DispatchPlanningPage() {
                     {l.sourceType==='RM_INVENTORY' ? 'RM STORE' : l.sourceType==='SFG_STAGE' ? `${l.requiredStageName || 'SFG'} STAGE` : 'FG STORE'}
                   </span>}
                   <span className="text-gray-400">Due {fmtDate(l.deliveryDate)}</span>
+                  <button onClick={()=>checkAvail(l.soItemId)} disabled={checkingId===l.soItemId} className="px-2 py-0.5 rounded border text-xs hover:bg-gray-50 disabled:opacity-50">{checkingId===l.soItemId?'...':'Check'}</button>
                 </div>
+                {availability[l.soItemId] && (
+                  <div className="w-full mt-1 pt-1 border-t text-xs flex items-center gap-3 flex-wrap">
+                    <span className={`px-2 py-0.5 rounded-full font-medium ${availability[l.soItemId].status==='AVAILABLE'?'bg-green-100 text-green-700':availability[l.soItemId].status==='PARTIALLY_AVAILABLE'?'bg-amber-100 text-amber-700':'bg-red-100 text-red-700'}`}>{availability[l.soItemId].status?.replace(/_/g,' ')}</span>
+                    <span className="text-gray-500">Free: <span className="font-bold">{availability[l.soItemId].freeQty}</span></span>
+                    <span className="text-gray-500">Dispatchable Now: <span className="font-bold text-green-700">{availability[l.soItemId].dispatchableNow}</span></span>
+                    {availability[l.soItemId].shortage > 0 && <span className="text-red-600">Shortage: <span className="font-bold">{availability[l.soItemId].shortage}</span></span>}
+                  </div>
+                )}
               </div>
             ))}
           </div>
