@@ -182,6 +182,10 @@ export default function DispatchPlanningPage() {
                 </div>
                 <div className="flex items-center gap-3 text-xs">
                   <span className="text-gray-500">Pending: <span className="font-bold text-orange-600">{l.pendingQty}</span> {l.uom}</span>
+                  {l.sourceValid === false && <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Source Invalid</span>}
+                  {l.sourceType && <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium">
+                    {l.sourceType==='RM_INVENTORY' ? 'RM STORE' : l.sourceType==='SFG_STAGE' ? `${l.requiredStageName || 'SFG'} STAGE` : 'FG STORE'}
+                  </span>}
                   <span className="text-gray-400">Due {fmtDate(l.deliveryDate)}</span>
                 </div>
               </div>
