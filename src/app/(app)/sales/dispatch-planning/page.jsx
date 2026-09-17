@@ -304,6 +304,7 @@ export default function DispatchPlanningPage() {
               </div>
               <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
                 {viewDetail.status==='DRAFT' && <button onClick={()=>handleApprove(viewDetail.id)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">Approve Plan</button>}
+                {viewDetail.status!=='CANCELLED' && <Link href={`/sales/dispatch-fulfillment?planId=${viewDetail.id}`} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">Fulfill Dispatch</Link>}
                 {!['DISPATCHED','CANCELLED'].includes(viewDetail.status) && <button onClick={()=>{setCancelModal(viewDetail.id);setCancelReason('');setViewDetail(null);}} className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm">Cancel Plan</button>}
                 <button onClick={()=>setViewDetail(null)} className="px-4 py-2 border rounded-lg text-sm">Close</button>
               </div>
