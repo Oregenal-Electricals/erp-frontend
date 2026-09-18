@@ -30,6 +30,10 @@ function FulfillmentBody() {
   const [packing, setPacking] = useState(null);
   const [packQty, setPackQty] = useState({});
   const [activePackageId, setActivePackageId] = useState('');
+  const [docReadiness, setDocReadiness] = useState(null);
+  const [transport, setTransport] = useState(null);
+  const [transportForm, setTransportForm] = useState({ transportType: 'TRANSPORTER_VEHICLE', transporterName: '', vehicleNumber: '', vehicleType: '', driverName: '', driverPhone: '' });
+  const [readyForLoading, setReadyForLoading] = useState(null);
 
   const fetchPlan = useCallback(async () => {
     if (!planId || !getToken()) { setLoading(false); return; }
@@ -187,6 +191,51 @@ function FulfillmentBody() {
     const pkRes = await fetch(`${API}/dispatch-packing/${packing.id}`, { headers: authHeaders() });
     if (pkRes.ok) setPacking(await pkRes.json());
     setPackQty(q => ({ ...q, [key]: '' }));
+    setBusy('');
+  }
+
+  async function fetchDocReadiness() {
+    const res = await fetch(`${API}/dispatch-plans/${planId}/document-readiness`, { headers: authHeaders() });
+    if (res.ok) setDocReadiness(await res.json());
+  }
+
+  async function handleCreateTransport() {
+    setBusy('transport'); setError('');
+    const res = await fetch(`${API}/dispatch-transport`, {
+      method: 'POST', headers: authHeaders(true),
+      body: JSON.stringify({ dispatchPlanId: planId, ...transportForm }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setError(data.message || 'Could not create Transport Assignment'); setBusy(''); return; }
+    setTransport(data);
+    setBusy('');
+  }
+
+  async function handleAssignPackageToVehicle(packageId) {
+    setBusy(`assign-${packageId}`); setError('');
+    const res = await fetch(`${API}/dispatch-transport/${transport.id}/packages`, {
+      method: 'POST', headers: authHeaders(true), body: JSON.stringify({ packageId }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setError(data.message || 'Package assignment failed'); setBusy(''); return; }
+    setTransport(data);
+    setBusy('');
+  }
+
+  async function handleConfirmTransport() {
+    setBusy('confirm-transport'); setError('');
+    const res = await fetch(`${API}/dispatch-transport/${transport.id}/confirm`, { method: 'POST', headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) { setError(data.message || 'Confirmation failed'); setBusy(''); return; }
+    setTransport(data);
+    setBusy('');
+  }
+
+  async function handleCheckReadyForLoading() {
+    setBusy('check-ready'); setError('');
+    const res = await fetch(`${API}/dispatch-transport/${transport.id}/ready-for-loading`, { headers: authHeaders() });
+    const data = await res.json();
+    setReadyForLoading(data);
     setBusy('');
   }
 
@@ -371,6 +420,83 @@ function FulfillmentBody() {
                   <div key={p.id} className="text-gray-600">{p.packageNumber} ({p.packageType}): {(p.items||[]).reduce((s,i)=>s+(i.packedQty-i.reversedQty),0)} packed</div>
                 ))}
               </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {packing && packing.status !== 'DRAFT' && (
+        <section className="border rounded-lg p-4">
+          <h2 className="font-medium mb-3">5. Document Readiness</h2>
+          <button onClick={fetchDocReadiness} className="px-3 py-1.5 bg-gray-700 text-white rounded text-sm mb-3">Check Document Readiness</button>
+          {docReadiness && (
+            <div className="text-sm space-y-1">
+              <div>Invoice: <span className="font-medium">{docReadiness.invoice.status}</span> {docReadiness.invoice.invoiceNumber && `(${docReadiness.invoice.invoiceNumber})`} {docReadiness.invoice.reason && <span className="text-gray-500">- {docReadiness.invoice.reason}</span>}</div>
+              <div>Challan: <span className="font-medium">{docReadiness.challan.status}</span></div>
+              <div>E-Way Bill: <span className="font-medium">{docReadiness.ewayBill.status}</span> {docReadiness.ewayBill.ewayBillNumber && `(${docReadiness.ewayBill.ewayBillNumber})`} {docReadiness.ewayBill.reason && <span className="text-gray-500">- {docReadiness.ewayBill.reason}</span>}</div>
+              <div>E-Invoice/IRN: <span className="font-medium">{docReadiness.eInvoiceIrn.status}</span></div>
+              <div className="pt-2 font-semibold">Overall: {docReadiness.overall}</div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {packing && packing.status !== 'DRAFT' && (
+        <section className="border rounded-lg p-4">
+          <h2 className="font-medium mb-3">6. Transport Assignment</h2>
+          {!transport ? (
+            <div className="space-y-2 max-w-md">
+              <select className="border rounded px-2 py-1 text-sm w-full" value={transportForm.transportType} onChange={e => setTransportForm(f => ({ ...f, transportType: e.target.value }))}>
+                <option value="TRANSPORTER_VEHICLE">Transporter Vehicle</option>
+                <option value="OWN_VEHICLE">Own Vehicle</option>
+                <option value="CUSTOMER_PICKUP">Customer Pickup</option>
+              </select>
+              <input className="border rounded px-2 py-1 text-sm w-full" placeholder="Transporter Name" value={transportForm.transporterName} onChange={e => setTransportForm(f => ({ ...f, transporterName: e.target.value }))} />
+              <input className="border rounded px-2 py-1 text-sm w-full" placeholder="Vehicle Number" value={transportForm.vehicleNumber} onChange={e => setTransportForm(f => ({ ...f, vehicleNumber: e.target.value }))} />
+              <input className="border rounded px-2 py-1 text-sm w-full" placeholder="Driver Name" value={transportForm.driverName} onChange={e => setTransportForm(f => ({ ...f, driverName: e.target.value }))} />
+              <input className="border rounded px-2 py-1 text-sm w-full" placeholder="Driver Phone" value={transportForm.driverPhone} onChange={e => setTransportForm(f => ({ ...f, driverPhone: e.target.value }))} />
+              <button disabled={busy === 'transport'} onClick={handleCreateTransport} className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm disabled:opacity-50">Create Transport Assignment</button>
+            </div>
+          ) : (
+            <div>
+              <p className="text-sm text-gray-500 mb-2">{transport.assignmentNumber} · {transport.status} · {transport.vehicleNumber}</p>
+              <table className="w-full text-sm mb-3">
+                <thead className="text-left text-gray-500 border-b">
+                  <tr><th className="py-1">Package</th><th>Type</th><th>Assigned</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {(packing.packages || []).map(p => {
+                    const isAssigned = (transport.packages || []).some(tp => tp.id === p.id);
+                    return (
+                      <tr key={p.id} className="border-b last:border-0">
+                        <td className="py-2">{p.packageNumber}</td>
+                        <td>{p.packageType}</td>
+                        <td>{isAssigned ? 'Yes' : 'No'}</td>
+                        <td>
+                          {!isAssigned && (
+                            <button disabled={busy === `assign-${p.id}`} onClick={() => handleAssignPackageToVehicle(p.id)}
+                              className="px-3 py-1 bg-blue-600 text-white rounded text-xs disabled:opacity-50">Assign to Vehicle</button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {transport.status === 'DRAFT' && (
+                <button disabled={busy === 'confirm-transport'} onClick={handleConfirmTransport} className="px-3 py-1.5 bg-green-600 text-white rounded text-sm disabled:opacity-50 mr-2">Confirm Assignment</button>
+              )}
+              <button disabled={busy === 'check-ready'} onClick={handleCheckReadyForLoading} className="px-3 py-1.5 bg-gray-700 text-white rounded text-sm disabled:opacity-50">Check Ready For Loading</button>
+              {readyForLoading && (
+                <div className="mt-3 text-sm">
+                  <div className="font-semibold">{readyForLoading.readyForLoading ? 'READY FOR LOADING' : 'NOT READY FOR LOADING'}</div>
+                  {readyForLoading.reasons.length > 0 && (
+                    <ul className="list-disc pl-5 text-gray-600">
+                      {readyForLoading.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </section>
