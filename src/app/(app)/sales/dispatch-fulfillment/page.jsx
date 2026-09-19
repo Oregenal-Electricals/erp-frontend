@@ -34,6 +34,10 @@ function FulfillmentBody() {
   const [transport, setTransport] = useState(null);
   const [transportForm, setTransportForm] = useState({ transportType: 'TRANSPORTER_VEHICLE', transporterName: '', vehicleNumber: '', vehicleType: '', driverName: '', driverPhone: '' });
   const [readyForLoading, setReadyForLoading] = useState(null);
+  const [dispatchLoading, setDispatchLoading] = useState(null);
+  const [actualVehicleNumber, setActualVehicleNumber] = useState('');
+  const [confirmation, setConfirmation] = useState(null);
+  const [gateOut, setGateOut] = useState(null);
 
   const fetchPlan = useCallback(async () => {
     if (!planId || !getToken()) { setLoading(false); return; }
@@ -236,6 +240,74 @@ function FulfillmentBody() {
     const res = await fetch(`${API}/dispatch-transport/${transport.id}/ready-for-loading`, { headers: authHeaders() });
     const data = await res.json();
     setReadyForLoading(data);
+    setBusy('');
+  }
+
+  async function handleStartLoading() {
+    setBusy('start-loading'); setError('');
+    const res = await fetch(`${API}/dispatch-loading`, {
+      method: 'POST', headers: authHeaders(true),
+      body: JSON.stringify({ transportAssignmentId: transport.id, actualVehicleNumber: actualVehicleNumber || undefined }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setError(data.message || 'Could not start loading'); setBusy(''); return; }
+    setDispatchLoading(data);
+    setBusy('');
+  }
+
+  async function handleLoadPackage(packageId) {
+    setBusy(`load-${packageId}`); setError('');
+    const res = await fetch(`${API}/dispatch-loading/${dispatchLoading.id}/packages`, {
+      method: 'POST', headers: authHeaders(true),
+      body: JSON.stringify({ packageId, actualVehicleNumber: actualVehicleNumber || undefined }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setError(data.message || 'Package load failed'); setBusy(''); return; }
+    setDispatchLoading(l => ({ ...l, items: [...(l.items || []), data] }));
+    setBusy('');
+  }
+
+  async function handleCompleteLoading() {
+    setBusy('complete-loading'); setError('');
+    const res = await fetch(`${API}/dispatch-loading/${dispatchLoading.id}/complete`, { method: 'POST', headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) { setError(data.message || 'Could not complete loading'); setBusy(''); return; }
+    setDispatchLoading(data);
+    setBusy('');
+  }
+
+  async function handleCreateConfirmation() {
+    setBusy('create-confirmation'); setError('');
+    const res = await fetch(`${API}/dispatch-confirmation`, {
+      method: 'POST', headers: authHeaders(true), body: JSON.stringify({ loadingId: dispatchLoading.id }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setError(data.message || 'Could not create Confirmation'); setBusy(''); return; }
+    setConfirmation(data);
+    setBusy('');
+  }
+
+  async function handleConfirmPackage(packageId) {
+    setBusy(`confirm-${packageId}`); setError('');
+    const res = await fetch(`${API}/dispatch-confirmation/${confirmation.id}/packages`, {
+      method: 'POST', headers: authHeaders(true), body: JSON.stringify({ packageId }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setError(data.message || 'Package confirmation failed'); setBusy(''); return; }
+    const cRes = await fetch(`${API}/dispatch-confirmation/${confirmation.id}`, { headers: authHeaders() });
+    if (cRes.ok) setConfirmation(await cRes.json());
+    setBusy('');
+  }
+
+  async function handleConfirmGateOut() {
+    setBusy('gate-out'); setError('');
+    const res = await fetch(`${API}/dispatch-gate-out`, {
+      method: 'POST', headers: authHeaders(true),
+      body: JSON.stringify({ dispatchConfirmationId: confirmation.id, actualVehicleNumber: actualVehicleNumber || undefined }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setError(data.message || 'Gate-Out failed'); setBusy(''); return; }
+    setGateOut(data);
     setBusy('');
   }
 
@@ -497,6 +569,90 @@ function FulfillmentBody() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {transport && transport.status === 'ASSIGNED' && (
+        <section className="border rounded-lg p-4">
+          <h2 className="font-medium mb-3">7. Loading</h2>
+          <input className="border rounded px-2 py-1 text-sm w-full max-w-xs mb-2" placeholder="Actual Vehicle Number (optional check)" value={actualVehicleNumber} onChange={e => setActualVehicleNumber(e.target.value)} />
+          {!dispatchLoading ? (
+            <div>
+              <button disabled={busy === 'start-loading'} onClick={handleStartLoading} className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm disabled:opacity-50">Start Loading</button>
+            </div>
+          ) : (
+            <div>
+              <p className="text-sm text-gray-500 mb-2">{dispatchLoading.loadingNumber} · {dispatchLoading.status}</p>
+              <table className="w-full text-sm mb-3">
+                <thead className="text-left text-gray-500 border-b"><tr><th className="py-1">Package</th><th>Loaded</th><th></th></tr></thead>
+                <tbody>
+                  {(transport.packages || []).map(p => {
+                    const isLoaded = (dispatchLoading.items || []).some(i => i.packageId === p.id && i.status === 'LOADED');
+                    return (
+                      <tr key={p.id} className="border-b last:border-0">
+                        <td className="py-2">{p.packageNumber}</td>
+                        <td>{isLoaded ? 'Yes' : 'No'}</td>
+                        <td>
+                          {!isLoaded && (
+                            <button disabled={busy === `load-${p.id}`} onClick={() => handleLoadPackage(p.id)} className="px-3 py-1 bg-blue-600 text-white rounded text-xs disabled:opacity-50">Scan / Load</button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {dispatchLoading.status !== 'COMPLETE' && (
+                <button disabled={busy === 'complete-loading'} onClick={handleCompleteLoading} className="px-3 py-1.5 bg-green-600 text-white rounded text-sm disabled:opacity-50">Complete Loading</button>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {dispatchLoading && (dispatchLoading.status === 'PARTIALLY_LOADED' || dispatchLoading.status === 'COMPLETE') && (
+        <section className="border rounded-lg p-4">
+          <h2 className="font-medium mb-3">8. Dispatch Confirmation</h2>
+          {!confirmation ? (
+            <button disabled={busy === 'create-confirmation'} onClick={handleCreateConfirmation} className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm disabled:opacity-50">Start Confirmation</button>
+          ) : (
+            <div>
+              <p className="text-sm text-gray-500 mb-2">{confirmation.confirmationNumber} · {confirmation.status} {confirmation.confirmationType && `· ${confirmation.confirmationType}`}</p>
+              <table className="w-full text-sm mb-3">
+                <thead className="text-left text-gray-500 border-b"><tr><th className="py-1">Package</th><th>Confirmed</th><th></th></tr></thead>
+                <tbody>
+                  {(transport.packages || []).map(p => {
+                    const isConfirmed = (confirmation.items || []).some(i => i.packageId === p.id && i.status === 'CONFIRMED');
+                    return (
+                      <tr key={p.id} className="border-b last:border-0">
+                        <td className="py-2">{p.packageNumber}</td>
+                        <td>{isConfirmed ? 'Yes' : 'No'}</td>
+                        <td>
+                          {!isConfirmed && (
+                            <button disabled={busy === `confirm-${p.id}`} onClick={() => handleConfirmPackage(p.id)} className="px-3 py-1 bg-blue-600 text-white rounded text-xs disabled:opacity-50">Confirm</button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {confirmation && confirmation.status === 'READY_FOR_GATE_OUT' && (
+        <section className="border rounded-lg p-4">
+          <h2 className="font-medium mb-3">9. Gate-Out</h2>
+          {!gateOut ? (
+            <button disabled={busy === 'gate-out'} onClick={handleConfirmGateOut} className="px-3 py-1.5 bg-green-600 text-white rounded text-sm disabled:opacity-50">Confirm Vehicle Exit (Gate-Out)</button>
+          ) : (
+            <div className="text-sm">
+              <p className="font-semibold text-green-700">DISPATCHED</p>
+              <p className="text-gray-500">{gateOut.gateOutNumber} · Vehicle {gateOut.vehicleNumber} · {new Date(gateOut.gateOutAt).toLocaleString()}</p>
             </div>
           )}
         </section>

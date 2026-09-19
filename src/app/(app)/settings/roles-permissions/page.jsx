@@ -315,7 +315,6 @@ export default function RolesPermissionsPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-gray-800">{role.label}</span>
-                  <span className="font-mono text-xs text-gray-400">{role.name}</span>
                   {role.isProtected && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Protected</span>}
                   {role.isSystemRole && !role.isProtected && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">System</span>}
                 </div>
