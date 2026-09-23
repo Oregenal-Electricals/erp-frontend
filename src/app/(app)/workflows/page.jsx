@@ -8,7 +8,7 @@ const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN',{day:'2-digit',m
 const fmt = n => n ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
 const TABS = ['Pending Approvals','All Requests','Workflow Definitions'];
 const STATUS_COLORS = { PENDING:'bg-yellow-100 text-yellow-700', APPROVED:'bg-green-100 text-green-700', REJECTED:'bg-red-100 text-red-700', CANCELLED:'bg-gray-100 text-gray-500' };
-const DOC_ICONS = { PURCHASE_ORDER:'🛒', SALES_ORDER:'📋', AP_BILL:'🧾', CREDIT_OVERRIDE:'💳', VOUCHER:'📒' };
+const DOC_ICONS = { PURCHASE_ORDER:'🛒', SALES_ORDER:'📋', AP_BILL:'🧾', CREDIT_OVERRIDE:'💳', VOUCHER:'📒', BOM:'🧬', PRODUCT:'📦' };
 
 export default function WorkflowsPage() {
   const [activeTab, setActiveTab] = useState('Pending Approvals');
@@ -26,6 +26,11 @@ export default function WorkflowsPage() {
   const [actionForm, setActionForm] = useState({ action:"APPROVED", comments:"" });
   const [seeding, setSeeding] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editWorkflow, setEditWorkflow] = useState(null);
+  const [editSteps, setEditSteps] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [savingWorkflow, setSavingWorkflow] = useState(false);
+  const [workflowError, setWorkflowError] = useState('');
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
@@ -51,6 +56,44 @@ export default function WorkflowsPage() {
     setSeeding(true);
     const res = await fetch(`${API}/workflows/seed`,{method:'POST',headers:{Authorization:`Bearer ${getToken()}`}});
     const d = await res.json(); alert(d.message); fetchAll(); setSeeding(false);
+  }
+
+  // Lets Super Admin (or anyone with WORKFLOW_MANAGE) actually assign a
+  // specific person to each approval level, rather than that being
+  // something baked in by whoever built this - the real "who has the
+  // power to approve this" control belongs here, not in code.
+  async function openEditWorkflow(wf) {
+    setWorkflowError('');
+    setEditWorkflow(wf);
+    setEditSteps((wf.steps || []).map(s => ({ level: s.level, stepName: s.stepName, approverUserId: s.approverUserId || '', timeoutHours: s.timeoutHours || 48 })));
+    if (users.length === 0) {
+      const res = await fetch(`${API}/users?limit=200`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (res.ok) { const d = await res.json(); setUsers(d.data || d || []); }
+    }
+  }
+
+  function updateEditStep(index, field, value) {
+    setEditSteps(steps => steps.map((s, i) => i === index ? { ...s, [field]: value } : s));
+  }
+
+  function addEditStep() {
+    setEditSteps(steps => [...steps, { level: steps.length + 1, stepName: `Level ${steps.length + 1} Review`, approverUserId: '', timeoutHours: 48 }]);
+  }
+
+  function removeEditStep(index) {
+    setEditSteps(steps => steps.filter((_, i) => i !== index).map((s, i) => ({ ...s, level: i + 1 })));
+  }
+
+  async function handleSaveWorkflow() {
+    if (editSteps.length === 0) { setWorkflowError('At least one approval level is required'); return; }
+    setSavingWorkflow(true); setWorkflowError('');
+    const res = await fetch(`${API}/workflows/definitions/${editWorkflow.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ steps: editSteps.map(s => ({ ...s, approverUserId: s.approverUserId || undefined })) }),
+    });
+    if (res.ok) { setEditWorkflow(null); fetchAll(); }
+    else { const d = await res.json(); setWorkflowError(d.message || 'Failed to save'); }
+    setSavingWorkflow(false);
   }
 
   async function handleAction() {
@@ -207,10 +250,62 @@ export default function WorkflowsPage() {
                       </div>
                     </div>
                   </div>
-                  <span className="text-xs text-gray-400">{wf._count?.requests||0} requests</span>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className="text-xs text-gray-400">{wf._count?.requests||0} requests</span>
+                    <button onClick={() => openEditWorkflow(wf)} className="text-xs text-indigo-600 hover:underline">Edit Approvers</button>
+                  </div>
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {editWorkflow && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-screen overflow-y-auto">
+              <div className="p-6 border-b flex justify-between sticky top-0 bg-white">
+                <div>
+                  <h2 className="text-lg font-bold">{editWorkflow.name}</h2>
+                  <p className="text-xs text-gray-400">Assign who approves each level, or leave a level unassigned to keep it open to anyone with approval rights.</p>
+                </div>
+                <button onClick={() => setEditWorkflow(null)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="p-6 space-y-3">
+                {workflowError && <div className="p-3 bg-red-50 text-red-600 text-sm rounded">{workflowError}</div>}
+                {editSteps.map((step, i) => (
+                  <div key={i} className="flex items-center gap-2 border rounded-lg p-3">
+                    <span className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs flex-shrink-0">{step.level}</span>
+                    <input
+                      className="border rounded px-2 py-1.5 text-sm flex-1"
+                      value={step.stepName}
+                      onChange={e => updateEditStep(i, 'stepName', e.target.value)}
+                      placeholder="Step name"
+                    />
+                    <select
+                      className="border rounded px-2 py-1.5 text-sm flex-1"
+                      value={step.approverUserId}
+                      onChange={e => updateEditStep(i, 'approverUserId', e.target.value)}
+                    >
+                      <option value="">Unassigned (open to any approver)</option>
+                      {users.map(u => <option key={u.id} value={u.id}>{u.firstName} {u.lastName} ({u.role})</option>)}
+                    </select>
+                    <input
+                      type="number" min="1"
+                      className="border rounded px-2 py-1.5 text-sm w-20"
+                      value={step.timeoutHours}
+                      onChange={e => updateEditStep(i, 'timeoutHours', Number(e.target.value))}
+                      title="Timeout (hours)"
+                    />
+                    <button onClick={() => removeEditStep(i)} className="text-red-400 hover:text-red-600 text-sm px-1">✕</button>
+                  </div>
+                ))}
+                <button onClick={addEditStep} className="text-sm text-indigo-600 hover:underline">+ Add level</button>
+              </div>
+              <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
+                <button onClick={() => setEditWorkflow(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                <button onClick={handleSaveWorkflow} disabled={savingWorkflow} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm disabled:opacity-50">{savingWorkflow ? 'Saving...' : 'Save'}</button>
+              </div>
+            </div>
           </div>
         )}
 
