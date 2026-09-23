@@ -578,7 +578,7 @@ export default function BomDetailPage() {
           );
         })()}
         {bom.status !== 'DRAFT' && bom.status !== 'OBSOLETE' && (
-          <ApprovalTimeline documentType="BOM" documentId={id} queries={bom.queries} />
+          <ApprovalTimeline documentType="BOM" documentId={id} queries={bom.queries} onDone={() => { fetchBom(); fetchChain(); }} />
         )}
         {/* Created / Verified / Approved - auto-filled from login, never
             manually typed. Always shown at the bottom of the BOM so the

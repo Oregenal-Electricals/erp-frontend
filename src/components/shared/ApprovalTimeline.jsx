@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { getUser } from '@/lib/auth';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
@@ -13,37 +14,64 @@ const STATUS_COLORS = {
 
 /**
  * Reusable, complete approval history for any document already wired into
- * the generic workflow engine (BOM, Product, ...). Shows every level's
- * status - approved/rejected/pending/not-yet-reached - with who acted and
- * when, plus any queries raised on the document interleaved chronologically.
- * This is the single place a creator, an approver, Admin, or Super Admin
- * can see exactly where a document stands and what happened before.
+ * the generic workflow engine (BOM, Product, ...) - AND the place the
+ * action actually happens. If the logged-in user is the assigned approver
+ * for the current pending level (or that level is unassigned, open to
+ * anyone with approval rights), Approve/Reject buttons render right here -
+ * no separate Workflows page needed to act on something you're already
+ * looking at. Pass onDone to refresh the parent page's own data after an
+ * action completes.
  */
-export default function ApprovalTimeline({ documentType, documentId, queries }) {
+export default function ApprovalTimeline({ documentType, documentId, queries, onDone }) {
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [acting, setActing] = useState(false);
+  const user = typeof window !== 'undefined' ? getUser() : null;
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!documentId) return;
-    (async () => {
-      setLoading(true); setError('');
-      const listRes = await fetch(`${API}/workflows/requests?documentType=${documentType}&documentId=${documentId}&limit=1`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      if (!listRes.ok) { setError('Could not load approval history'); setLoading(false); return; }
-      const listData = await listRes.json();
-      const latest = listData.data?.[0];
-      if (!latest) { setLoading(false); return; }
-      const detailRes = await fetch(`${API}/workflows/requests/${latest.id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
-      if (detailRes.ok) setRequest(await detailRes.json());
-      setLoading(false);
-    })();
+    setLoading(true); setError('');
+    const listRes = await fetch(`${API}/workflows/requests?documentType=${documentType}&documentId=${documentId}&limit=1`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!listRes.ok) { setError('Could not load approval history'); setLoading(false); return; }
+    const listData = await listRes.json();
+    const latest = listData.data?.[0];
+    if (!latest) { setLoading(false); return; }
+    const detailRes = await fetch(`${API}/workflows/requests/${latest.id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (detailRes.ok) setRequest(await detailRes.json());
+    setLoading(false);
   }, [documentType, documentId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleAction(action) {
+    let comments = '';
+    if (action === 'REJECTED') {
+      comments = window.prompt('Reason for rejection (required):') || '';
+      if (!comments.trim()) return;
+    } else {
+      if (!window.confirm('Approve this level?')) return;
+    }
+    setActing(true);
+    const res = await fetch(`${API}/workflows/requests/${request.id}/action`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ action, comments: comments || undefined }),
+    });
+    if (res.ok) { await load(); onDone?.(); }
+    else { const d = await res.json(); alert(d.message || 'Action failed'); }
+    setActing(false);
+  }
 
   if (loading) return <div className="bg-white rounded-xl shadow-sm border p-5 mt-6 text-sm text-gray-400">Loading approval history...</div>;
   if (error) return <div className="bg-white rounded-xl shadow-sm border p-5 mt-6 text-sm text-red-600">{error}</div>;
   if (!request) return null;
+
+  const currentStep = request.workflow?.steps?.find(s => s.level === request.currentLevel);
+  const canAct = request.status === 'PENDING' && user && (
+    user.role === 'SUPER_ADMIN' || !currentStep?.approverUserId || currentStep.approverUserId === user.id
+  );
 
   // Merge the step timeline with any queries into one chronologically-sorted feed.
   const events = [];
@@ -75,6 +103,16 @@ export default function ApprovalTimeline({ documentType, documentId, queries }) 
           {request.status}{request.status === 'PENDING' && ` — level ${request.currentLevel}/${request.totalLevels}`}
         </span>
       </div>
+
+      {canAct && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-between">
+          <span className="text-sm text-yellow-800">This is waiting on your approval{currentStep?.stepName ? ` (${currentStep.stepName})` : ''}.</span>
+          <div className="flex gap-2">
+            <button onClick={() => handleAction('APPROVED')} disabled={acting} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm disabled:opacity-50">Approve</button>
+            <button onClick={() => handleAction('REJECTED')} disabled={acting} className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">Reject</button>
+          </div>
+        </div>
+      )}
 
       <div className="mb-4">
         <div className="font-medium text-xs text-gray-500 mb-2 uppercase tracking-wide">Approval Steps</div>

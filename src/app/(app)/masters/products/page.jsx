@@ -69,6 +69,20 @@ export default function ProductsPage() {
   useEffect(() => { fetchStats(); fetchDropdowns(); }, [fetchStats, fetchDropdowns]);
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
+  // Supports being linked straight to a product's approval status from the
+  // My Approvals inbox (?viewApproval=<id>) without waiting on the full
+  // product list to load first.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('viewApproval');
+    if (!id) return;
+    (async () => {
+      const res = await fetch(`${API}/products/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (res.ok) setViewApproval(await res.json());
+    })();
+  }, []);
+
   function resetForm() {
     return {
       code: '', name: '', description: '', productType: 'FINISHED_GOOD',
@@ -362,7 +376,7 @@ export default function ProductsPage() {
                 <button onClick={() => setViewApproval(null)} className="text-gray-400 text-xl">✕</button>
               </div>
               <div className="p-6">
-                <ApprovalTimeline documentType="PRODUCT" documentId={viewApproval.id} />
+                <ApprovalTimeline documentType="PRODUCT" documentId={viewApproval.id} onDone={() => { fetchProducts(); fetchStats(); }} />
               </div>
               <div className="p-6 border-t flex justify-end sticky bottom-0 bg-white">
                 <button onClick={() => setViewApproval(null)} className="px-4 py-2 border rounded-lg text-sm">Close</button>
