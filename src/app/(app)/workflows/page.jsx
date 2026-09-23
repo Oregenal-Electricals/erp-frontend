@@ -250,7 +250,7 @@ export default function WorkflowsPage() {
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${action?.action==='APPROVED'?'bg-green-100 text-green-700':action?.action==='REJECTED'?'bg-red-100 text-red-700':viewDetail.currentLevel===step.level?'bg-yellow-100 text-yellow-700 ring-2 ring-yellow-400':'bg-gray-100 text-gray-400'}`}>{step.level}</div>
                         <div className="flex-1">
                           <div className="font-medium text-sm">{step.stepName}</div>
-                          {action&&<div className="text-xs text-gray-500 mt-0.5">{action.action} on {fmtDate(action.actionDate)}{action.comments && <span> — {action.comments}</span>}</div>}
+                          {action&&<div className="text-xs text-gray-500 mt-0.5">{action.action} by {(() => { const u = viewDetail.actorNames?.[action.actionBy]; return u ? `${u.firstName||''} ${u.lastName||''}`.trim() || u.email : 'someone'; })()} on {fmtDate(action.actionDate)}{action.comments && <span> — {action.comments}</span>}</div>}
                           {!action&&viewDetail.currentLevel===step.level&&viewDetail.status==='PENDING'&&<div className="text-xs text-yellow-600 mt-0.5">⏳ Awaiting approval</div>}
                           {!action&&viewDetail.currentLevel!==step.level&&<div className="text-xs text-gray-400 mt-0.5">Not yet reached</div>}
                         </div>

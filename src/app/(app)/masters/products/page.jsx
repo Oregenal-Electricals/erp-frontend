@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import CustomFields from '@/components/custom-fields/CustomFields';
 import DeleteRequestModal from '@/components/DeleteRequestModal';
+import ApprovalTimeline from '@/components/shared/ApprovalTimeline';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() {
@@ -24,6 +25,7 @@ export default function ProductsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const [viewApproval, setViewApproval] = useState(null);
   const [editProduct, setEditProduct] = useState(null);
   const [form, setForm] = useState({
     code: '', name: '', description: '', productType: 'FINISHED_GOOD',
@@ -209,13 +211,23 @@ export default function ProductsPage() {
                     <td className="px-4 py-3 text-gray-600">{p.revision || '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{p.uom?.code || '—'}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${p.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {p.isActive ? 'Active' : 'Inactive'}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${p.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {p.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        {p.status && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            p.status === 'APPROVED' ? 'bg-green-50 text-green-600' :
+                            p.status === 'PENDING_APPROVAL' ? 'bg-yellow-50 text-yellow-700' :
+                            p.status === 'REJECTED' ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-500'
+                          }`}>{p.status.replace('_', ' ')}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <button onClick={() => openEdit(p)} className="text-blue-600 hover:underline text-xs">Edit</button>
+                        {p.status && p.status !== 'DRAFT' && <button onClick={() => setViewApproval(p)} className="text-indigo-600 hover:underline text-xs">View Approval</button>}
                         {p.isActive && <button onClick={() => setDeleteTarget(p)} className="text-red-500 hover:underline text-xs">Deactivate</button>}
                       </div>
                     </td>
@@ -340,6 +352,23 @@ export default function ProductsPage() {
             onClose={() => setDeleteTarget(null)}
             onDone={handleDeleteRequestDone}
           />
+        )}
+
+        {viewApproval && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-screen overflow-y-auto">
+              <div className="p-6 border-b flex justify-between sticky top-0 bg-white">
+                <h2 className="text-lg font-bold">{viewApproval.code} - {viewApproval.name}</h2>
+                <button onClick={() => setViewApproval(null)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="p-6">
+                <ApprovalTimeline documentType="PRODUCT" documentId={viewApproval.id} />
+              </div>
+              <div className="p-6 border-t flex justify-end sticky bottom-0 bg-white">
+                <button onClick={() => setViewApproval(null)} className="px-4 py-2 border rounded-lg text-sm">Close</button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </AppLayout>

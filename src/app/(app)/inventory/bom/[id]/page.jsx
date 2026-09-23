@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
 import CustomFields from '@/components/custom-fields/CustomFields';
+import ApprovalTimeline from '@/components/shared/ApprovalTimeline';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() {
@@ -35,7 +36,6 @@ export default function BomDetailPage() {
   const [routings, setRoutings] = useState([]);
   const [stageNames, setStageNames] = useState({});
   const [generatingStages, setGeneratingStages] = useState(false);
-  const [approvingStages, setApprovingStages] = useState(false);
   const [creatingRouting, setCreatingRouting] = useState(false);
   const [setupError, setSetupError] = useState('');
 
@@ -102,11 +102,11 @@ export default function BomDetailPage() {
       .then((d) => setUsers(d?.data || d?.items || d || []));
   }, []);
 
-  async function handleVerify() {
-    if (!confirm('Verify this BOM? This confirms the routing and every step is correct before it moves to final approval.')) return;
-    const res = await fetch(`${API}/boms/${id}/verify`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
+  async function handleSubmitForApproval() {
+    if (!confirm('Submit this BOM for approval? It will go through the configured approval chain before it becomes usable.')) return;
+    const res = await fetch(`${API}/boms/${id}/submit-for-approval`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
     if (res.ok) { fetchBom(); fetchChain(); }
-    else { const d = await res.json(); alert(d.message || 'Failed to verify'); }
+    else { const d = await res.json(); alert(d.message || 'Failed to submit for approval'); }
   }
 
   async function handleRaiseQuery() {
@@ -206,13 +206,6 @@ export default function BomDetailPage() {
     fetchBom();
   }
 
-  async function handleApprove() {
-    if (!confirm('Approve this BOM? Items cannot be modified after approval.')) return;
-    const res = await fetch(`${API}/boms/${id}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
-    if (res.ok) { fetchBom(); fetchChain(); }
-    else { const d = await res.json(); alert(d.message || 'Failed to approve'); }
-  }
-
   async function handleObsolete() {
     if (!confirm('Mark this BOM as obsolete?')) return;
     await fetch(`${API}/boms/${id}/obsolete`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
@@ -242,22 +235,6 @@ export default function BomDetailPage() {
     if (res.ok) { fetchChain(); }
     else setSetupError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed to generate stages');
     setGeneratingStages(false);
-  }
-
-  async function handleApproveAllStages() {
-    setApprovingStages(true); setSetupError('');
-    const toApprove = stages.filter(s => s.status === 'DRAFT');
-    for (const s of toApprove) {
-      const res = await fetch(`${API}/boms/${s.id}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
-      if (!res.ok) {
-        const data = await res.json();
-        setSetupError(`Failed approving ${s.bomNumber}: ${data.message || 'unknown error'}`);
-        setApprovingStages(false);
-        return;
-      }
-    }
-    fetchChain();
-    setApprovingStages(false);
   }
 
   async function handleCreateRouting() {
@@ -576,43 +553,33 @@ export default function BomDetailPage() {
             of the item list, so acting on a BOM means actually scrolling
             through its items, stages, and routing first - not just
             clicking the moment the page loads. */}
-        {(bom.status === 'DRAFT' || bom.status === 'VERIFIED') && (() => {
+        {bom.status === 'DRAFT' && (() => {
           const hasOpenQuery = bom.queries?.some((q) => q.status === 'OPEN');
           const needsRouting = bom.bomType === 'MASTER' && !routings.some((r) => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId);
-          const verifyBlockedReason = hasOpenQuery ? 'Resolve the open query first' : needsRouting ? 'Create the production routing first' : '';
-          const approveBlockedReason = hasOpenQuery ? 'Resolve the open query first' : '';
+          const submitBlockedReason = hasOpenQuery ? 'Resolve the open query first' : needsRouting ? 'Create the production routing first' : (!bom.items || bom.items.length === 0) ? 'Add at least one item first' : '';
           return (
             <div className="bg-white rounded-xl shadow-sm border-2 border-indigo-200 p-5 mt-6 flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                You&apos;ve reviewed the items{stages.length > 0 ? ', stages, and routing' : ''} above. Ready to act?
+                You&apos;ve reviewed the items{stages.length > 0 ? ', stages, and routing' : ''} above. Ready to submit for approval?
                 {hasOpenQuery && <span className="ml-2 text-amber-600 font-medium">An open query must be resolved first.</span>}
               </div>
               <div className="flex gap-2">
-                {bom.status === 'DRAFT' && (
-                  <button
-                    onClick={handleVerify}
-                    disabled={!!verifyBlockedReason}
-                    title={verifyBlockedReason}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Verify BOM
-                  </button>
-                )}
-                {bom.status === 'VERIFIED' && (
-                  <button
-                    onClick={handleApprove}
-                    disabled={!!approveBlockedReason}
-                    title={approveBlockedReason}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Approve BOM
-                  </button>
-                )}
+                <button
+                  onClick={handleSubmitForApproval}
+                  disabled={!!submitBlockedReason}
+                  title={submitBlockedReason}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Submit for Approval
+                </button>
                 <button onClick={() => { setShowQueryModal(true); setQueryError(''); }} className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600">Raise Query</button>
               </div>
             </div>
           );
         })()}
+        {bom.status !== 'DRAFT' && bom.status !== 'OBSOLETE' && (
+          <ApprovalTimeline documentType="BOM" documentId={id} queries={bom.queries} />
+        )}
         {/* Created / Verified / Approved - auto-filled from login, never
             manually typed. Always shown at the bottom of the BOM so the
             full chain of accountability is visible at a glance. */}
