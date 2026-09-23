@@ -22,6 +22,7 @@ export default function BomDetailPage() {
   const { id } = useParams();
   const [bom, setBom] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({
@@ -92,7 +93,8 @@ export default function BomDetailPage() {
   const fetchBom = useCallback(async () => {
     setLoading(true);
     const res = await fetch(`${API}/boms/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
-    if (res.ok) setBom(await res.json());
+    if (res.ok) { setBom(await res.json()); setFetchError(''); }
+    else { const d = await res.json().catch(() => ({})); setFetchError(d.message || (res.status === 403 ? 'You do not have permission to view this BOM' : 'BOM not found')); }
     setLoading(false);
   }, [id]);
 
@@ -255,7 +257,7 @@ export default function BomDetailPage() {
   }
 
   if (loading) return <AppLayout><div className="p-6 text-gray-400">Loading...</div></AppLayout>;
-  if (!bom) return <AppLayout><div className="p-6 text-red-500">BOM not found</div></AppLayout>;
+  if (!bom) return <AppLayout><div className="p-6 text-red-500">{fetchError || 'BOM not found'}</div></AppLayout>;
 
   const totalCost = bom.items?.reduce((s, i) => s + (i.totalCost || 0), 0) || 0;
 
