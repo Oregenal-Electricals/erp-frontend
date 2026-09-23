@@ -69,7 +69,11 @@ export default function ApprovalTimeline({ documentType, documentId, queries, on
   if (!request) return null;
 
   const currentStep = request.workflow?.steps?.find(s => s.level === request.currentLevel);
-  const canAct = request.status === 'PENDING' && user && (
+  const hasOpenQuery = queries?.some(q => q.status === 'OPEN');
+  const canAct = request.status === 'PENDING' && user && !hasOpenQuery && (
+    user.role === 'SUPER_ADMIN' || !currentStep?.approverUserId || currentStep.approverUserId === user.id
+  );
+  const isAssignedButBlocked = request.status === 'PENDING' && user && hasOpenQuery && (
     user.role === 'SUPER_ADMIN' || !currentStep?.approverUserId || currentStep.approverUserId === user.id
   );
 
@@ -111,6 +115,11 @@ export default function ApprovalTimeline({ documentType, documentId, queries, on
             <button onClick={() => handleAction('APPROVED')} disabled={acting} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm disabled:opacity-50">Approve</button>
             <button onClick={() => handleAction('REJECTED')} disabled={acting} className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">Reject</button>
           </div>
+        </div>
+      )}
+      {isAssignedButBlocked && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+          An open query must be resolved before this can be approved or rejected.
         </div>
       )}
 
