@@ -579,6 +579,12 @@ export default function BomDetailPage() {
             </div>
           );
         })()}
+        {bom.status === 'PENDING_APPROVAL' && (
+          <div className="bg-white rounded-xl shadow-sm border p-4 mt-6 flex items-center justify-between">
+            <span className="text-sm text-gray-600">Spotted something that needs clarifying before you act? You can still raise a query while this is under review.</span>
+            <button onClick={() => { setShowQueryModal(true); setQueryError(''); }} className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600">Raise Query</button>
+          </div>
+        )}
         {bom.status !== 'DRAFT' && bom.status !== 'OBSOLETE' && (
           <ApprovalTimeline documentType="BOM" documentId={id} queries={bom.queries} onDone={() => { fetchBom(); fetchChain(); }} />
         )}
