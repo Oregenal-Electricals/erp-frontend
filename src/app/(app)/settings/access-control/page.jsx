@@ -179,6 +179,7 @@ export default function AccessControlPage() {
   const [pendingVisibility, setPendingVisibility] = useState({});
   const [overrideUserId, setOverrideUserId] = useState('');
   const [pendingUserOverrides, setPendingUserOverrides] = useState({});
+  const [pendingOrder, setPendingOrder] = useState({});
 
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ name: '', label: '' });
@@ -219,6 +220,7 @@ export default function AccessControlPage() {
     setPendingVisibility({});
     setOverrideUserId('');
     setPendingUserOverrides({});
+    setPendingOrder({});
     fetchMembers(selectedRole.name);
   }, [selectedRoleId]);
 
@@ -271,11 +273,39 @@ export default function AccessControlPage() {
   function toggleUserVisibility(el) {
     setPendingUserOverrides((prev) => ({ ...prev, [el.id]: !userVisible(el) }));
   }
+  function effectiveOrder(el) {
+    if (pendingOrder[el.id] !== undefined) return pendingOrder[el.id];
+    const saved = el.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === selectedRole?.name);
+    if (saved?.sortOrderOverride !== undefined && saved?.sortOrderOverride !== null) return saved.sortOrderOverride;
+    return el.sortOrder ?? 0;
+  }
+  function moveItem(siblings, el, direction) {
+    const sorted = [...siblings].sort((a, b) => effectiveOrder(a) - effectiveOrder(b));
+    const idx = sorted.findIndex((x) => x.id === el.id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+    const a = sorted[idx], b = sorted[swapIdx];
+    const orderA = effectiveOrder(a), orderB = effectiveOrder(b);
+    setPendingOrder((prev) => ({ ...prev, [a.id]: orderB, [b.id]: orderA }));
+  }
+  function findElement(id) {
+    for (const sec of structure) {
+      if (sec.id === id) return sec;
+      const item = (sec.items || []).find((i) => i.id === id);
+      if (item) return item;
+    }
+    return null;
+  }
   async function saveVisibility() {
     setSaving(true);
     const overrides = [];
-    for (const [elementId, isVisible] of Object.entries(pendingVisibility)) {
-      overrides.push({ elementId, scopeType: 'ROLE', roleName: selectedRole.name, isVisible });
+    const roleTouchedIds = new Set([...Object.keys(pendingVisibility), ...Object.keys(pendingOrder)]);
+    for (const elementId of roleTouchedIds) {
+      const el = findElement(elementId);
+      if (!el) continue;
+      const entry = { elementId, scopeType: 'ROLE', roleName: selectedRole.name, isVisible: roleVisible(el) };
+      if (pendingOrder[elementId] !== undefined) entry.sortOrderOverride = pendingOrder[elementId];
+      overrides.push(entry);
     }
     if (overrideUserId) {
       for (const [elementId, isVisible] of Object.entries(pendingUserOverrides)) {
@@ -288,9 +318,9 @@ export default function AccessControlPage() {
         body: JSON.stringify({ overrides }),
       });
     }
-    setPendingVisibility({}); setPendingUserOverrides({});
+    setPendingVisibility({}); setPendingUserOverrides({}); setPendingOrder({});
     await load();
-    showToast('Visibility saved');
+    showToast('Saved');
     setSaving(false);
   }
 
@@ -315,7 +345,7 @@ export default function AccessControlPage() {
     else alert(data.message || 'Failed to delete role');
   }
 
-  const pendingCount = Object.keys(pendingVisibility).length + Object.keys(pendingUserOverrides).length;
+  const pendingCount = new Set([...Object.keys(pendingVisibility), ...Object.keys(pendingUserOverrides), ...Object.keys(pendingOrder)]).size;
 
   if (loading) return <AppLayout><div className="p-6 text-gray-400">Loading...</div></AppLayout>;
 
@@ -360,6 +390,7 @@ export default function AccessControlPage() {
                   { key: 'members', label: `Members (${members.length})` },
                   { key: 'permissions', label: 'What They Can Do' },
                   { key: 'visibility', label: 'What They Can See' },
+                  { key: 'sidebarView', label: 'Sidebar View' },
                 ].map((t) => (
                   <button
                     key={t.key}
@@ -478,6 +509,50 @@ export default function AccessControlPage() {
                         ))}
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {section === 'sidebarView' && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm text-gray-500">This is exactly what {selectedRole.label || selectedRole.name} sees in their sidebar. Use the arrows to reorder, or the eye icon to hide something - just for this role.</p>
+                    <button onClick={saveVisibility} disabled={pendingCount === 0 || saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-40 flex-shrink-0 ml-3">
+                      {saving ? 'Saving...' : `Save${pendingCount > 0 ? ` (${pendingCount})` : ''}`}
+                    </button>
+                  </div>
+                  <div className="bg-white rounded-xl border shadow-sm p-3 max-w-sm">
+                    {[...structure].sort((a, b) => effectiveOrder(a) - effectiveOrder(b)).map((sec, i, arr) => {
+                      const sortedItems = [...(sec.items || [])].sort((a, b) => effectiveOrder(a) - effectiveOrder(b));
+                      return (
+                        <div key={sec.id} className="mb-1">
+                          <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-50">
+                            <span className={`text-sm font-semibold ${roleVisible(sec) ? 'text-gray-800' : 'text-gray-300 line-through'}`}>{sec.label}</span>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button onClick={() => toggleRoleVisibility(sec)} title={roleVisible(sec) ? 'Visible - click to hide' : 'Hidden - click to show'} className="text-sm px-1">
+                                {roleVisible(sec) ? '👁️' : '🚫'}
+                              </button>
+                              <button onClick={() => moveItem(arr, sec, 'up')} disabled={i === 0} className="text-xs px-1 text-gray-500 disabled:opacity-20">↑</button>
+                              <button onClick={() => moveItem(arr, sec, 'down')} disabled={i === arr.length - 1} className="text-xs px-1 text-gray-500 disabled:opacity-20">↓</button>
+                            </div>
+                          </div>
+                          <div className="ml-4 border-l pl-2">
+                            {sortedItems.map((item, j) => (
+                              <div key={item.id} className="flex items-center justify-between px-2 py-1 rounded hover:bg-gray-50">
+                                <span className={`text-sm ${roleVisible(item) ? 'text-gray-600' : 'text-gray-300 line-through'}`}>{item.label}</span>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <button onClick={() => toggleRoleVisibility(item)} title={roleVisible(item) ? 'Visible - click to hide' : 'Hidden - click to show'} className="text-sm px-1">
+                                    {roleVisible(item) ? '👁️' : '🚫'}
+                                  </button>
+                                  <button onClick={() => moveItem(sortedItems, item, 'up')} disabled={j === 0} className="text-xs px-1 text-gray-500 disabled:opacity-20">↑</button>
+                                  <button onClick={() => moveItem(sortedItems, item, 'down')} disabled={j === sortedItems.length - 1} className="text-xs px-1 text-gray-500 disabled:opacity-20">↓</button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
