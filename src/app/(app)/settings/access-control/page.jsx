@@ -262,7 +262,17 @@ export default function AccessControlPage() {
     return saved ? saved.isVisible : el.defaultVisible;
   }
   function toggleRoleVisibility(el) {
-    setPendingVisibility((prev) => ({ ...prev, [el.id]: !roleVisible(el) }));
+    const next = !roleVisible(el);
+    setPendingVisibility((prev) => {
+      const updated = { ...prev, [el.id]: next };
+      if (!next && el.items) {
+        for (const child of el.items) updated[child.id] = false;
+      }
+      return updated;
+    });
+  }
+  function isPromoted(item, section) {
+    return !roleVisible(section) && roleVisible(item);
   }
   function userVisible(el) {
     if (!overrideUserId) return null;
@@ -300,11 +310,29 @@ export default function AccessControlPage() {
     setSaving(true);
     const overrides = [];
     const roleTouchedIds = new Set([...Object.keys(pendingVisibility), ...Object.keys(pendingOrder)]);
+
+    // A section being touched, or an item's own visibility changing, can
+    // shift which items are "promoted" (standalone, because their section
+    // is hidden) - walk every item and sync parentKeyOverride to match
+    // its current promoted state, not just the ones explicitly clicked.
+    const promotionEntries = {};
+    for (const sec of structure) {
+      for (const item of sec.items || []) {
+        const wasPromoted = item.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === selectedRole.name)?.parentKeyOverride === '__ROOT__';
+        const nowPromoted = isPromoted(item, sec);
+        if (wasPromoted !== nowPromoted) {
+          roleTouchedIds.add(item.id);
+          promotionEntries[item.id] = nowPromoted ? '__ROOT__' : (item.parentKey ?? sec.key);
+        }
+      }
+    }
+
     for (const elementId of roleTouchedIds) {
       const el = findElement(elementId);
       if (!el) continue;
       const entry = { elementId, scopeType: 'ROLE', roleName: selectedRole.name, isVisible: roleVisible(el) };
       if (pendingOrder[elementId] !== undefined) entry.sortOrderOverride = pendingOrder[elementId];
+      if (promotionEntries[elementId] !== undefined) entry.parentKeyOverride = promotionEntries[elementId];
       overrides.push(entry);
     }
     if (overrideUserId) {
@@ -538,8 +566,11 @@ export default function AccessControlPage() {
                           </div>
                           <div className="ml-4 border-l pl-2">
                             {sortedItems.map((item, j) => (
-                              <div key={item.id} className="flex items-center justify-between px-2 py-1 rounded hover:bg-gray-50">
-                                <span className={`text-sm ${roleVisible(item) ? 'text-gray-600' : 'text-gray-300 line-through'}`}>{item.label}</span>
+                              <div key={item.id} className={`flex items-center justify-between px-2 py-1 rounded hover:bg-gray-50 ${isPromoted(item, sec) ? 'bg-amber-50' : ''}`}>
+                                <span className={`text-sm ${roleVisible(item) ? 'text-gray-600' : 'text-gray-300 line-through'}`}>
+                                  {item.label}
+                                  {isPromoted(item, sec) && <span className="ml-1.5 text-xs text-amber-600 font-medium">shows standalone</span>}
+                                </span>
                                 <div className="flex items-center gap-1 flex-shrink-0">
                                   <button onClick={() => toggleRoleVisibility(item)} title={roleVisible(item) ? 'Visible - click to hide' : 'Hidden - click to show'} className="text-sm px-1">
                                     {roleVisible(item) ? '👁️' : '🚫'}
