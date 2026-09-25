@@ -685,7 +685,7 @@ export default function BomDetailPage() {
                       // old fixed verifier/approver - an unassigned level
                       // (open to any approver) has no single person to ask.
                       for (const step of approvalRequest?.workflow?.steps || []) {
-                        if (step.approverUserId) candidates.push({ id: step.approverUserId, label: step.stepName });
+                        if (step.approverUserId && approvalRequest && step.level <= approvalRequest.currentLevel) candidates.push({ id: step.approverUserId, label: getUserRole(step.approverUserId) || step.stepName });
                       }
                       return candidates
                         .filter((c) => c.id && c.id !== currentUserId && !seen.has(c.id) && seen.add(c.id))
