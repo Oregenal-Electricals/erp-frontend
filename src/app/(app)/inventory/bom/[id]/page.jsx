@@ -86,11 +86,18 @@ export default function BomDetailPage() {
     // the /users list (used for the person-override picker elsewhere).
     const fromBom = bom?.approvalUserNames?.[userId];
     if (fromBom) return `${fromBom.firstName || ''} ${fromBom.lastName || ''}`.trim() || fromBom.email;
+    // The approval chain's own actorNames needs no USER_VIEW permission -
+    // works for the creator (usually R&D), who typically lacks it, unlike
+    // the /users directory fetch below.
+    const fromChain = approvalRequest?.actorNames?.[userId];
+    if (fromChain) return `${fromChain.firstName || ''} ${fromChain.lastName || ''}`.trim() || fromChain.email;
     const u = users.find((x) => x.id === userId);
     if (!u) return 'Unknown user';
     return u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
   }
   function getUserRole(userId) {
+    const fromChain = approvalRequest?.actorNames?.[userId];
+    if (fromChain?.role) return fromChain.role.replace(/_/g, ' ');
     const u = users.find((x) => x.id === userId);
     return u?.role ? u.role.replace(/_/g, ' ') : '';
   }
