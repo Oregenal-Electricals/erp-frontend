@@ -22,7 +22,7 @@ const STATUS_COLORS = {
  * looking at. Pass onDone to refresh the parent page's own data after an
  * action completes.
  */
-export default function ApprovalTimeline({ documentType, documentId, queries, onDone }) {
+export default function ApprovalTimeline({ documentType, documentId, queries, onDone, onLoaded }) {
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,7 +40,11 @@ export default function ApprovalTimeline({ documentType, documentId, queries, on
     const latest = listData.data?.[0];
     if (!latest) { setLoading(false); return; }
     const detailRes = await fetch(`${API}/workflows/requests/${latest.id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
-    if (detailRes.ok) setRequest(await detailRes.json());
+    if (detailRes.ok) {
+      const data = await detailRes.json();
+      setRequest(data);
+      onLoaded?.(data);
+    }
     setLoading(false);
   }, [documentType, documentId]);
 

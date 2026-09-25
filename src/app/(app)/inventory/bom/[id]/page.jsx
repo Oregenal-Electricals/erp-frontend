@@ -23,6 +23,7 @@ export default function BomDetailPage() {
   const [bom, setBom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
+  const [approvalRequest, setApprovalRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({
@@ -625,7 +626,7 @@ export default function BomDetailPage() {
           </div>
         )}
         {bom.status !== 'DRAFT' && bom.status !== 'OBSOLETE' && (
-          <ApprovalTimeline documentType="BOM" documentId={id} queries={bom.queries} onDone={() => { fetchBom(); fetchChain(); }} />
+          <ApprovalTimeline documentType="BOM" documentId={id} queries={bom.queries} onDone={() => { fetchBom(); fetchChain(); }} onLoaded={setApprovalRequest} />
         )}
         {/* Created / Verified / Approved - auto-filled from login, never
             manually typed. Always shown at the bottom of the BOM so the
@@ -657,7 +658,7 @@ export default function BomDetailPage() {
             <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
               <div className="p-5 border-b">
                 <h2 className="font-semibold text-gray-800">Raise a Query</h2>
-                <p className="text-xs text-gray-500 mt-1">Ask the creator, verifier, or approver a question - any of the three can ask any of the others.</p>
+                <p className="text-xs text-gray-500 mt-1">Ask the creator or anyone assigned as an approver anywhere in this chain.</p>
               </div>
               <div className="p-5 space-y-3">
                 {queryError && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{queryError}</div>}
@@ -667,11 +668,13 @@ export default function BomDetailPage() {
                     <option value="">Select who to ask…</option>
                     {(() => {
                       const seen = new Set();
-                      const candidates = [
-                        { id: bom.createdBy, label: 'Creator' },
-                        { id: bom.verifiedBy, label: 'Verifier' },
-                        { id: bom.approvedBy, label: 'Approver' },
-                      ];
+                      const candidates = [{ id: bom.createdBy, label: 'Creator' }];
+                      // Every level of the live approval chain, not just the
+                      // old fixed verifier/approver - an unassigned level
+                      // (open to any approver) has no single person to ask.
+                      for (const step of approvalRequest?.workflow?.steps || []) {
+                        if (step.approverUserId) candidates.push({ id: step.approverUserId, label: step.stepName });
+                      }
                       return candidates
                         .filter((c) => c.id && c.id !== currentUserId && !seen.has(c.id) && seen.add(c.id))
                         .map((c) => <option key={c.id} value={c.id}>{getUserName(c.id)} ({c.label})</option>);
