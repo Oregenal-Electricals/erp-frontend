@@ -177,9 +177,10 @@ export default function AccessControlPage() {
   const [permsDirty, setPermsDirty] = useState(false);
 
   const [pendingVisibility, setPendingVisibility] = useState({});
+  const [pendingOrder, setPendingOrder] = useState({});
   const [overrideUserId, setOverrideUserId] = useState('');
   const [pendingUserOverrides, setPendingUserOverrides] = useState({});
-  const [pendingOrder, setPendingOrder] = useState({});
+  const [pendingUserOrder, setPendingUserOrder] = useState({});
 
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ name: '', label: '' });
@@ -218,9 +219,10 @@ export default function AccessControlPage() {
     setEditPerms(new Set(selectedRole.permissions || []));
     setPermsDirty(false);
     setPendingVisibility({});
+    setPendingOrder({});
     setOverrideUserId('');
     setPendingUserOverrides({});
-    setPendingOrder({});
+    setPendingUserOrder({});
     fetchMembers(selectedRole.name);
   }, [selectedRoleId]);
 
@@ -261,43 +263,63 @@ export default function AccessControlPage() {
     const saved = el.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === selectedRole?.name);
     return saved ? saved.isVisible : el.defaultVisible;
   }
-  function toggleRoleVisibility(el) {
-    const next = !roleVisible(el);
-    setPendingVisibility((prev) => {
-      const updated = { ...prev, [el.id]: next };
-      if (!next && el.items) {
-        for (const child of el.items) updated[child.id] = false;
-      }
-      return updated;
-    });
-  }
-  function isPromoted(item, section) {
-    return !roleVisible(section) && roleVisible(item);
-  }
-  function userVisible(el) {
-    if (!overrideUserId) return null;
-    if (pendingUserOverrides[el.id] !== undefined) return pendingUserOverrides[el.id];
-    const saved = el.overrides?.find((o) => o.scopeType === 'USER' && o.userId === overrideUserId);
-    return saved ? saved.isVisible : roleVisible(el);
-  }
-  function toggleUserVisibility(el) {
-    setPendingUserOverrides((prev) => ({ ...prev, [el.id]: !userVisible(el) }));
-  }
-  function effectiveOrder(el) {
+  function roleOrder(el) {
     if (pendingOrder[el.id] !== undefined) return pendingOrder[el.id];
     const saved = el.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === selectedRole?.name);
     if (saved?.sortOrderOverride !== undefined && saved?.sortOrderOverride !== null) return saved.sortOrderOverride;
     return el.sortOrder ?? 0;
   }
-  function moveItem(siblings, el, direction) {
-    const sorted = [...siblings].sort((a, b) => effectiveOrder(a) - effectiveOrder(b));
+
+  function userVisibleRaw(el) {
+    if (pendingUserOverrides[el.id] !== undefined) return pendingUserOverrides[el.id];
+    const saved = el.overrides?.find((o) => o.scopeType === 'USER' && o.userId === overrideUserId);
+    return saved ? saved.isVisible : null;
+  }
+  function userOrderRaw(el) {
+    if (pendingUserOrder[el.id] !== undefined) return pendingUserOrder[el.id];
+    const saved = el.overrides?.find((o) => o.scopeType === 'USER' && o.userId === overrideUserId);
+    return (saved?.sortOrderOverride !== undefined && saved?.sortOrderOverride !== null) ? saved.sortOrderOverride : null;
+  }
+
+  function effVisible(el) {
+    return overrideUserId ? (userVisibleRaw(el) ?? roleVisible(el)) : roleVisible(el);
+  }
+  function effOrder(el) {
+    return overrideUserId ? (userOrderRaw(el) ?? roleOrder(el)) : roleOrder(el);
+  }
+  function effToggle(el) {
+    const next = !effVisible(el);
+    if (overrideUserId) {
+      setPendingUserOverrides((prev) => {
+        const updated = { ...prev, [el.id]: next };
+        if (!next && el.items) for (const child of el.items) updated[child.id] = false;
+        return updated;
+      });
+    } else {
+      setPendingVisibility((prev) => {
+        const updated = { ...prev, [el.id]: next };
+        if (!next && el.items) for (const child of el.items) updated[child.id] = false;
+        return updated;
+      });
+    }
+  }
+  function effMove(siblings, el, direction) {
+    const sorted = [...siblings].sort((a, b) => effOrder(a) - effOrder(b));
     const idx = sorted.findIndex((x) => x.id === el.id);
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
     if (swapIdx < 0 || swapIdx >= sorted.length) return;
     const a = sorted[idx], b = sorted[swapIdx];
-    const orderA = effectiveOrder(a), orderB = effectiveOrder(b);
-    setPendingOrder((prev) => ({ ...prev, [a.id]: orderB, [b.id]: orderA }));
+    const orderA = effOrder(a), orderB = effOrder(b);
+    if (overrideUserId) {
+      setPendingUserOrder((prev) => ({ ...prev, [a.id]: orderB, [b.id]: orderA }));
+    } else {
+      setPendingOrder((prev) => ({ ...prev, [a.id]: orderB, [b.id]: orderA }));
+    }
   }
+  function effIsPromoted(item, section) {
+    return !effVisible(section) && effVisible(item);
+  }
+
   function findElement(id) {
     for (const sec of structure) {
       if (sec.id === id) return sec;
@@ -306,47 +328,62 @@ export default function AccessControlPage() {
     }
     return null;
   }
+
   async function saveVisibility() {
     setSaving(true);
     const overrides = [];
-    const roleTouchedIds = new Set([...Object.keys(pendingVisibility), ...Object.keys(pendingOrder)]);
 
-    // A section being touched, or an item's own visibility changing, can
-    // shift which items are "promoted" (standalone, because their section
-    // is hidden) - walk every item and sync parentKeyOverride to match
-    // its current promoted state, not just the ones explicitly clicked.
-    const promotionEntries = {};
+    const roleTouchedIds = new Set([...Object.keys(pendingVisibility), ...Object.keys(pendingOrder)]);
+    const rolePromotion = {};
     for (const sec of structure) {
       for (const item of sec.items || []) {
         const wasPromoted = item.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === selectedRole.name)?.parentKeyOverride === '__ROOT__';
-        const nowPromoted = isPromoted(item, sec);
+        const nowPromoted = !roleVisible(sec) && roleVisible(item);
         if (wasPromoted !== nowPromoted) {
           roleTouchedIds.add(item.id);
-          promotionEntries[item.id] = nowPromoted ? '__ROOT__' : (item.parentKey ?? sec.key);
+          rolePromotion[item.id] = nowPromoted ? '__ROOT__' : (item.parentKey ?? sec.key);
         }
       }
     }
-
     for (const elementId of roleTouchedIds) {
       const el = findElement(elementId);
       if (!el) continue;
       const entry = { elementId, scopeType: 'ROLE', roleName: selectedRole.name, isVisible: roleVisible(el) };
       if (pendingOrder[elementId] !== undefined) entry.sortOrderOverride = pendingOrder[elementId];
-      if (promotionEntries[elementId] !== undefined) entry.parentKeyOverride = promotionEntries[elementId];
+      if (rolePromotion[elementId] !== undefined) entry.parentKeyOverride = rolePromotion[elementId];
       overrides.push(entry);
     }
+
     if (overrideUserId) {
-      for (const [elementId, isVisible] of Object.entries(pendingUserOverrides)) {
-        overrides.push({ elementId, scopeType: 'USER', userId: overrideUserId, isVisible });
+      const userTouchedIds = new Set([...Object.keys(pendingUserOverrides), ...Object.keys(pendingUserOrder)]);
+      const userPromotion = {};
+      for (const sec of structure) {
+        for (const item of sec.items || []) {
+          const wasPromoted = item.overrides?.find((o) => o.scopeType === 'USER' && o.userId === overrideUserId)?.parentKeyOverride === '__ROOT__';
+          const nowPromoted = !(userVisibleRaw(sec) ?? roleVisible(sec)) && (userVisibleRaw(item) ?? roleVisible(item));
+          if (wasPromoted !== nowPromoted) {
+            userTouchedIds.add(item.id);
+            userPromotion[item.id] = nowPromoted ? '__ROOT__' : (item.parentKey ?? sec.key);
+          }
+        }
+      }
+      for (const elementId of userTouchedIds) {
+        const el = findElement(elementId);
+        if (!el) continue;
+        const entry = { elementId, scopeType: 'USER', userId: overrideUserId, isVisible: userVisibleRaw(el) ?? roleVisible(el) };
+        if (pendingUserOrder[elementId] !== undefined) entry.sortOrderOverride = pendingUserOrder[elementId];
+        if (userPromotion[elementId] !== undefined) entry.parentKeyOverride = userPromotion[elementId];
+        overrides.push(entry);
       }
     }
+
     if (overrides.length > 0) {
       await fetch(`${API}/ui-control/overrides`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify({ overrides }),
       });
     }
-    setPendingVisibility({}); setPendingUserOverrides({}); setPendingOrder({});
+    setPendingVisibility({}); setPendingOrder({}); setPendingUserOverrides({}); setPendingUserOrder({});
     await load();
     showToast('Saved');
     setSaving(false);
@@ -373,7 +410,10 @@ export default function AccessControlPage() {
     else alert(data.message || 'Failed to delete role');
   }
 
-  const pendingCount = new Set([...Object.keys(pendingVisibility), ...Object.keys(pendingUserOverrides), ...Object.keys(pendingOrder)]).size;
+  const pendingCount = new Set([
+    ...Object.keys(pendingVisibility), ...Object.keys(pendingOrder),
+    ...Object.keys(pendingUserOverrides), ...Object.keys(pendingUserOrder),
+  ]).size;
 
   if (loading) return <AppLayout><div className="p-6 text-gray-400">Loading...</div></AppLayout>;
 
@@ -418,7 +458,6 @@ export default function AccessControlPage() {
                   { key: 'members', label: `Members (${members.length})` },
                   { key: 'permissions', label: 'What They Can Do' },
                   { key: 'visibility', label: 'What They Can See' },
-                  { key: 'sidebarView', label: 'Sidebar View' },
                 ].map((t) => (
                   <button
                     key={t.key}
@@ -506,77 +545,45 @@ export default function AccessControlPage() {
               {section === 'visibility' && (
                 <div>
                   <div className="flex items-center justify-between mb-3 gap-3">
-                    <select value={overrideUserId} onChange={(e) => { setOverrideUserId(e.target.value); setPendingUserOverrides({}); }} className="border rounded-lg px-3 py-2 text-sm">
-                      <option value="">Applies to everyone with this role</option>
-                      {members.map((m) => <option key={m.id} value={m.id}>Override just for: {m.firstName} {m.lastName}</option>)}
-                    </select>
-                    <button onClick={saveVisibility} disabled={pendingCount === 0 || saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-40">
+                    <div>
+                      <select value={overrideUserId} onChange={(e) => setOverrideUserId(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+                        <option value="">Applies to everyone with this role</option>
+                        {members.map((m) => <option key={m.id} value={m.id}>Override just for: {m.firstName} {m.lastName}</option>)}
+                      </select>
+                      <p className="text-xs text-gray-400 mt-1">Hiding a section hides everything under it. Showing an item under a hidden section makes it appear on its own.</p>
+                    </div>
+                    <button onClick={saveVisibility} disabled={pendingCount === 0 || saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-40 flex-shrink-0">
                       {saving ? 'Saving...' : `Save${pendingCount > 0 ? ` (${pendingCount})` : ''}`}
                     </button>
                   </div>
-                  <div className="bg-white rounded-xl border shadow-sm divide-y">
-                    {structure.map((sec) => (
-                      <div key={sec.id}>
-                        <div className="p-3 flex items-center justify-between bg-gray-50">
-                          <span className="font-medium text-sm text-gray-800">{sec.label}</span>
-                          <input
-                            type="checkbox"
-                            checked={overrideUserId ? (userVisible(sec) ?? roleVisible(sec)) : roleVisible(sec)}
-                            onChange={() => (overrideUserId ? toggleUserVisibility(sec) : toggleRoleVisibility(sec))}
-                          />
-                        </div>
-                        {(sec.items || []).map((item) => (
-                          <div key={item.id} className="pl-8 pr-3 py-2 flex items-center justify-between border-t">
-                            <span className="text-sm text-gray-600">{item.label}</span>
-                            <input
-                              type="checkbox"
-                              checked={overrideUserId ? (userVisible(item) ?? roleVisible(item)) : roleVisible(item)}
-                              onChange={() => (overrideUserId ? toggleUserVisibility(item) : toggleRoleVisibility(item))}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {section === 'sidebarView' && (
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm text-gray-500">This is exactly what {selectedRole.label || selectedRole.name} sees in their sidebar. Use the arrows to reorder, or the eye icon to hide something - just for this role.</p>
-                    <button onClick={saveVisibility} disabled={pendingCount === 0 || saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-40 flex-shrink-0 ml-3">
-                      {saving ? 'Saving...' : `Save${pendingCount > 0 ? ` (${pendingCount})` : ''}`}
-                    </button>
-                  </div>
-                  <div className="bg-white rounded-xl border shadow-sm p-3 max-w-sm">
-                    {[...structure].sort((a, b) => effectiveOrder(a) - effectiveOrder(b)).map((sec, i, arr) => {
-                      const sortedItems = [...(sec.items || [])].sort((a, b) => effectiveOrder(a) - effectiveOrder(b));
+                  <div className="bg-white rounded-xl border shadow-sm p-3">
+                    {[...structure].sort((a, b) => effOrder(a) - effOrder(b)).map((sec, i, arr) => {
+                      const sortedItems = [...(sec.items || [])].sort((a, b) => effOrder(a) - effOrder(b));
                       return (
                         <div key={sec.id} className="mb-1">
                           <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-50">
-                            <span className={`text-sm font-semibold ${roleVisible(sec) ? 'text-gray-800' : 'text-gray-300 line-through'}`}>{sec.label}</span>
+                            <span className={`text-sm font-semibold ${effVisible(sec) ? 'text-gray-800' : 'text-gray-300 line-through'}`}>{sec.label}</span>
                             <div className="flex items-center gap-1 flex-shrink-0">
-                              <button onClick={() => toggleRoleVisibility(sec)} title={roleVisible(sec) ? 'Visible - click to hide' : 'Hidden - click to show'} className="text-sm px-1">
-                                {roleVisible(sec) ? '👁️' : '🚫'}
+                              <button onClick={() => effToggle(sec)} title={effVisible(sec) ? 'Visible - click to hide' : 'Hidden - click to show'} className="text-sm px-1">
+                                {effVisible(sec) ? '👁️' : '🚫'}
                               </button>
-                              <button onClick={() => moveItem(arr, sec, 'up')} disabled={i === 0} className="text-xs px-1 text-gray-500 disabled:opacity-20">↑</button>
-                              <button onClick={() => moveItem(arr, sec, 'down')} disabled={i === arr.length - 1} className="text-xs px-1 text-gray-500 disabled:opacity-20">↓</button>
+                              <button onClick={() => effMove(arr, sec, 'up')} disabled={i === 0} className="text-xs px-1 text-gray-500 disabled:opacity-20">↑</button>
+                              <button onClick={() => effMove(arr, sec, 'down')} disabled={i === arr.length - 1} className="text-xs px-1 text-gray-500 disabled:opacity-20">↓</button>
                             </div>
                           </div>
                           <div className="ml-4 border-l pl-2">
                             {sortedItems.map((item, j) => (
-                              <div key={item.id} className={`flex items-center justify-between px-2 py-1 rounded hover:bg-gray-50 ${isPromoted(item, sec) ? 'bg-amber-50' : ''}`}>
-                                <span className={`text-sm ${roleVisible(item) ? 'text-gray-600' : 'text-gray-300 line-through'}`}>
+                              <div key={item.id} className={`flex items-center justify-between px-2 py-1 rounded hover:bg-gray-50 ${effIsPromoted(item, sec) ? 'bg-amber-50' : ''}`}>
+                                <span className={`text-sm ${effVisible(item) ? 'text-gray-600' : 'text-gray-300 line-through'}`}>
                                   {item.label}
-                                  {isPromoted(item, sec) && <span className="ml-1.5 text-xs text-amber-600 font-medium">shows standalone</span>}
+                                  {effIsPromoted(item, sec) && <span className="ml-1.5 text-xs text-amber-600 font-medium">shows standalone</span>}
                                 </span>
                                 <div className="flex items-center gap-1 flex-shrink-0">
-                                  <button onClick={() => toggleRoleVisibility(item)} title={roleVisible(item) ? 'Visible - click to hide' : 'Hidden - click to show'} className="text-sm px-1">
-                                    {roleVisible(item) ? '👁️' : '🚫'}
+                                  <button onClick={() => effToggle(item)} title={effVisible(item) ? 'Visible - click to hide' : 'Hidden - click to show'} className="text-sm px-1">
+                                    {effVisible(item) ? '👁️' : '🚫'}
                                   </button>
-                                  <button onClick={() => moveItem(sortedItems, item, 'up')} disabled={j === 0} className="text-xs px-1 text-gray-500 disabled:opacity-20">↑</button>
-                                  <button onClick={() => moveItem(sortedItems, item, 'down')} disabled={j === sortedItems.length - 1} className="text-xs px-1 text-gray-500 disabled:opacity-20">↓</button>
+                                  <button onClick={() => effMove(sortedItems, item, 'up')} disabled={j === 0} className="text-xs px-1 text-gray-500 disabled:opacity-20">↑</button>
+                                  <button onClick={() => effMove(sortedItems, item, 'down')} disabled={j === sortedItems.length - 1} className="text-xs px-1 text-gray-500 disabled:opacity-20">↓</button>
                                 </div>
                               </div>
                             ))}
