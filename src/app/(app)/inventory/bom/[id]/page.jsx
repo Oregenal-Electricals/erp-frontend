@@ -260,6 +260,13 @@ export default function BomDetailPage() {
   if (loading) return <AppLayout><div className="p-6 text-gray-400">Loading...</div></AppLayout>;
   if (!bom) return <AppLayout><div className="p-6 text-red-500">{fetchError || 'BOM not found'}</div></AppLayout>;
 
+  // Items can be edited while DRAFT as always, or - now - by the creator
+  // on a PENDING_APPROVAL BOM specifically while a query on it is open;
+  // saving any such edit restarts the approval chain from level 1 on the
+  // backend, so every approver reviews the corrected content.
+  const hasOpenQueryForEdit = bom.queries?.some((q) => q.status === 'OPEN');
+  const canEditItems = bom.status === 'DRAFT' || (bom.status === 'PENDING_APPROVAL' && bom.createdBy === currentUserId && hasOpenQueryForEdit);
+
   const totalCost = bom.items?.reduce((s, i) => s + (i.totalCost || 0), 0) || 0;
 
   return (
@@ -384,7 +391,7 @@ export default function BomDetailPage() {
           <div className="p-4 border-b flex justify-between items-center">
             <h2 className="font-semibold text-gray-700">BOM Items</h2>
             <div className="flex gap-2">
-              {bom.status === 'DRAFT' && (
+              {canEditItems && (
                 <button onClick={openAdd} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-sm">+ Add Item</button>
               )}
               {bom.status === 'APPROVED' && (
@@ -396,6 +403,11 @@ export default function BomDetailPage() {
           {bom.status === 'DRAFT' && (
             <div className="px-4 py-2 bg-yellow-50 border-b text-xs text-yellow-700">
               ⚠️ DRAFT — Add all components before approving. Items cannot be modified after approval.
+            </div>
+          )}
+          {bom.status === 'PENDING_APPROVAL' && canEditItems && (
+            <div className="px-4 py-2 bg-amber-50 border-b text-xs text-amber-700">
+              ✏️ An open query lets you fix items now - saving any change restarts the approval chain from level 1.
             </div>
           )}
           {bom.status === 'APPROVED' && (
@@ -426,7 +438,7 @@ export default function BomDetailPage() {
                       <tr className="bg-blue-50">
                         <td colSpan={9} className="px-3 py-2 font-semibold text-blue-800 text-xs uppercase tracking-wide">{section} <span className="text-blue-400 font-normal normal-case">({groups[section].length} items)</span></td>
                         <td className="px-3 py-2">
-                          {bom.status === 'DRAFT' && (
+                          {canEditItems && (
                             <button onClick={() => openAdd(section === 'Ungrouped' ? '' : section)} className="text-blue-600 hover:underline text-xs">+ Add</button>
                           )}
                         </td>
@@ -443,13 +455,13 @@ export default function BomDetailPage() {
                           <td className="px-3 py-3 text-gray-600">{item.unitCost ? `₹${Number(item.unitCost).toFixed(2)}` : '—'}</td>
                           <td className="px-3 py-3 font-medium text-gray-800">{item.totalCost ? `₹${item.totalCost.toFixed(2)}` : '—'}</td>
                           <td className="px-3 py-3">
-                            {bom.status === 'DRAFT' && (
+                            {canEditItems && (
                               <div className="flex gap-2">
                                 <button onClick={() => openEdit(item)} className="text-blue-600 hover:underline text-xs">Edit</button>
                                 <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:underline text-xs">Remove</button>
                               </div>
                             )}
-                            {bom.status !== 'DRAFT' && <span className="text-xs text-gray-400">Locked</span>}
+                            {!canEditItems && <span className="text-xs text-gray-400">Locked</span>}
                           </td>
                         </tr>
                       ))}
