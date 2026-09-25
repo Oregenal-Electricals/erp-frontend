@@ -87,8 +87,12 @@ export default function BomDetailPage() {
     const fromBom = bom?.approvalUserNames?.[userId];
     if (fromBom) return `${fromBom.firstName || ''} ${fromBom.lastName || ''}`.trim() || fromBom.email;
     const u = users.find((x) => x.id === userId);
-    if (!u) return userId;
+    if (!u) return 'Unknown user';
     return u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
+  }
+  function getUserRole(userId) {
+    const u = users.find((x) => x.id === userId);
+    return u?.role ? u.role.replace(/_/g, ' ') : '';
   }
 
   const fetchBom = useCallback(async () => {
