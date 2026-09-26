@@ -459,14 +459,26 @@ export default function BomDetailPage() {
             </div>
           )}
 
+          {(() => {
+            const showUnitCost = elementVisible('page.bom.column.unitCost');
+            const showTotalCost = elementVisible('page.bom.column.totalCost');
+            const baseHeaders = ['Seq', 'Type', 'Code', 'Name', 'UOM', 'Qty', 'Eff. Qty'];
+            const headers = [
+              ...baseHeaders,
+              ...(showUnitCost ? ['Unit Cost'] : []),
+              ...(showTotalCost ? ['Total Cost'] : []),
+              'Actions',
+            ];
+            const colCount = headers.length;
+            return (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
-                <tr>{['Seq', 'Type', 'Code', 'Name', 'UOM', 'Qty', 'Eff. Qty', 'Unit Cost', 'Total Cost', 'Actions'].map(h => <th key={h} className="px-3 py-3 text-left">{h}</th>)}</tr>
+                <tr>{headers.map(h => <th key={h} className="px-3 py-3 text-left">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {!bom.items || bom.items.length === 0 ? (
-                  <tr><td colSpan={10} className="text-center py-10 text-gray-400">No items yet. Click &quot;+ Add Item&quot; to start.</td></tr>
+                  <tr><td colSpan={colCount} className="text-center py-10 text-gray-400">No items yet. Click &quot;+ Add Item&quot; to start.</td></tr>
                 ) : (() => {
                   // Group items by section, preserving the order each section first appears in (matches the order sections appeared in the uploaded BOM sheet, if any)
                   const order = [];
@@ -479,7 +491,7 @@ export default function BomDetailPage() {
                   return order.map(section => (
                     <Fragment key={section}>
                       <tr className="bg-blue-50">
-                        <td colSpan={9} className="px-3 py-2 font-semibold text-blue-800 text-xs uppercase tracking-wide">{section} <span className="text-blue-400 font-normal normal-case">({groups[section].length} items)</span></td>
+                        <td colSpan={colCount - 1} className="px-3 py-2 font-semibold text-blue-800 text-xs uppercase tracking-wide">{section} <span className="text-blue-400 font-normal normal-case">({groups[section].length} items)</span></td>
                         <td className="px-3 py-2">
                           {canEditItems && elementVisible('page.bom.button.addItem') && (
                             <button onClick={() => openAdd(section === 'Ungrouped' ? '' : section)} disabled={!!previewRole} className="text-blue-600 hover:underline text-xs disabled:opacity-50">+ Add</button>
@@ -495,8 +507,8 @@ export default function BomDetailPage() {
                           <td className="px-3 py-3 text-gray-600">{item.uom}</td>
                           <td className="px-3 py-3 text-gray-800">{item.quantity}</td>
                           <td className="px-3 py-3 text-gray-800 font-medium">{item.effectiveQty?.toFixed(3)}</td>
-                          <td className="px-3 py-3 text-gray-600">{item.unitCost ? `₹${Number(item.unitCost).toFixed(2)}` : '—'}</td>
-                          <td className="px-3 py-3 font-medium text-gray-800">{item.totalCost ? `₹${item.totalCost.toFixed(2)}` : '—'}</td>
+                          {showUnitCost && <td className="px-3 py-3 text-gray-600">{item.unitCost ? `₹${Number(item.unitCost).toFixed(2)}` : '—'}</td>}
+                          {showTotalCost && <td className="px-3 py-3 font-medium text-gray-800">{item.totalCost ? `₹${item.totalCost.toFixed(2)}` : '—'}</td>}
                           <td className="px-3 py-3">
                             {canEditItems && (elementVisible('page.bom.button.editItem') || elementVisible('page.bom.button.removeItem')) && (
                               <div className="flex gap-2">
@@ -512,17 +524,19 @@ export default function BomDetailPage() {
                   ));
                 })()}
               </tbody>
-              {bom.items && bom.items.length > 0 && (
+              {bom.items && bom.items.length > 0 && showTotalCost && (
                 <tfoot className="bg-gray-50">
                   <tr>
-                    <td colSpan={9} className="px-3 py-3 text-right font-semibold text-gray-700">Total BOM Cost:</td>
+                    <td colSpan={colCount - 2} className="px-3 py-3 text-right font-semibold text-gray-700">Total BOM Cost:</td>
                     <td className="px-3 py-3 font-bold text-gray-900">₹{totalCost.toFixed(2)}</td>
-                    <td colSpan={2}></td>
+                    <td colSpan={1}></td>
                   </tr>
                 </tfoot>
               )}
             </table>
           </div>
+            );
+          })()}
         </div>
 
         {bom && (
