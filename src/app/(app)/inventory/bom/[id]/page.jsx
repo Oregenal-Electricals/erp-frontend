@@ -654,6 +654,36 @@ export default function BomDetailPage() {
         {/* Created / Verified / Approved - auto-filled from login, never
             manually typed. Always shown at the bottom of the BOM so the
             full chain of accountability is visible at a glance. */}
+        {approvalRequest && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
+            <h2 className="font-semibold text-gray-700 mb-4">Approval Chain</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="border rounded-lg p-3">
+                <div className="text-xs text-gray-500 mb-1">Created By</div>
+                <div className="text-sm font-medium text-gray-800">{getUserName(bom.createdBy)}</div>
+                <div className="text-xs text-gray-400 mt-1">{bom.createdAt ? new Date(bom.createdAt).toLocaleString() : '—'}</div>
+              </div>
+              {approvalRequest.workflow?.steps?.map((step) => {
+                const action = approvalRequest.actions?.find((a) => a.level === step.level);
+                const isCurrent = approvalRequest.currentLevel === step.level && approvalRequest.status === 'PENDING';
+                const borderClass = action?.action === 'APPROVED' ? 'border-green-200'
+                  : action?.action === 'REJECTED' ? 'border-red-200'
+                  : isCurrent ? 'border-yellow-300 bg-yellow-50' : '';
+                return (
+                  <div key={step.id || step.level} className={`border rounded-lg p-3 ${borderClass}`}>
+                    <div className="text-xs text-gray-500 mb-1">{step.stepName}</div>
+                    <div className={`text-sm font-medium ${action?.action === 'APPROVED' ? 'text-green-700' : action?.action === 'REJECTED' ? 'text-red-700' : 'text-gray-800'}`}>
+                      {action ? getUserName(action.actionBy) : isCurrent ? 'Awaiting approval' : 'Pending'}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">{action ? new Date(action.actionDate).toLocaleString() : '—'}</div>
+                    {action?.action && <div className={`text-xs mt-1 font-semibold ${action.action === 'APPROVED' ? 'text-green-600' : 'text-red-600'}`}>{action.action}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {showQueryModal && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
