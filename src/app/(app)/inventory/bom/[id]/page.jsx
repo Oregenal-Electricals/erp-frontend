@@ -654,28 +654,6 @@ export default function BomDetailPage() {
         {/* Created / Verified / Approved - auto-filled from login, never
             manually typed. Always shown at the bottom of the BOM so the
             full chain of accountability is visible at a glance. */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
-          <h2 className="font-semibold text-gray-700 mb-4">Approval Chain</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="border rounded-lg p-3">
-              <div className="text-xs text-gray-500 mb-1">Created By</div>
-              <div className="text-sm font-medium text-gray-800">{getUserName(bom.createdBy)}</div>
-              <div className="text-xs text-gray-400 mt-1">{bom.createdAt ? new Date(bom.createdAt).toLocaleString() : '—'}</div>
-            </div>
-            <div className="border rounded-lg p-3">
-              <div className="text-xs text-gray-500 mb-1">Verified By</div>
-              <div className="text-sm font-medium text-gray-800">{bom.verifiedBy ? getUserName(bom.verifiedBy) : 'Pending'}</div>
-              <div className="text-xs text-gray-400 mt-1">{bom.verifiedAt ? new Date(bom.verifiedAt).toLocaleString() : '—'}</div>
-            </div>
-            <div className="border rounded-lg p-3">
-              <div className="text-xs text-gray-500 mb-1">Approved By</div>
-              <div className="text-sm font-medium text-gray-800">{bom.approvedBy ? getUserName(bom.approvedBy) : 'Pending'}</div>
-              <div className="text-xs text-gray-400 mt-1">{bom.approvedAt ? new Date(bom.approvedAt).toLocaleString() : '—'}</div>
-            </div>
-          </div>
-        </div>
-
-
         {showQueryModal && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
