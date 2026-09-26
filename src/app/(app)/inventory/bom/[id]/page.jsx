@@ -5,6 +5,7 @@ import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
 import CustomFields from '@/components/custom-fields/CustomFields';
 import ApprovalTimeline from '@/components/shared/ApprovalTimeline';
+import { getUser } from '@/lib/auth';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() {
@@ -24,6 +25,8 @@ export default function BomDetailPage() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
   const [approvalRequest, setApprovalRequest] = useState(null);
+  const [previewRole, setPreviewRole] = useState('');
+  const [pageElements, setPageElements] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({
@@ -115,6 +118,35 @@ export default function BomDetailPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setUsers(d?.data || d?.items || d || []));
   }, []);
+
+  // Per-page element visibility, driven by Access Control's Page Elements
+  // tab. ?previewRole=X in the URL lets Admin see this page exactly as
+  // that role would (buttons hidden/shown accordingly) without needing to
+  // actually log in as them - all mutating actions are disabled while
+  // previewing, so nothing can happen by accident.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setPreviewRole(params.get('previewRole') || '');
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API}/ui-control/page-elements`, { headers: { Authorization: `Bearer ${getToken()}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((grouped) => {
+        if (!grouped) return;
+        const flat = Object.values(grouped).flat().filter((el) => el.page === '/inventory/bom/[id]');
+        setPageElements(flat);
+      });
+  }, []);
+
+  function elementVisible(key) {
+    const el = pageElements.find((e) => e.key === key);
+    if (!el) return true; // not registered yet - default to visible, never silently hide something unconfigured
+    const effectiveRole = previewRole || getUser()?.role;
+    const override = el.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === effectiveRole);
+    return override ? override.isVisible : el.defaultVisible;
+  }
 
   async function handleSubmitForApproval() {
     if (!confirm('Submit this BOM for approval? It will go through the configured approval chain before it becomes usable.')) return;
@@ -402,11 +434,11 @@ export default function BomDetailPage() {
           <div className="p-4 border-b flex justify-between items-center">
             <h2 className="font-semibold text-gray-700">BOM Items</h2>
             <div className="flex gap-2">
-              {canEditItems && (
-                <button onClick={openAdd} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-sm">+ Add Item</button>
+              {canEditItems && elementVisible('page.bom.button.addItem') && (
+                <button onClick={openAdd} disabled={!!previewRole} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-sm disabled:opacity-50">+ Add Item</button>
               )}
-              {bom.status === 'APPROVED' && (
-                <button onClick={handleObsolete} className="bg-gray-500 text-white px-3 py-1.5 rounded-lg hover:bg-gray-600 text-sm">Mark Obsolete</button>
+              {bom.status === 'APPROVED' && elementVisible('page.bom.button.markObsolete') && (
+                <button onClick={handleObsolete} disabled={!!previewRole} className="bg-gray-500 text-white px-3 py-1.5 rounded-lg hover:bg-gray-600 text-sm disabled:opacity-50">Mark Obsolete</button>
               )}
             </div>
           </div>
@@ -449,8 +481,8 @@ export default function BomDetailPage() {
                       <tr className="bg-blue-50">
                         <td colSpan={9} className="px-3 py-2 font-semibold text-blue-800 text-xs uppercase tracking-wide">{section} <span className="text-blue-400 font-normal normal-case">({groups[section].length} items)</span></td>
                         <td className="px-3 py-2">
-                          {canEditItems && (
-                            <button onClick={() => openAdd(section === 'Ungrouped' ? '' : section)} className="text-blue-600 hover:underline text-xs">+ Add</button>
+                          {canEditItems && elementVisible('page.bom.button.addItem') && (
+                            <button onClick={() => openAdd(section === 'Ungrouped' ? '' : section)} disabled={!!previewRole} className="text-blue-600 hover:underline text-xs disabled:opacity-50">+ Add</button>
                           )}
                         </td>
                       </tr>
@@ -466,10 +498,10 @@ export default function BomDetailPage() {
                           <td className="px-3 py-3 text-gray-600">{item.unitCost ? `₹${Number(item.unitCost).toFixed(2)}` : '—'}</td>
                           <td className="px-3 py-3 font-medium text-gray-800">{item.totalCost ? `₹${item.totalCost.toFixed(2)}` : '—'}</td>
                           <td className="px-3 py-3">
-                            {canEditItems && (
+                            {canEditItems && (elementVisible('page.bom.button.editItem') || elementVisible('page.bom.button.removeItem')) && (
                               <div className="flex gap-2">
-                                <button onClick={() => openEdit(item)} className="text-blue-600 hover:underline text-xs">Edit</button>
-                                <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:underline text-xs">Remove</button>
+                                {elementVisible('page.bom.button.editItem') && <button onClick={() => openEdit(item)} disabled={!!previewRole} className="text-blue-600 hover:underline text-xs disabled:opacity-50">Edit</button>}
+                                {elementVisible('page.bom.button.removeItem') && <button onClick={() => handleRemoveItem(item.id)} disabled={!!previewRole} className="text-red-500 hover:underline text-xs disabled:opacity-50">Remove</button>}
                               </div>
                             )}
                             {!canEditItems && <span className="text-xs text-gray-400">Locked</span>}
@@ -629,15 +661,19 @@ export default function BomDetailPage() {
                 {hasOpenQuery && <span className="ml-2 text-amber-600 font-medium">An open query must be resolved first.</span>}
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={handleSubmitForApproval}
-                  disabled={!!submitBlockedReason}
-                  title={submitBlockedReason}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Submit for Approval
-                </button>
-                <button onClick={() => { setShowQueryModal(true); setQueryError(''); }} className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600">Raise Query</button>
+                {elementVisible('page.bom.button.submitForApproval') && (
+                  <button
+                    onClick={handleSubmitForApproval}
+                    disabled={!!submitBlockedReason || !!previewRole}
+                    title={submitBlockedReason}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Submit for Approval
+                  </button>
+                )}
+                {elementVisible('page.bom.button.raiseQuery') && (
+                  <button onClick={() => { setShowQueryModal(true); setQueryError(''); }} disabled={!!previewRole} className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600 disabled:opacity-50">Raise Query</button>
+                )}
               </div>
             </div>
           );
@@ -645,7 +681,9 @@ export default function BomDetailPage() {
         {bom.status === 'PENDING_APPROVAL' && (
           <div className="bg-white rounded-xl shadow-sm border p-4 mt-6 flex items-center justify-between">
             <span className="text-sm text-gray-600">Spotted something that needs clarifying before you act? You can still raise a query while this is under review.</span>
-            <button onClick={() => { setShowQueryModal(true); setQueryError(''); }} className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600">Raise Query</button>
+            {elementVisible('page.bom.button.raiseQuery') && (
+              <button onClick={() => { setShowQueryModal(true); setQueryError(''); }} disabled={!!previewRole} className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600 disabled:opacity-50">Raise Query</button>
+            )}
           </div>
         )}
         {bom.status !== 'DRAFT' && bom.status !== 'OBSOLETE' && (

@@ -182,6 +182,11 @@ export default function AccessControlPage() {
   const [pendingUserOverrides, setPendingUserOverrides] = useState({});
   const [pendingUserOrder, setPendingUserOrder] = useState({});
 
+  const [pageElementsData, setPageElementsData] = useState({});
+  const [selectedPageKey, setSelectedPageKey] = useState('');
+  const [pendingPageVisibility, setPendingPageVisibility] = useState({});
+  const [previewBoms, setPreviewBoms] = useState([]);
+  const [previewBomId, setPreviewBomId] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ name: '', label: '' });
   const [error, setError] = useState('');
@@ -199,6 +204,19 @@ export default function AccessControlPage() {
     setStructure(sRes.ok ? await sRes.json() : []);
     setLoading(false);
     return rolesData;
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API}/ui-control/page-elements`, { headers: { Authorization: `Bearer ${getToken()}` } })
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((grouped) => {
+        setPageElementsData(grouped);
+        const firstKey = Object.keys(grouped)[0];
+        if (firstKey) setSelectedPageKey((prev) => prev || firstKey);
+      });
+    fetch(`${API}/boms?limit=10`, { headers: { Authorization: `Bearer ${getToken()}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setPreviewBoms(d?.data || []));
   }, []);
 
   useEffect(() => {
@@ -389,6 +407,32 @@ export default function AccessControlPage() {
     setSaving(false);
   }
 
+  function pageEffVisible(el) {
+    if (pendingPageVisibility[el.id] !== undefined) return pendingPageVisibility[el.id];
+    const saved = el.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === selectedRole?.name);
+    return saved ? saved.isVisible : el.defaultVisible;
+  }
+  function pageEffToggle(el) {
+    setPendingPageVisibility((prev) => ({ ...prev, [el.id]: !pageEffVisible(el) }));
+  }
+  async function savePageElements() {
+    setSaving(true);
+    const overrides = Object.entries(pendingPageVisibility).map(([elementId, isVisible]) => ({
+      elementId, scopeType: 'ROLE', roleName: selectedRole.name, isVisible,
+    }));
+    if (overrides.length > 0) {
+      await fetch(`${API}/ui-control/overrides`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ overrides }),
+      });
+    }
+    setPendingPageVisibility({});
+    const res = await fetch(`${API}/ui-control/page-elements`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (res.ok) setPageElementsData(await res.json());
+    showToast('Saved');
+    setSaving(false);
+  }
+
   async function handleCreateRole() {
     setSaving(true); setError('');
     const name = createForm.name.trim().toUpperCase().replace(/\s+/g, '_');
@@ -458,6 +502,7 @@ export default function AccessControlPage() {
                   { key: 'members', label: `Members (${members.length})` },
                   { key: 'permissions', label: 'What They Can Do' },
                   { key: 'visibility', label: 'What They Can See' },
+                  { key: 'pageElements', label: 'Page Elements' },
                 ].map((t) => (
                   <button
                     key={t.key}
@@ -594,6 +639,63 @@ export default function AccessControlPage() {
                   </div>
                 </div>
               )}
+
+              {section === 'pageElements' && (() => {
+                const pageKeys = Object.keys(pageElementsData);
+                const elements = pageElementsData[selectedPageKey] || [];
+                const pendingCountPage = Object.keys(pendingPageVisibility).length;
+                return (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-3">Control specific buttons and fields within a page for {selectedRole.label || selectedRole.name} - not just whether the page itself is in their sidebar. Pick a page, toggle what they can see, and preview it live on the right using a real record.</p>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-3 gap-3">
+                          <select value={selectedPageKey} onChange={(e) => setSelectedPageKey(e.target.value)} className="border rounded-lg px-3 py-2 text-sm flex-1">
+                            {pageKeys.length === 0 && <option value="">No pages registered yet</option>}
+                            {pageKeys.map((k) => <option key={k} value={k}>{k}</option>)}
+                          </select>
+                          <button onClick={savePageElements} disabled={pendingCountPage === 0 || saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-40 flex-shrink-0">
+                            {saving ? 'Saving...' : `Save${pendingCountPage > 0 ? ` (${pendingCountPage})` : ''}`}
+                          </button>
+                        </div>
+                        <div className="bg-white rounded-xl border shadow-sm divide-y">
+                          {elements.length === 0 ? (
+                            <p className="p-4 text-sm text-gray-400">No controllable elements registered for this page yet.</p>
+                          ) : elements.map((el) => (
+                            <div key={el.id} className="flex items-center justify-between px-3 py-2">
+                              <span className={`text-sm ${pageEffVisible(el) ? 'text-gray-700' : 'text-gray-300 line-through'}`}>{el.label}</span>
+                              <button onClick={() => pageEffToggle(el)} title={pageEffVisible(el) ? 'Visible - click to hide' : 'Hidden - click to show'} className="text-sm px-1">
+                                {pageEffVisible(el) ? '👁️' : '🚫'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="mb-3">
+                          <select value={previewBomId} onChange={(e) => setPreviewBomId(e.target.value)} className="border rounded-lg px-3 py-2 text-sm w-full">
+                            <option value="">Select a BOM to preview against…</option>
+                            {previewBoms.map((b) => <option key={b.id} value={b.id}>{b.bomNumber} - {b.product?.name}</option>)}
+                          </select>
+                        </div>
+                        {previewBomId ? (
+                          <div className="border rounded-xl overflow-hidden" style={{ height: '600px' }}>
+                            <div className="bg-indigo-600 text-white text-xs px-3 py-1.5">Live preview - as {selectedRole.label || selectedRole.name} would see it. Read-only.</div>
+                            <iframe
+                              key={`${previewBomId}-${selectedRole.name}-${JSON.stringify(pendingPageVisibility)}`}
+                              src={`/inventory/bom/${previewBomId}?previewRole=${selectedRole.name}`}
+                              className="w-full"
+                              style={{ height: 'calc(100% - 28px)', border: 'none' }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="border rounded-xl p-8 text-center text-sm text-gray-400" style={{ height: '600px' }}>Pick a BOM above to see a live preview here.</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>
