@@ -14,11 +14,20 @@ export default function AppLayout({ children }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isPreviewFrame, setIsPreviewFrame] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
       router.replace('/login');
     } else {
+      // Access Control's live preview embeds pages in a frame with ?previewRole=X.
+      // Show only the page content there (no sidebar/header/banners) so the preview
+      // is the page itself, not the previewing admin's own session chrome.
+      try {
+        const inFrame = window.self !== window.top;
+        const hasPreview = new URLSearchParams(window.location.search).has('previewRole');
+        setIsPreviewFrame(inFrame && hasPreview);
+      } catch { setIsPreviewFrame(false); }
       setReady(true);
     }
   }, [router]);
@@ -34,6 +43,18 @@ export default function AppLayout({ children }) {
           <p className="text-sm text-gray-400">Loading...</p>
         </div>
       </div>
+    );
+  }
+
+  if (isPreviewFrame) {
+    return (
+      <UiControlProvider>
+        <NotificationProvider>
+          <div className="min-h-screen bg-gray-50">
+            <main>{children}</main>
+          </div>
+        </NotificationProvider>
+      </UiControlProvider>
     );
   }
 

@@ -355,7 +355,7 @@ export default function BomDetailPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
             { label: 'Total Items', value: bom.items?.length || 0 },
-            { label: 'Total BOM Cost', value: totalCost ? `₹${totalCost.toFixed(2)}` : '—' },
+            ...(elementVisible('page.bom.column.totalCost') ? [{ label: 'Total BOM Cost', value: totalCost ? `₹${totalCost.toFixed(2)}` : '—' }] : []),
             { label: 'Effective From', value: bom.effectiveFrom ? new Date(bom.effectiveFrom).toLocaleDateString() : '—' },
             { label: 'Approved At', value: bom.approvedAt ? new Date(bom.approvedAt).toLocaleDateString() : '—' },
           ].map(s => (
