@@ -187,6 +187,20 @@ export default function AccessControlPage() {
   const [pendingPageVisibility, setPendingPageVisibility] = useState({});
   const [previewBoms, setPreviewBoms] = useState([]);
   const [previewBomId, setPreviewBomId] = useState('');
+
+  useEffect(() => { setPendingPageVisibility({}); }, [selectedRoleId]);
+
+  function sendPreviewOverrides() {
+    const frame = document.getElementById('page-preview-frame');
+    if (!frame || !frame.contentWindow) return;
+    const byKey = {};
+    (pageElementsData[selectedPageKey] || []).forEach((el) => {
+      if (pendingPageVisibility[el.id] !== undefined) byKey[el.key] = pendingPageVisibility[el.id];
+    });
+    frame.contentWindow.postMessage({ type: 'ERP_PREVIEW_OVERRIDES', overrides: byKey }, window.location.origin);
+  }
+
+  useEffect(() => { sendPreviewOverrides(); }, [pendingPageVisibility, pageElementsData, selectedPageKey, previewBomId]);
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ name: '', label: '' });
   const [error, setError] = useState('');
@@ -680,7 +694,9 @@ export default function AccessControlPage() {
                       <div className="border rounded-xl overflow-hidden" style={{ height: '82vh' }}>
                         <div className="bg-indigo-600 text-white text-xs px-3 py-1.5">Live preview - as {selectedRole.label || selectedRole.name} would see it. Read-only, nothing here can actually be saved.</div>
                         <iframe
-                          key={`${previewBomId}-${selectedRole.name}-${JSON.stringify(pendingPageVisibility)}`}
+                          id="page-preview-frame"
+                          onLoad={sendPreviewOverrides}
+                          key={`${previewBomId}-${selectedRole.name}`}
                           src={`/inventory/bom/${previewBomId}?previewRole=${selectedRole.name}`}
                           className="w-full"
                           style={{ height: 'calc(100% - 28px)', border: 'none' }}

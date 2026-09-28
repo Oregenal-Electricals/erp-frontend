@@ -26,6 +26,7 @@ export default function BomDetailPage() {
   const [fetchError, setFetchError] = useState('');
   const [approvalRequest, setApprovalRequest] = useState(null);
   const [previewRole, setPreviewRole] = useState('');
+  const [previewOverrides, setPreviewOverrides] = useState({});
   const [pageElements, setPageElements] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -140,9 +141,20 @@ export default function BomDetailPage() {
       });
   }, []);
 
+  useEffect(() => {
+    if (!previewRole) return;
+    function onMsg(e) {
+      if (e.origin !== window.location.origin) return;
+      if (e.data?.type === 'ERP_PREVIEW_OVERRIDES') setPreviewOverrides(e.data.overrides || {});
+    }
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [previewRole]);
+
   function elementVisible(key) {
     const el = pageElements.find((e) => e.key === key);
     if (!el) return true; // not registered yet - default to visible, never silently hide something unconfigured
+    if (previewRole && previewOverrides[key] !== undefined) return previewOverrides[key];
     const effectiveRole = previewRole || getUser()?.role;
     const override = el.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === effectiveRole);
     return override ? override.isVisible : el.defaultVisible;
