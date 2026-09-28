@@ -27,6 +27,9 @@ export default function BomDetailPage() {
   const [approvalRequest, setApprovalRequest] = useState(null);
   const [previewRole, setPreviewRole] = useState('');
   const [previewOverrides, setPreviewOverrides] = useState({});
+  const [myVisibility, setMyVisibility] = useState({});
+  const [visibilityLoaded, setVisibilityLoaded] = useState(false);
+  const [previewChecked, setPreviewChecked] = useState(false);
   const [pageElements, setPageElements] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -129,17 +132,28 @@ export default function BomDetailPage() {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     setPreviewRole(params.get('previewRole') || '');
+    setPreviewChecked(true);
   }, []);
 
   useEffect(() => {
-    fetch(`${API}/ui-control/page-elements`, { headers: { Authorization: `Bearer ${getToken()}` } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((grouped) => {
-        if (!grouped) return;
-        const flat = Object.values(grouped).flat().filter((el) => el.page === '/inventory/bom/[id]');
-        setPageElements(flat);
-      });
-  }, []);
+    if (!previewChecked) return;
+    const headers = { Authorization: `Bearer ${getToken()}` };
+    if (previewRole) {
+      // Admin preview from Access Control: needs full override data for the role being previewed
+      fetch(`${API}/ui-control/page-elements`, { headers })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((grouped) => {
+          if (grouped) setPageElements(Object.values(grouped).flat().filter((el) => el.page === '/inventory/bom/[id]'));
+        })
+        .finally(() => setVisibilityLoaded(true));
+    } else {
+      // Normal use: any logged-in user gets their own resolved visibility
+      fetch(`${API}/ui-control/my-page-elements?page=${encodeURIComponent('/inventory/bom/[id]')}`, { headers })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((map) => { if (map) setMyVisibility(map); })
+        .finally(() => setVisibilityLoaded(true));
+    }
+  }, [previewChecked, previewRole]);
 
   useEffect(() => {
     if (!previewRole) return;
@@ -152,12 +166,15 @@ export default function BomDetailPage() {
   }, [previewRole]);
 
   function elementVisible(key) {
-    const el = pageElements.find((e) => e.key === key);
-    if (!el) return true; // not registered yet - default to visible, never silently hide something unconfigured
-    if (previewRole && previewOverrides[key] !== undefined) return previewOverrides[key];
-    const effectiveRole = previewRole || getUser()?.role;
-    const override = el.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === effectiveRole);
-    return override ? override.isVisible : el.defaultVisible;
+    if (!visibilityLoaded) return false; // don't flash restricted data while settings load
+    if (previewRole) {
+      if (previewOverrides[key] !== undefined) return previewOverrides[key];
+      const el = pageElements.find((e) => e.key === key);
+      if (!el) return true;
+      const override = el.overrides?.find((o) => o.scopeType === 'ROLE' && o.roleName === previewRole);
+      return override ? override.isVisible : el.defaultVisible;
+    }
+    return myVisibility[key] !== undefined ? myVisibility[key] : true;
   }
 
   async function handleSubmitForApproval() {
