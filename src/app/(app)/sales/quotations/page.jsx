@@ -8,7 +8,7 @@ function getToken() { if (typeof window !== 'undefined') return localStorage.get
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 
-const STATUS_COLORS = { DRAFT:'bg-gray-100 text-gray-600', SENT:'bg-blue-100 text-blue-700', ACCEPTED:'bg-green-100 text-green-700', REJECTED:'bg-red-100 text-red-600', EXPIRED:'bg-orange-100 text-orange-600' };
+const STATUS_COLORS = { DRAFT:'bg-gray-100 text-gray-600', SENT:'bg-blue-100 text-blue-700', ACCEPTED:'bg-green-100 text-green-700', REJECTED:'bg-red-100 text-red-600', EXPIRED:'bg-orange-100 text-orange-600', SUPERSEDED:'bg-purple-100 text-purple-600' };
 
 const BLANK_ITEM = { itemCode:'', itemName:'', description:'', qty:1, uom:'PCS', unitPrice:'', discount:0, gstRate:18 };
 
