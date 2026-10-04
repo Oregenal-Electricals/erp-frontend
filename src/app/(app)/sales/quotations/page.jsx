@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import DocumentAttachments from '@/components/shared/DocumentAttachments';
+import { createPortal } from 'react-dom';
+import CustomerFormModal from '@/components/CustomerFormModal';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
@@ -38,9 +40,13 @@ export default function QuotationsPage() {
   const [viewDetail, setViewDetail] = useState(null);
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [form, setForm] = useState({ leadId:'', customerName:'', customerEmail:'', customerPhone:'', customerAddress:'', validUntil:'', termsConditions:'', notes:'', items:[{...BLANK_ITEM}] });
+  const [form, setForm] = useState({ leadId:'', customerId:'', customerName:'', customerEmail:'', customerPhone:'', customerAddress:'', validUntil:'', termsConditions:'', notes:'', items:[{...BLANK_ITEM}] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [customerList, setCustomerList] = useState([]);
+  const [customerSuggestOpen, setCustomerSuggestOpen] = useState(false);
+  const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
+  const [customerSuggestPos, setCustomerSuggestPos] = useState({ top: 0, left: 0 });
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
@@ -48,14 +54,16 @@ export default function QuotationsPage() {
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
     if (status) params.set('status', status);
-    const [qRes, sRes, lRes] = await Promise.all([
+    const [qRes, sRes, lRes, cuRes] = await Promise.all([
       fetch(`${API}/quotations?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/quotations/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/leads?status=QUALIFIED&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/customers?limit=500`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (qRes.ok) { const d = await qRes.json(); setQuotes(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
     if (sRes.ok) setStats(await sRes.json());
     if (lRes.ok) { const d = await lRes.json(); setLeads(d.data||[]); }
+    if (cuRes.ok) { const d = await cuRes.json(); setCustomerList(d.data||d||[]); }
     setLoading(false);
   }
 
@@ -65,6 +73,42 @@ export default function QuotationsPage() {
     const lead = leads.find(l => l.id === leadId);
     if (lead) setForm(f => ({ ...f, leadId, customerName: lead.companyName, customerPhone: lead.phone||f.customerPhone, customerEmail: lead.email||f.customerEmail }));
     else setForm(f => ({ ...f, leadId }));
+  }
+
+  function openCustomerSuggestions(e) {
+    const rect = e.target.getBoundingClientRect();
+    setCustomerSuggestPos({ top: rect.bottom + window.scrollY + 4, left: rect.left + window.scrollX });
+    setCustomerSuggestOpen(true);
+  }
+  function matchingCustomers(text) {
+    if (!text) return customerList;
+    const q = text.toLowerCase();
+    return customerList.filter(c => c.name?.toLowerCase().includes(q) || c.code?.toLowerCase().includes(q));
+  }
+  async function selectCustomer(customer) {
+    const res = await fetch(`${API}/customers/${customer.id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    const full = res.ok ? await res.json() : customer;
+    const addresses = full.addresses || [];
+    const defaultAddr = addresses.find(a => a.isDefault) || addresses[0];
+    setForm(f => ({
+      ...f,
+      customerId: full.id,
+      customerName: full.name,
+      customerEmail: full.email || f.customerEmail,
+      customerPhone: full.phone || f.customerPhone,
+      customerAddress: defaultAddr
+        ? `${defaultAddr.addressLine}, ${defaultAddr.city || ''}, ${defaultAddr.state || ''} ${defaultAddr.pincode || ''}`.replace(/\s+,/g, ',').trim()
+        : f.customerAddress,
+    }));
+    setCustomerSuggestOpen(false);
+  }
+  function openNewCustomerModal() {
+    setCustomerSuggestOpen(false);
+    setShowNewCustomerModal(true);
+  }
+  async function handleNewCustomerSaved(customer) {
+    await selectCustomer(customer);
+    setCustomerList(list => [...list, customer]);
   }
 
   function addItem() { setForm(f => ({ ...f, items: [...f.items, {...BLANK_ITEM}] })); }
@@ -117,7 +161,7 @@ export default function QuotationsPage() {
             <h1 className="text-2xl font-bold text-gray-900">Quotations</h1>
             <p className="text-gray-500 text-sm mt-1">Create and manage customer quotations with GST calculations</p>
           </div>
-          <button onClick={()=>{ setForm({leadId:'',customerName:'',customerEmail:'',customerPhone:'',customerAddress:'',validUntil:'',termsConditions:'',notes:'',items:[{...BLANK_ITEM}]}); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New Quotation</button>
+          <button onClick={()=>{ setForm({leadId:'',customerId:'',customerName:'',customerEmail:'',customerPhone:'',customerAddress:'',validUntil:'',termsConditions:'',notes:'',items:[{...BLANK_ITEM}]}); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New Quotation</button>
         </div>
 
         {stats && (
@@ -282,7 +326,7 @@ export default function QuotationsPage() {
                       {leads.map(l=><option key={l.id} value={l.id}>{l.leadNumber} — {l.companyName}</option>)}
                     </select>
                   </div>
-                  <div><label className="block text-sm text-gray-600 mb-1">Customer Name *</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.customerName} onChange={e=>setForm(f=>({...f,customerName:e.target.value}))} /></div>
+                  <div><label className="block text-sm text-gray-600 mb-1">Customer Name *</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.customerName} onChange={e=>{ setForm(f=>({...f,customerId:'',customerName:e.target.value})); openCustomerSuggestions(e); }} onFocus={e=>openCustomerSuggestions(e)} onBlur={()=>setTimeout(()=>setCustomerSuggestOpen(false),150)} placeholder="Type to search existing customers, or type a new name" /></div>
                   <div><label className="block text-sm text-gray-600 mb-1">Customer Email</label><input type="email" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.customerEmail} onChange={e=>setForm(f=>({...f,customerEmail:e.target.value}))} /></div>
                   <div><label className="block text-sm text-gray-600 mb-1">Phone</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.customerPhone} onChange={e=>setForm(f=>({...f,customerPhone:e.target.value}))} /></div>
                   <div><label className="block text-sm text-gray-600 mb-1">Valid Until *</label><input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.validUntil} onChange={e=>setForm(f=>({...f,validUntil:e.target.value}))} /></div>
@@ -363,6 +407,31 @@ export default function QuotationsPage() {
           </div>
         )}
       </div>
+
+      {customerSuggestOpen && typeof document !== 'undefined' && form.customerName && createPortal(
+        <div className="fixed z-50 w-80 bg-white border rounded-lg shadow-lg max-h-56 overflow-y-auto" style={{ top: customerSuggestPos.top, left: customerSuggestPos.left }}>
+          {!matchingCustomers(form.customerName).some(c => c.name?.toLowerCase() === form.customerName.toLowerCase()) && (
+            <button type="button" onMouseDown={e=>e.preventDefault()} onClick={openNewCustomerModal} className="w-full text-left px-3 py-2 text-xs hover:bg-green-50 border-b font-medium text-green-700">
+              + Add &quot;{form.customerName}&quot; as new customer
+            </button>
+          )}
+          {matchingCustomers(form.customerName).map(c => (
+            <button key={c.id} type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>selectCustomer(c)} className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 border-b last:border-b-0">
+              <span className="font-mono text-blue-600 font-medium">{c.code}</span>
+              <span className="text-gray-500 ml-2">{c.name}</span>
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )}
+
+      <CustomerFormModal
+        open={showNewCustomerModal}
+        editingId={null}
+        initialName={form.customerName}
+        onClose={()=>setShowNewCustomerModal(false)}
+        onSaved={handleNewCustomerSaved}
+      />
     </AppLayout>
   );
 }
