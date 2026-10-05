@@ -1512,7 +1512,7 @@ export default function CustomerPoPage() {
                               </td>
                               <td className="px-1 py-1 text-xs">
                                 {!form.customerId ? (
-                                  <span className="text-gray-300">—</span>
+                                  <span className="text-gray-400 italic" title="Pick or add a customer above first">Select customer first</span>
                                 ) : mappingStatus[i]?.status === 'mapped' ? (
                                   <span className="text-green-600" title={mappingStatus[i].mapping?.product?.code}>✓ {mappingStatus[i].mapping?.product?.code}</span>
                                 ) : mappingStatus[i]?.status === 'unmapped' ? (
