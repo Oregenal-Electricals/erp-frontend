@@ -183,11 +183,20 @@ export default function CustomerPoPage() {
     const item = form.items[i];
     if (!form.customerId || !item?.itemCode) return;
     setMappingStatus((s) => ({ ...s, [i]: { status: 'checking' } }));
-    const res = await fetch(`${API}/customer-item-mappings/resolve?customerId=${form.customerId}&customerItemCode=${encodeURIComponent(item.itemCode)}`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    const data = res.ok ? await res.json() : null;
-    setMappingStatus((s) => ({ ...s, [i]: data ? { status: 'mapped', mapping: data } : { status: 'unmapped' } }));
+    try {
+      const res = await fetch(`${API}/customer-item-mappings/resolve?customerId=${form.customerId}&customerItemCode=${encodeURIComponent(item.itemCode)}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      // A match returns the mapping JSON; "no mapping yet" returns HTTP 200
+      // with a genuinely EMPTY body (not the text "null") - res.json() on
+      // an empty body throws, so read as text first and parse only if
+      // there's actually something there.
+      const text = res.ok ? await res.text() : '';
+      const data = text ? JSON.parse(text) : null;
+      setMappingStatus((s) => ({ ...s, [i]: data ? { status: 'mapped', mapping: data } : { status: 'unmapped' } }));
+    } catch (e) {
+      setMappingStatus((s) => ({ ...s, [i]: { status: 'unmapped' } }));
+    }
   }
   async function mapItem(i) {
     const item = form.items[i];
@@ -1515,6 +1524,8 @@ export default function CustomerPoPage() {
                                   <span className="text-gray-400 italic" title="Pick or add a customer above first">Select customer first</span>
                                 ) : mappingStatus[i]?.status === 'mapped' ? (
                                   <span className="text-green-600" title={mappingStatus[i].mapping?.product?.code}>✓ {mappingStatus[i].mapping?.product?.code}</span>
+                                ) : mappingStatus[i]?.status === 'checking' ? (
+                                  <span className="text-gray-400">Checking...</span>
                                 ) : mappingStatus[i]?.status === 'unmapped' ? (
                                   <div className="flex items-center gap-1">
                                     <select className="border rounded px-1 py-1 text-xs w-24" value={mappingPick[i] || ''} onChange={(e) => setMappingPick((p) => ({ ...p, [i]: e.target.value }))}>
