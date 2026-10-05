@@ -177,6 +177,34 @@ export default function CustomerPoPage() {
     left: 0,
   });
   const [customerAddresses, setCustomerAddresses] = useState([]);
+  const [mappingStatus, setMappingStatus] = useState({});
+  const [mappingPick, setMappingPick] = useState({});
+  async function checkMapping(i) {
+    const item = form.items[i];
+    if (!form.customerId || !item?.itemCode) return;
+    setMappingStatus((s) => ({ ...s, [i]: { status: 'checking' } }));
+    const res = await fetch(`${API}/customer-item-mappings/resolve?customerId=${form.customerId}&customerItemCode=${encodeURIComponent(item.itemCode)}`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    const data = res.ok ? await res.json() : null;
+    setMappingStatus((s) => ({ ...s, [i]: data ? { status: 'mapped', mapping: data } : { status: 'unmapped' } }));
+  }
+  async function mapItem(i) {
+    const item = form.items[i];
+    const productId = mappingPick[i];
+    if (!productId) return;
+    const res = await fetch(`${API}/customer-item-mappings`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ customerId: form.customerId, customerItemCode: item.itemCode, customerItemName: item.itemName, productId }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setMappingStatus((s) => ({ ...s, [i]: { status: 'mapped', mapping: data } }));
+    } else {
+      alert(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed to map item');
+    }
+  }
+
   function openCustomerSuggestions(e) {
     const rect = e.target.getBoundingClientRect();
     setCustomerSuggestPos({
@@ -1368,6 +1396,7 @@ export default function CustomerPoPage() {
                             'Disc%',
                             'GST%',
                             'Total',
+                            'Mapping',
                             '',
                           ].map((h) => (
                             <th key={h} className="px-2 py-2 text-left">
@@ -1390,7 +1419,7 @@ export default function CustomerPoPage() {
                                     openSuggestions(e, i, 'code');
                                   }}
                                   onFocus={(e) => openSuggestions(e, i, 'code')}
-                                  onBlur={() =>
+                                  onBlur={() => {
                                     setTimeout(
                                       () =>
                                         setActiveSuggestionRow((r) =>
@@ -1398,7 +1427,7 @@ export default function CustomerPoPage() {
                                         ),
                                       150,
                                     )
-                                  }
+                                  ; checkMapping(i); }}
                                   placeholder="FG-001"
                                 />
                               </td>
@@ -1480,6 +1509,23 @@ export default function CustomerPoPage() {
                               </td>
                               <td className="px-2 py-1 text-xs font-bold text-blue-700">
                                 {fmt(c.total)}
+                              </td>
+                              <td className="px-1 py-1 text-xs">
+                                {!form.customerId ? (
+                                  <span className="text-gray-300">—</span>
+                                ) : mappingStatus[i]?.status === 'mapped' ? (
+                                  <span className="text-green-600" title={mappingStatus[i].mapping?.product?.code}>✓ {mappingStatus[i].mapping?.product?.code}</span>
+                                ) : mappingStatus[i]?.status === 'unmapped' ? (
+                                  <div className="flex items-center gap-1">
+                                    <select className="border rounded px-1 py-1 text-xs w-24" value={mappingPick[i] || ''} onChange={(e) => setMappingPick((p) => ({ ...p, [i]: e.target.value }))}>
+                                      <option value="">Map to…</option>
+                                      {products.map((p) => <option key={p.id} value={p.id}>{p.code}</option>)}
+                                    </select>
+                                    <button type="button" onClick={() => mapItem(i)} disabled={!mappingPick[i]} className="text-blue-600 hover:underline disabled:opacity-40 disabled:no-underline">Map</button>
+                                  </div>
+                                ) : (
+                                  <button type="button" onClick={() => checkMapping(i)} className="text-gray-400 hover:underline">Check</button>
+                                )}
                               </td>
                               <td className="px-1 py-1">
                                 <button
