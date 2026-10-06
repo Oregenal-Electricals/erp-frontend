@@ -345,6 +345,7 @@ export default function CustomerPoPage() {
     setError('');
     const body = {
       poType: form.poType,
+      customerId: form.customerId,
       customerName: form.customerName,
       customerEmail: form.customerEmail || undefined,
       customerPhone: form.customerPhone || undefined,
