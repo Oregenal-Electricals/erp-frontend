@@ -340,6 +340,17 @@ export default function CustomerPoPage() {
     { subtotal: 0, gst: 0, total: 0 },
   );
 
+  function isSaveDisabled() {
+    if (saving) return true;
+    if (!form.customerId) return true;
+    if (!form.poDate || isNaN(new Date(form.poDate).getTime())) return true;
+    if (!form.deliveryDate || isNaN(new Date(form.deliveryDate).getTime())) return true;
+    if (form.poType === 'WRITTEN' && !form.customerPoNumber) return true;
+    if (form.poType === 'VERBAL' && !form.verbalConfirmedBy) return true;
+    if (!form.items.some((i) => i.itemCode && parseFloat(i.qty) > 0)) return true;
+    return false;
+  }
+
   async function handleSave() {
     setError('');
     if (!form.customerId) {
@@ -509,6 +520,7 @@ export default function CustomerPoPage() {
         ? cpo.verbalConfirmedDate.split('T')[0]
         : '',
       quotationId: cpo.quotationId || '',
+      customerId: cpo.customerId || '',
       customerName: cpo.customerName,
       customerEmail: cpo.customerEmail || '',
       customerPhone: cpo.customerPhone || '',
@@ -1614,8 +1626,9 @@ export default function CustomerPoPage() {
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={saving}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50"
+                  disabled={isSaveDisabled()}
+                  title={isSaveDisabled() && !saving ? 'Fill all required fields (*) and at least one line item before saving' : undefined}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving
                     ? 'Saving...'
