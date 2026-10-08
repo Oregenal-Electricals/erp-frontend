@@ -122,7 +122,16 @@ export default function SalesOrdersPage() {
   }, { subtotal: 0, gst: 0, total:0 });
 
   async function handleCreate() {
-    setSaving(true); setError('');
+    setError('');
+    if (!form.cpoId) {
+      setError('Please select a Customer PO.');
+      return;
+    }
+    if (!form.deliveryDate || isNaN(new Date(form.deliveryDate).getTime())) {
+      setError('Delivery Date is required.');
+      return;
+    }
+    setSaving(true);
     const body = {
       ...form,
       deliveryDate: new Date(form.deliveryDate).toISOString(),

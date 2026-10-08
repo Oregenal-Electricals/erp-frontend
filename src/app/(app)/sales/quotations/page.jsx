@@ -121,7 +121,16 @@ export default function QuotationsPage() {
   }, { subtotal: 0, gst: 0, total: 0 });
 
   async function handleCreate() {
-    setSaving(true); setError('');
+    setError('');
+    if (!form.customerId) {
+      setError('Please select a customer from the list (or add them as a new customer) before saving.');
+      return;
+    }
+    if (!form.validUntil || isNaN(new Date(form.validUntil).getTime())) {
+      setError('Valid Until date is required.');
+      return;
+    }
+    setSaving(true);
     const body = {
       ...form,
       validUntil: new Date(form.validUntil).toISOString(),

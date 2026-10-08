@@ -442,14 +442,17 @@ export default function CustomerPoPage() {
   }
 
   async function handleIncreaseSave() {
-    setIncreaseSaving(true);
     setIncreaseError('');
     const itemsToSend = increaseForm.items.filter((i) => parseFloat(i.qty) > 0);
     if (itemsToSend.length === 0) {
       setIncreaseError('Enter an additional quantity for at least one item.');
-      setIncreaseSaving(false);
       return;
     }
+    if (!increaseForm.deliveryDate || isNaN(new Date(increaseForm.deliveryDate).getTime())) {
+      setIncreaseError('Delivery Date is required.');
+      return;
+    }
+    setIncreaseSaving(true);
     const body = {
       poType: increaseForm.poType,
       deliveryDate: new Date(increaseForm.deliveryDate).toISOString(),
