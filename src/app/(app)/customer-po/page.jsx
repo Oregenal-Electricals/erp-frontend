@@ -341,8 +341,20 @@ export default function CustomerPoPage() {
   );
 
   async function handleSave() {
-    setSaving(true);
     setError('');
+    if (!form.customerId) {
+      setError('Please select a customer.');
+      return;
+    }
+    if (!form.poDate || isNaN(new Date(form.poDate).getTime())) {
+      setError('PO Date is required.');
+      return;
+    }
+    if (!form.deliveryDate || isNaN(new Date(form.deliveryDate).getTime())) {
+      setError('Delivery Date is required.');
+      return;
+    }
+    setSaving(true);
     const body = {
       poType: form.poType,
       customerId: form.customerId,
