@@ -352,7 +352,7 @@ export default function CustomerPoPage() {
     return false;
   }
   function reqCls(invalid, base = 'w-full border rounded-lg px-3 py-2 text-sm') {
-    return saveAttempted && invalid
+    return invalid
       ? `${base} border-red-500 ring-1 ring-red-400 bg-red-50`
       : `${base} border-gray-300`;
   }
@@ -1647,7 +1647,7 @@ export default function CustomerPoPage() {
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={saving}
+                  disabled={isSaveDisabled()}
                   title={isSaveDisabled() && !saving ? 'Fill all required fields (*) and at least one line item before saving' : undefined}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
