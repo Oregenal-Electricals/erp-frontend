@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { getUser } from '@/lib/auth';
 import api from '@/lib/api';
+import { useApprovals } from '@/context/ApprovalsContext';
 import {
   ShoppingCart, LayoutDashboard, Settings, Building2, Factory,
   Layers, Users2, GitBranch, Calendar, ChevronDown, ChevronRight,
@@ -45,6 +46,7 @@ const FALLBACK_STRUCTURE = [
 
 export default function Sidebar({ onClose }) {
   const pathname = usePathname();
+  const { pendingApprovalsCount } = useApprovals();
   const [openSections, setOpenSections] = useState({});
   const [hydrated, setHydrated] = useState(false);
   const [structure, setStructure] = useState(null); // null = loading
@@ -128,6 +130,10 @@ export default function Sidebar({ onClose }) {
           if (!section.items || section.items.length === 0) {
             if (!section.page) return null;
             const active = pathname === section.page;
+            // My Approvals gets a live pending-count badge so a role can
+            // tell at a glance whether anything is actually waiting,
+            // instead of having to click in and find an empty inbox.
+            const badgeCount = section.page === '/my-approvals' ? pendingApprovalsCount : 0;
             return (
               <Link
                 key={section.key}
@@ -137,7 +143,13 @@ export default function Sidebar({ onClose }) {
                   active ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <SectionIcon size={16} /> {section.label}
+                <SectionIcon size={16} />
+                <span className="flex-1">{section.label}</span>
+                {badgeCount > 0 && (
+                  <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                    {badgeCount > 99 ? '99+' : badgeCount}
+                  </span>
+                )}
               </Link>
             );
           }

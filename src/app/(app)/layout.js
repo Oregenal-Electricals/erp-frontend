@@ -5,12 +5,18 @@
 // (which notification popups have already been surfaced/dismissed) must
 // live here, not inside the per-page component, or it resets on every
 // single page navigation and previously-dismissed popups reappear.
+// ApprovalsProvider (the My Approvals sidebar badge count) lives here for
+// the same reason, plus it avoids every page remount re-triggering its
+// poll from scratch.
 import { NotificationProvider } from '@/context/NotificationContext';
+import { ApprovalsProvider } from '@/context/ApprovalsContext';
 
 export default function AppRouteLayout({ children }) {
   return (
     <NotificationProvider>
-      {children}
+      <ApprovalsProvider>
+        {children}
+      </ApprovalsProvider>
     </NotificationProvider>
   );
 }
