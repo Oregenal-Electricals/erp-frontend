@@ -170,6 +170,18 @@ export default function CustomerPoPage() {
         p.code?.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q),
     );
   }
+  // CustomerItemMapping.productId can only point at a Product (see
+  // prisma/schema.prisma), never a Raw Material, so the Mapping column's
+  // search must only offer Products - unlike the Item Code/Item Name
+  // suggestions above, which intentionally include Raw Materials too.
+  function matchingMappingProducts(text) {
+    if (!text) return products;
+    const q = text.toLowerCase();
+    return products.filter(
+      (p) =>
+        p.code?.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q),
+    );
+  }
   const [customerList, setCustomerList] = useState([]);
   const [customerSuggestOpen, setCustomerSuggestOpen] = useState(false);
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
@@ -180,12 +192,26 @@ export default function CustomerPoPage() {
   const [customerAddresses, setCustomerAddresses] = useState([]);
   const [mappingStatus, setMappingStatus] = useState({});
   const [mappingPick, setMappingPick] = useState({});
-  async function checkMapping(i) {
-    const item = form.items[i];
-    if (!form.customerId || !item?.itemCode) return;
+  // Free-text search box shown in the unmapped Mapping cell, keyed by item
+  // row index - lets the user type any character to filter products
+  // instead of scrolling a plain, unfilterable <select>.
+  const [mappingSearchText, setMappingSearchText] = useState({});
+  // Resets mapping state for every row - must be called whenever the
+  // modal opens for a NEW PO or a DIFFERENT existing PO, otherwise a
+  // mapping result left over from whatever PO was open last (e.g. row 0
+  // showing "mapped" the instant the modal opens) bleeds into this one,
+  // because mappingStatus/mappingPick/mappingSearchText are keyed by row
+  // index, not by PO or customer.
+  function resetMappingState() {
+    setMappingStatus({});
+    setMappingPick({});
+    setMappingSearchText({});
+  }
+  async function checkMappingFor(i, customerId, itemCode) {
+    if (!customerId || !itemCode) return;
     setMappingStatus((s) => ({ ...s, [i]: { status: 'checking' } }));
     try {
-      const res = await fetch(`${API}/customer-item-mappings/resolve?customerId=${form.customerId}&customerItemCode=${encodeURIComponent(item.itemCode)}`, {
+      const res = await fetch(`${API}/customer-item-mappings/resolve?customerId=${customerId}&customerItemCode=${encodeURIComponent(itemCode)}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       // A match returns the mapping JSON; "no mapping yet" returns HTTP 200
@@ -198,6 +224,11 @@ export default function CustomerPoPage() {
     } catch (e) {
       setMappingStatus((s) => ({ ...s, [i]: { status: 'unmapped' } }));
     }
+  }
+  async function checkMapping(i) {
+    const item = form.items[i];
+    if (!form.customerId || !item?.itemCode) return;
+    await checkMappingFor(i, form.customerId, item.itemCode);
   }
   async function mapItem(i) {
     const item = form.items[i];
@@ -310,6 +341,11 @@ export default function CustomerPoPage() {
       };
       return { ...f, items };
     });
+    setActiveSuggestionRow(null);
+  }
+  function selectMappingProduct(i, product) {
+    setMappingPick((p) => ({ ...p, [i]: product.id }));
+    setMappingSearchText((s) => ({ ...s, [i]: `${product.code} — ${product.name}` }));
     setActiveSuggestionRow(null);
   }
 
@@ -562,7 +598,14 @@ export default function CustomerPoPage() {
     });
     setEditingId(cpo.id);
     setError('');
+    resetMappingState();
     setShowModal(true);
+    if (cpo.customerId) {
+      cpo.items.forEach((cpoItem, idx) => {
+        if (!cpoItem.itemCode) return;
+        checkMappingFor(idx, cpo.customerId, cpoItem.itemCode);
+      });
+    }
   }
 
   async function handleAction(id, action, body = {}) {
@@ -633,6 +676,7 @@ export default function CustomerPoPage() {
               setEditingId(null);
               setError('');
               setSaveAttempted(false);
+              resetMappingState();
               setShowModal(true);
             }}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
@@ -1577,10 +1621,26 @@ export default function CustomerPoPage() {
                                   <span className="text-gray-400">Checking...</span>
                                 ) : mappingStatus[i]?.status === 'unmapped' ? (
                                   <div className="flex items-center gap-1">
-                                    <select className="border rounded px-1 py-1 text-xs w-24" value={mappingPick[i] || ''} onChange={(e) => setMappingPick((p) => ({ ...p, [i]: e.target.value }))}>
-                                      <option value="">Map to…</option>
-                                      {products.map((p) => <option key={p.id} value={p.id}>{p.code}</option>)}
-                                    </select>
+                                    <input
+                                      className="border rounded px-1 py-1 text-xs w-28"
+                                      placeholder="Search product…"
+                                      value={mappingSearchText[i] || ''}
+                                      onChange={(e) => {
+                                        setMappingSearchText((s) => ({ ...s, [i]: e.target.value }));
+                                        setMappingPick((p) => ({ ...p, [i]: '' }));
+                                        openSuggestions(e, i, 'mapping');
+                                      }}
+                                      onFocus={(e) => openSuggestions(e, i, 'mapping')}
+                                      onBlur={() =>
+                                        setTimeout(
+                                          () =>
+                                            setActiveSuggestionRow((r) =>
+                                              r === i ? null : r,
+                                            ),
+                                          150,
+                                        )
+                                      }
+                                    />
                                     <button type="button" onClick={() => mapItem(i)} disabled={!mappingPick[i]} className="text-blue-600 hover:underline disabled:opacity-40 disabled:no-underline">Map</button>
                                   </div>
                                 ) : (
@@ -1988,9 +2048,15 @@ export default function CustomerPoPage() {
           (() => {
             const item = form.items[activeSuggestionRow];
             if (!item) return null;
-            const searchText =
-              activeSuggestionField === 'code' ? item.itemCode : item.itemName;
-            const matches = matchingProducts(searchText);
+            const isMapping = activeSuggestionField === 'mapping';
+            const searchText = isMapping
+              ? mappingSearchText[activeSuggestionRow] || ''
+              : activeSuggestionField === 'code'
+                ? item.itemCode
+                : item.itemName;
+            const matches = isMapping
+              ? matchingMappingProducts(searchText)
+              : matchingProducts(searchText);
             if (matches.length === 0) return null;
             return (
               <div
@@ -2002,7 +2068,11 @@ export default function CustomerPoPage() {
                     key={p.id}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => selectProduct(activeSuggestionRow, p)}
+                    onClick={() =>
+                      isMapping
+                        ? selectMappingProduct(activeSuggestionRow, p)
+                        : selectProduct(activeSuggestionRow, p)
+                    }
                     className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 border-b last:border-b-0"
                   >
                     <span className="font-mono text-blue-600 font-medium">
