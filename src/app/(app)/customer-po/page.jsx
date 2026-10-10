@@ -115,20 +115,21 @@ export default function CustomerPoPage() {
     if (search) params.set('search', search);
     if (status) params.set('status', status);
     if (poType) params.set('poType', poType);
-    const [cRes, sRes, pRes, cuRes, rmRes] = await Promise.all([
+    const [cRes, sRes, pRes, cuRes] = await Promise.all([
       fetch(`${API}/customer-po?${params}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       }),
       fetch(`${API}/customer-po/stats`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       }),
+      // Still fetched - the Mapping column's own search (matchingMappingProducts)
+      // needs the Product catalog to let Sales link a customer's item to OUR
+      // product. Raw Materials are no longer fetched here: that list only ever
+      // fed the Item Code/Item Name autocomplete, which has been removed.
       fetch(`${API}/products?limit=500`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       }),
       fetch(`${API}/customers?limit=500`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      }),
-      fetch(`${API}/raw-materials?limit=500`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       }),
     ]);
@@ -147,33 +148,17 @@ export default function CustomerPoPage() {
       const d = await cuRes.json();
       setCustomerList(d.data || d || []);
     }
-    if (rmRes.ok) {
-      const d = await rmRes.json();
-      setRawMaterials(d.data || d || []);
-    }
     setLoading(false);
   }
 
   useEffect(() => {
     fetchAll();
   }, [page, search, status, poType]);
-  const [rawMaterials, setRawMaterials] = useState([]);
-  function matchingProducts(text) {
-    const tagged = [
-      ...products.map((p) => ({ ...p, _source: 'Product' })),
-      ...rawMaterials.map((r) => ({ ...r, _source: 'Raw Material' })),
-    ];
-    if (!text) return tagged;
-    const q = text.toLowerCase();
-    return tagged.filter(
-      (p) =>
-        p.code?.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q),
-    );
-  }
-  // CustomerItemMapping.productId can only point at a Product (see
-  // prisma/schema.prisma), never a Raw Material, so the Mapping column's
-  // search must only offer Products - unlike the Item Code/Item Name
-  // suggestions above, which intentionally include Raw Materials too.
+  // The Mapping column's search only ever offers Products - a
+  // CustomerItemMapping.productId can never point at a Raw Material (see
+  // prisma/schema.prisma) - and Item Code/Item Name no longer autocomplete
+  // against any internal catalog at all (see matchingMappingProducts below
+  // and the removal note on the inputs further down).
   function matchingMappingProducts(text) {
     if (!text) return products;
     const q = text.toLowerCase();
@@ -330,18 +315,6 @@ export default function CustomerPoPage() {
           .replace(/\s+,/g, ',')
           .trim(),
     }));
-  }
-  function selectProduct(i, product) {
-    setForm((f) => {
-      const items = [...f.items];
-      items[i] = {
-        ...items[i],
-        itemCode: product.code,
-        itemName: product.name,
-      };
-      return { ...f, items };
-    });
-    setActiveSuggestionRow(null);
   }
   function selectMappingProduct(i, product) {
     setMappingPick((p) => ({ ...p, [i]: product.id }));
@@ -1516,42 +1489,23 @@ export default function CustomerPoPage() {
                                 <input
                                   className="border rounded px-2 py-1.5 text-xs w-32 font-mono"
                                   value={item.itemCode}
-                                  onChange={(e) => {
-                                    updateItem(i, 'itemCode', e.target.value);
-                                    openSuggestions(e, i, 'code');
-                                  }}
-                                  onFocus={(e) => openSuggestions(e, i, 'code')}
-                                  onBlur={() => {
-                                    setTimeout(
-                                      () =>
-                                        setActiveSuggestionRow((r) =>
-                                          r === i ? null : r,
-                                        ),
-                                      150,
-                                    )
-                                  ; checkMapping(i); }}
-                                  placeholder="FG-001"
+                                  onChange={(e) =>
+                                    updateItem(i, 'itemCode', e.target.value)
+                                  }
+                                  onBlur={() => checkMapping(i)}
+                                  placeholder="Customer's item code"
+                                  title="Enter exactly as written on the customer's PO"
                                 />
                               </td>
                               <td className="px-1 py-1">
                                 <input
                                   className="border rounded px-2 py-1.5 text-xs w-64"
                                   value={item.itemName}
-                                  onChange={(e) => {
-                                    updateItem(i, 'itemName', e.target.value);
-                                    openSuggestions(e, i, 'name');
-                                  }}
-                                  onFocus={(e) => openSuggestions(e, i, 'name')}
-                                  onBlur={() =>
-                                    setTimeout(
-                                      () =>
-                                        setActiveSuggestionRow((r) =>
-                                          r === i ? null : r,
-                                        ),
-                                      150,
-                                    )
+                                  onChange={(e) =>
+                                    updateItem(i, 'itemName', e.target.value)
                                   }
-                                  placeholder="Item name"
+                                  placeholder="Customer's item name"
+                                  title="Enter exactly as written on the customer's PO"
                                 />
                               </td>
                               <td className="px-1 py-1">
@@ -2048,15 +2002,10 @@ export default function CustomerPoPage() {
           (() => {
             const item = form.items[activeSuggestionRow];
             if (!item) return null;
-            const isMapping = activeSuggestionField === 'mapping';
-            const searchText = isMapping
-              ? mappingSearchText[activeSuggestionRow] || ''
-              : activeSuggestionField === 'code'
-                ? item.itemCode
-                : item.itemName;
-            const matches = isMapping
-              ? matchingMappingProducts(searchText)
-              : matchingProducts(searchText);
+            // The suggestion portal only ever serves the Mapping column now -
+            // Item Code/Item Name are plain free-text inputs (see above).
+            const searchText = mappingSearchText[activeSuggestionRow] || '';
+            const matches = matchingMappingProducts(searchText);
             if (matches.length === 0) return null;
             return (
               <div
@@ -2068,11 +2017,7 @@ export default function CustomerPoPage() {
                     key={p.id}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() =>
-                      isMapping
-                        ? selectMappingProduct(activeSuggestionRow, p)
-                        : selectProduct(activeSuggestionRow, p)
-                    }
+                    onClick={() => selectMappingProduct(activeSuggestionRow, p)}
                     className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 border-b last:border-b-0"
                   >
                     <span className="font-mono text-blue-600 font-medium">
