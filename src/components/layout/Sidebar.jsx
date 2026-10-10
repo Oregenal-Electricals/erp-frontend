@@ -132,8 +132,12 @@ export default function Sidebar({ onClose }) {
             const active = pathname === section.page;
             // My Approvals gets a live pending-count badge so a role can
             // tell at a glance whether anything is actually waiting,
-            // instead of having to click in and find an empty inbox.
-            const badgeCount = section.page === '/my-approvals' ? pendingApprovalsCount : 0;
+            // instead of having to click in and find an empty inbox -
+            // and is hidden outright whenever there's nothing pending,
+            // rather than showing a link to an always-empty page.
+            const isMyApprovals = section.page === '/my-approvals';
+            const badgeCount = isMyApprovals ? pendingApprovalsCount : 0;
+            if (isMyApprovals && badgeCount === 0) return null;
             return (
               <Link
                 key={section.key}

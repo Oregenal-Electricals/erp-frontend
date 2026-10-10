@@ -18,6 +18,8 @@ function targetUrl(item) {
   return null;
 }
 
+const POLL_INTERVAL_MS = 30000;
+
 export default function MyApprovalsPage() {
   const router = useRouter();
   const [items, setItems] = useState([]);
@@ -25,12 +27,29 @@ export default function MyApprovalsPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    (async () => {
-      const res = await fetch(`${API}/workflows/my-approvals`, { headers: { Authorization: `Bearer ${getToken()}` } });
-      if (!res.ok) { setError('Could not load pending approvals'); setLoading(false); return; }
-      setItems(await res.json());
-      setLoading(false);
-    })();
+    let cancelled = false;
+
+    // Polls instead of fetching once, so a new approval that arrives
+    // while someone is already sitting on this page shows up on its own
+    // - matching the same 30s cadence as the sidebar's badge count
+    // (ApprovalsContext) - rather than requiring a manual page reload.
+    async function load() {
+      try {
+        const res = await fetch(`${API}/workflows/my-approvals`, { headers: { Authorization: `Bearer ${getToken()}` } });
+        if (cancelled) return;
+        if (!res.ok) { setError('Could not load pending approvals'); setLoading(false); return; }
+        setItems(await res.json());
+        setError('');
+      } catch {
+        if (!cancelled) setError('Could not load pending approvals');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    const interval = setInterval(load, POLL_INTERVAL_MS);
+    return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
   return (
