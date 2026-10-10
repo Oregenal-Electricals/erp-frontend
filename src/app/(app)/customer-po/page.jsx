@@ -89,6 +89,7 @@ export default function CustomerPoPage() {
   const [recheckSaving, setRecheckSaving] = useState(false);
   const [form, setForm] = useState({ ...BLANK_FORM });
   const [saving, setSaving] = useState(false);
+  const [saveAttempted, setSaveAttempted] = useState(false);
   const [error, setError] = useState('');
   const [products, setProducts] = useState([]);
   const [activeSuggestionRow, setActiveSuggestionRow] = useState(null);
@@ -350,9 +351,15 @@ export default function CustomerPoPage() {
     if (!form.items.some((i) => i.itemCode && parseFloat(i.qty) > 0)) return true;
     return false;
   }
+  function reqCls(invalid, base = 'w-full border rounded-lg px-3 py-2 text-sm') {
+    return saveAttempted && invalid
+      ? `${base} border-red-500 ring-1 ring-red-400 bg-red-50`
+      : `${base} border-gray-300`;
+  }
 
   async function handleSave() {
     setError('');
+    setSaveAttempted(true);
     if (!form.customerId) {
       setError('Please select a customer.');
       return;
@@ -363,6 +370,18 @@ export default function CustomerPoPage() {
     }
     if (!form.deliveryDate || isNaN(new Date(form.deliveryDate).getTime())) {
       setError('Delivery Date is required.');
+      return;
+    }
+    if (form.poType === 'WRITTEN' && !form.customerPoNumber) {
+      setError('Customer PO Number is required.');
+      return;
+    }
+    if (form.poType === 'VERBAL' && !form.verbalConfirmedBy) {
+      setError('Confirmed By is required.');
+      return;
+    }
+    if (!form.items.some((i) => i.itemCode && parseFloat(i.qty) > 0)) {
+      setError('Add at least one line item with an item code and quantity.');
       return;
     }
     setSaving(true);
@@ -512,6 +531,7 @@ export default function CustomerPoPage() {
   }
 
   function openEdit(cpo) {
+    setSaveAttempted(false);
     setForm({
       poType: cpo.poType,
       customerPoNumber: cpo.poType === 'WRITTEN' ? cpo.customerPoNumber : '',
@@ -612,6 +632,7 @@ export default function CustomerPoPage() {
               setForm({ ...BLANK_FORM });
               setEditingId(null);
               setError('');
+              setSaveAttempted(false);
               setShowModal(true);
             }}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
@@ -1245,7 +1266,7 @@ export default function CustomerPoPage() {
                       Customer Name *
                     </label>
                     <input
-                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                      className={reqCls(!form.customerId)}
                       value={form.customerName}
                       onChange={(e) => {
                         setForm((f) => ({
@@ -1268,7 +1289,7 @@ export default function CustomerPoPage() {
                         Customer PO Number *
                       </label>
                       <input
-                        className="w-full border rounded-lg px-3 py-2 text-sm font-mono"
+                        className={reqCls(!form.customerPoNumber, 'w-full border rounded-lg px-3 py-2 text-sm font-mono')}
                         value={form.customerPoNumber}
                         onChange={(e) =>
                           setForm((f) => ({
@@ -1286,7 +1307,7 @@ export default function CustomerPoPage() {
                           Confirmed By *
                         </label>
                         <input
-                          className="w-full border rounded-lg px-3 py-2 text-sm"
+                          className={reqCls(!form.verbalConfirmedBy)}
                           value={form.verbalConfirmedBy}
                           onChange={(e) =>
                             setForm((f) => ({
@@ -1352,7 +1373,7 @@ export default function CustomerPoPage() {
                     </label>
                     <input
                       type="date"
-                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                      className={reqCls(!form.poDate || isNaN(new Date(form.poDate).getTime()))}
                       value={form.poDate}
                       onChange={(e) =>
                         setForm((f) => ({ ...f, poDate: e.target.value }))
@@ -1365,7 +1386,7 @@ export default function CustomerPoPage() {
                     </label>
                     <input
                       type="date"
-                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                      className={reqCls(!form.deliveryDate || isNaN(new Date(form.deliveryDate).getTime()))}
                       value={form.deliveryDate}
                       onChange={(e) =>
                         setForm((f) => ({ ...f, deliveryDate: e.target.value }))
@@ -1626,7 +1647,7 @@ export default function CustomerPoPage() {
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={isSaveDisabled()}
+                  disabled={saving}
                   title={isSaveDisabled() && !saving ? 'Fill all required fields (*) and at least one line item before saving' : undefined}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
