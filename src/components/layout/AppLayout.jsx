@@ -58,9 +58,15 @@ export default function AppLayout({ children }) {
     );
   }
 
+  // NotificationProvider now lives in the persistent src/app/(app)/layout.js
+  // route layout, not here - this component is imported fresh by every
+  // individual page.jsx and gets unmounted/remounted on every client-side
+  // navigation, which used to reset the provider's "already shown this
+  // session" state and made dismissed notification popups reappear on
+  // every page. NotificationPopupStack below still works the same way,
+  // it just now reads from that higher, non-remounting provider instance.
   return (
     <UiControlProvider>
-    <NotificationProvider>
     <>
     <PreviewBanner />
     <NotificationPopupStack />
@@ -97,7 +103,6 @@ export default function AppLayout({ children }) {
       </div>
     </div>
     </>
-    </NotificationProvider>
     </UiControlProvider>
   );
 }

@@ -18,10 +18,37 @@ const NotificationContext = createContext({
 
 const MAX_VISIBLE_POPUPS = 3;
 
+// Dismissed-but-still-unread popup ids survive a full page reload (not
+// just client-side navigation, which NotificationProvider living in the
+// persistent route layout already survives on its own) by riding along
+// in sessionStorage - cleared automatically when the browser tab/session
+// ends, so it never masks a genuinely new notification in a later visit.
+const DISMISSED_KEY = 'erp_dismissed_notification_ids';
+
+function loadDismissedIds() {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = sessionStorage.getItem(DISMISSED_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDismissedIds(ids) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(DISMISSED_KEY, JSON.stringify(Array.from(ids)));
+  } catch {
+    // Silent - sessionStorage can be unavailable (private browsing, quota); dismissal just won't persist across a reload.
+  }
+}
+
 export function NotificationProvider({ children }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [popups, setPopups] = useState([]); // notifications currently shown as popups, not yet dismissed
   const seenIdsRef = useRef(new Set()); // notification ids already surfaced as a popup this session
+  const dismissedIdsRef = useRef(loadDismissedIds()); // notification ids the user explicitly X'd, kept hidden even though still unread
 
   const fetchAndSurfaceNew = useCallback(async () => {
     if (typeof window === 'undefined' || !localStorage.getItem('erp_token')) return;
@@ -29,7 +56,7 @@ export function NotificationProvider({ children }) {
       const { data } = await api.get('/notifications', { params: { unreadOnly: 'true', limit: 20 } });
       setUnreadCount(data.unreadCount ?? 0);
 
-      const fresh = (data.data || []).filter(n => !seenIdsRef.current.has(n.id));
+      const fresh = (data.data || []).filter(n => !seenIdsRef.current.has(n.id) && !dismissedIdsRef.current.has(n.id));
       if (fresh.length > 0) {
         fresh.forEach(n => seenIdsRef.current.add(n.id));
         // Newest first, cap how many actually render as cards - a
@@ -49,11 +76,17 @@ export function NotificationProvider({ children }) {
   }, [fetchAndSurfaceNew]);
 
   const dismissPopup = useCallback((id) => {
+    dismissedIdsRef.current.add(id);
+    saveDismissedIds(dismissedIdsRef.current);
     setPopups(prev => prev.filter(p => p.id !== id));
   }, []);
 
   const dismissAllPopups = useCallback(() => {
-    setPopups([]);
+    setPopups(prev => {
+      prev.forEach(p => dismissedIdsRef.current.add(p.id));
+      saveDismissedIds(dismissedIdsRef.current);
+      return [];
+    });
   }, []);
 
   const markRead = useCallback(async (id) => {
