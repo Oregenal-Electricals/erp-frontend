@@ -115,21 +115,26 @@ export default function CustomerPoPage() {
     if (search) params.set('search', search);
     if (status) params.set('status', status);
     if (poType) params.set('poType', poType);
-    const [cRes, sRes, pRes, cuRes] = await Promise.all([
+    const [cRes, sRes, pRes, cuRes, rmRes] = await Promise.all([
       fetch(`${API}/customer-po?${params}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       }),
       fetch(`${API}/customer-po/stats`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       }),
-      // Still fetched - the Mapping column's own search (matchingMappingProducts)
-      // needs the Product catalog to let Sales link a customer's item to OUR
-      // product. Raw Materials are no longer fetched here: that list only ever
-      // fed the Item Code/Item Name autocomplete, which has been removed.
+      // The Mapping column's search (matchingMappingProducts) needs both
+      // the Product and Raw Material catalogs - a customer can place a PO
+      // against a Product (FG/Semi-Finished) or buy a Raw Material direct
+      // (trading/resale), so a mapping can target either one. Item Code/
+      // Item Name themselves still don't autocomplete against either
+      // catalog (see the removal note on those inputs further down).
       fetch(`${API}/products?limit=500`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       }),
       fetch(`${API}/customers?limit=500`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      }),
+      fetch(`${API}/raw-materials?limit=500`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       }),
     ]);
@@ -148,21 +153,29 @@ export default function CustomerPoPage() {
       const d = await cuRes.json();
       setCustomerList(d.data || d || []);
     }
+    if (rmRes.ok) {
+      const d = await rmRes.json();
+      setRawMaterials(d.data || d || []);
+    }
     setLoading(false);
   }
 
   useEffect(() => {
     fetchAll();
   }, [page, search, status, poType]);
-  // The Mapping column's search only ever offers Products - a
-  // CustomerItemMapping.productId can never point at a Raw Material (see
-  // prisma/schema.prisma) - and Item Code/Item Name no longer autocomplete
-  // against any internal catalog at all (see matchingMappingProducts below
-  // and the removal note on the inputs further down).
+  const [rawMaterials, setRawMaterials] = useState([]);
+  // The Mapping column's search offers both Products and Raw Materials -
+  // a mapping's target can be either (see prisma/schema.prisma). Each
+  // candidate is tagged with _type so selectMappingProduct() below knows
+  // which id field (productId vs rawMaterialId) to send when mapping.
   function matchingMappingProducts(text) {
-    if (!text) return products;
+    const tagged = [
+      ...products.map((p) => ({ ...p, _type: 'product', _source: 'Product' })),
+      ...rawMaterials.map((r) => ({ ...r, _type: 'rawMaterial', _source: 'Raw Material' })),
+    ];
+    if (!text) return tagged;
     const q = text.toLowerCase();
-    return products.filter(
+    return tagged.filter(
       (p) =>
         p.code?.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q),
     );
@@ -217,11 +230,15 @@ export default function CustomerPoPage() {
   }
   async function mapItem(i) {
     const item = form.items[i];
-    const productId = mappingPick[i];
-    if (!productId) return;
+    const pick = mappingPick[i];
+    if (!pick?.id) return;
     const res = await fetch(`${API}/customer-item-mappings`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify({ customerId: form.customerId, customerItemCode: item.itemCode, customerItemName: item.itemName, productId }),
+      body: JSON.stringify({
+        customerId: form.customerId, customerItemCode: item.itemCode, customerItemName: item.itemName,
+        productId: pick.type === 'product' ? pick.id : undefined,
+        rawMaterialId: pick.type === 'rawMaterial' ? pick.id : undefined,
+      }),
     });
     const data = await res.json();
     if (res.ok) {
@@ -316,9 +333,9 @@ export default function CustomerPoPage() {
           .trim(),
     }));
   }
-  function selectMappingProduct(i, product) {
-    setMappingPick((p) => ({ ...p, [i]: product.id }));
-    setMappingSearchText((s) => ({ ...s, [i]: `${product.code} — ${product.name}` }));
+  function selectMappingProduct(i, item) {
+    setMappingPick((p) => ({ ...p, [i]: { id: item.id, type: item._type } }));
+    setMappingSearchText((s) => ({ ...s, [i]: `${item.code} — ${item.name}` }));
     setActiveSuggestionRow(null);
   }
 
@@ -1570,7 +1587,10 @@ export default function CustomerPoPage() {
                                 {!form.customerId ? (
                                   <span className="text-gray-400 italic" title="Pick or add a customer above first">Select customer first</span>
                                 ) : mappingStatus[i]?.status === 'mapped' ? (
-                                  <span className="text-green-600" title={mappingStatus[i].mapping?.product?.code}>✓ {mappingStatus[i].mapping?.product?.code}</span>
+                                  (() => {
+                                    const mappedCode = mappingStatus[i].mapping?.product?.code || mappingStatus[i].mapping?.rawMaterial?.code;
+                                    return <span className="text-green-600" title={mappedCode}>✓ {mappedCode}</span>;
+                                  })()
                                 ) : mappingStatus[i]?.status === 'checking' ? (
                                   <span className="text-gray-400">Checking...</span>
                                 ) : mappingStatus[i]?.status === 'unmapped' ? (
@@ -1581,7 +1601,7 @@ export default function CustomerPoPage() {
                                       value={mappingSearchText[i] || ''}
                                       onChange={(e) => {
                                         setMappingSearchText((s) => ({ ...s, [i]: e.target.value }));
-                                        setMappingPick((p) => ({ ...p, [i]: '' }));
+                                        setMappingPick((p) => ({ ...p, [i]: null }));
                                         openSuggestions(e, i, 'mapping');
                                       }}
                                       onFocus={(e) => openSuggestions(e, i, 'mapping')}
@@ -1595,7 +1615,7 @@ export default function CustomerPoPage() {
                                         )
                                       }
                                     />
-                                    <button type="button" onClick={() => mapItem(i)} disabled={!mappingPick[i]} className="text-blue-600 hover:underline disabled:opacity-40 disabled:no-underline">Map</button>
+                                    <button type="button" onClick={() => mapItem(i)} disabled={!mappingPick[i]?.id} className="text-blue-600 hover:underline disabled:opacity-40 disabled:no-underline">Map</button>
                                   </div>
                                 ) : (
                                   <button type="button" onClick={() => checkMapping(i)} className="text-gray-400 hover:underline">Check</button>
