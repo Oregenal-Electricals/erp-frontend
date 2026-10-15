@@ -95,6 +95,12 @@ export default function CustomerPoPage() {
   const [activeSuggestionRow, setActiveSuggestionRow] = useState(null);
   const [activeSuggestionField, setActiveSuggestionField] = useState(null);
   const [suggestionPos, setSuggestionPos] = useState({ top: 0, left: 0 });
+  // Uploaded CPO source file (proof of order + best-effort auto-fill).
+  // Only used on the create flow, never on edit.
+  const [sourceFile, setSourceFile] = useState(null);
+  const [parsingSourceFile, setParsingSourceFile] = useState(false);
+  const [sourceFileStatus, setSourceFileStatus] = useState(null); // { type: 'filled'|'needs-customer'|'attach-only'|'error', message }
+  const [pendingExtraction, setPendingExtraction] = useState(null); // extraction waiting on a customer to be picked
   function openSuggestions(e, i, field) {
     const rect = e.target.getBoundingClientRect();
     setSuggestionPos({
@@ -205,6 +211,19 @@ export default function CustomerPoPage() {
     setMappingPick({});
     setMappingSearchText({});
   }
+
+  // A file was read and extracted fields were ready, but no customer was
+  // selected yet at that moment (autoSaveFromExtraction held onto it via
+  // pendingExtraction). The moment a customer gets picked, finish the
+  // auto-save - no second upload needed from the user.
+  useEffect(() => {
+    if (pendingExtraction && form.customerId) {
+      const { extracted, file } = pendingExtraction;
+      setPendingExtraction(null);
+      autoSaveFromExtraction(extracted, file);
+    }
+  }, [form.customerId]);
+
   async function checkMappingFor(i, customerId, itemCode) {
     if (!customerId || !itemCode) return;
     setMappingStatus((s) => ({ ...s, [i]: { status: 'checking' } }));
@@ -453,8 +472,17 @@ export default function CustomerPoPage() {
     });
     const data = await res.json();
     if (res.ok) {
+      if (!editingId && sourceFile) {
+        // Manual save of a create-flow form that had a file staged
+        // (extraction failed, found no items, or was never attempted) -
+        // attach it now as proof of order.
+        await attachSourceFileTo(data.id, data.cpoNumber, sourceFile);
+      }
       setShowModal(false);
       setEditingId(null);
+      setSourceFile(null);
+      setSourceFileStatus(null);
+      setPendingExtraction(null);
       fetchAll();
       if (viewDetail && editingId === viewDetail.id) openDetail(viewDetail.id);
     } else
@@ -464,6 +492,175 @@ export default function CustomerPoPage() {
           : data.message || 'Failed',
       );
     setSaving(false);
+  }
+
+  // Uploads the originally-selected source file to the Documents module
+  // against the now-created CPO, as proof of order. Best-effort - never
+  // throws, since the CPO itself must not be blocked by this.
+  async function attachSourceFileTo(cpoId, cpoNumber, file) {
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      await fetch(`${API}/documents`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          title: `Customer PO Source - ${cpoNumber}`,
+          category: 'GENERAL',
+          fileName: file.name,
+          fileSize: file.size,
+          fileData: base64,
+          mimeType: file.type || 'application/octet-stream',
+          referenceType: 'CUSTOMER_PO',
+          referenceId: cpoId,
+          referenceNumber: cpoNumber,
+        }),
+      });
+    } catch {
+      // Swallow - the CPO already exists; the proof attachment is a
+      // nice-to-have, not a reason to show the user an error here.
+    }
+  }
+
+  // Creates the CPO directly from extracted file data, with no manual
+  // review step (per the agreed behavior - a false "successful"
+  // auto-fill is caught upstream by the parser's own conservative
+  // extraction, not by a review screen here). Requires a customer to
+  // already be selected; if not, the extraction is held in
+  // `pendingExtraction` until one is picked.
+  async function autoSaveFromExtraction(extracted, file) {
+    if (!form.customerId) {
+      setPendingExtraction({ extracted, file });
+      setSourceFileStatus({
+        type: 'needs-customer',
+        message:
+          'Read the PO file - pick a customer above and this will auto-fill and save.',
+      });
+      return;
+    }
+    if (!extracted.items || extracted.items.length === 0) {
+      setSourceFileStatus({
+        type: 'attach-only',
+        message:
+          "Read the file but found no line items - it will be attached as proof once you save this form.",
+      });
+      return;
+    }
+
+    const items = extracted.items.map((i) => ({
+      itemCode: i.itemCode,
+      itemName: i.itemName,
+      description: '',
+      qty: i.qty,
+      uom: 'PCS',
+      unitPrice: i.unitPrice,
+      discount: 0,
+      gstRate: 18,
+    }));
+    const body = {
+      poType: 'WRITTEN',
+      customerId: form.customerId,
+      customerName: form.customerName,
+      customerEmail: form.customerEmail || undefined,
+      customerPhone: form.customerPhone || undefined,
+      deliveryAddress: form.deliveryAddress || undefined,
+      customerPoNumber: extracted.customerPoNumber || `FROM-FILE-${Date.now()}`,
+      poDate: extracted.poDate || new Date().toISOString(),
+      deliveryDate: extracted.deliveryDate || new Date().toISOString(),
+      currency: form.currency || 'INR',
+      remarks: form.remarks || undefined,
+      items,
+    };
+    const res = await fetch(`${API}/customer-po`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${getToken()}`,
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      await attachSourceFileTo(data.id, data.cpoNumber, file);
+      setSourceFileStatus({
+        type: 'filled',
+        message: `Created ${data.cpoNumber} from the uploaded file.`,
+      });
+      setShowModal(false);
+      setEditingId(null);
+      setSourceFile(null);
+      setPendingExtraction(null);
+      fetchAll();
+    } else {
+      setSourceFileStatus({
+        type: 'attach-only',
+        message: Array.isArray(data.message)
+          ? data.message.join(', ')
+          : data.message ||
+            "Couldn't auto-save from this file - fill the form manually and save; it will be attached as proof.",
+      });
+    }
+  }
+
+  // Reads the selected file, asks the backend to extract text-layer PO
+  // fields from it, and either auto-saves (extraction succeeded) or
+  // falls back to attach-as-proof-only (scan/photo, or no text found).
+  async function handleSourceFileSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setSourceFileStatus({ type: 'error', message: 'File too large. Max 10MB.' });
+      return;
+    }
+    setSourceFile(file);
+    setSourceFileStatus(null);
+    setPendingExtraction(null);
+    setParsingSourceFile(true);
+
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => resolve(ev.target.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch(`${API}/customer-po/parse-source-file`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          fileData: base64,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.isTextExtractable && data.extracted) {
+        await autoSaveFromExtraction(data.extracted, file);
+      } else {
+        setSourceFileStatus({
+          type: 'attach-only',
+          message:
+            "Couldn't read this as a text PO (likely a scan/photo) - it will be attached as proof of order once you save this form.",
+        });
+      }
+    } catch {
+      setSourceFileStatus({
+        type: 'attach-only',
+        message:
+          "Couldn't read this file automatically - it will be attached as proof of order once you save this form.",
+      });
+    }
+    setParsingSourceFile(false);
   }
 
   function openIncrease(cpo) {
@@ -589,6 +786,10 @@ export default function CustomerPoPage() {
     setEditingId(cpo.id);
     setError('');
     resetMappingState();
+    setSourceFile(null);
+    setSourceFileStatus(null);
+    setPendingExtraction(null);
+    setParsingSourceFile(false);
     setShowModal(true);
     if (cpo.customerId) {
       cpo.items.forEach((cpoItem, idx) => {
@@ -667,6 +868,10 @@ export default function CustomerPoPage() {
               setError('');
               setSaveAttempted(false);
               resetMappingState();
+              setSourceFile(null);
+              setSourceFileStatus(null);
+              setPendingExtraction(null);
+              setParsingSourceFile(false);
               setShowModal(true);
             }}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
@@ -1249,6 +1454,9 @@ export default function CustomerPoPage() {
                   onClick={() => {
                     setShowModal(false);
                     setEditingId(null);
+                    setSourceFile(null);
+                    setSourceFileStatus(null);
+                    setPendingExtraction(null);
                   }}
                   className="text-gray-400 text-xl"
                 >
@@ -1655,6 +1863,50 @@ export default function CustomerPoPage() {
                   </div>
                 </div>
 
+                {!editingId && (
+                  <div className="border border-dashed border-gray-300 rounded-lg p-3 bg-gray-50">
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Upload Customer PO File{' '}
+                      <span className="text-gray-400">
+                        (optional - kept as proof of order; text PDFs auto-fill
+                        and save this form)
+                      </span>
+                    </label>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                      onChange={handleSourceFileSelect}
+                      disabled={parsingSourceFile}
+                      className="w-full text-sm"
+                    />
+                    {sourceFile && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {sourceFile.name}
+                      </div>
+                    )}
+                    {parsingSourceFile && (
+                      <div className="text-xs text-blue-600 mt-2">
+                        ⏳ Reading PO...
+                      </div>
+                    )}
+                    {sourceFileStatus && !parsingSourceFile && (
+                      <div
+                        className={`text-xs mt-2 px-2 py-1.5 rounded ${
+                          sourceFileStatus.type === 'filled'
+                            ? 'bg-green-50 text-green-700'
+                            : sourceFileStatus.type === 'needs-customer'
+                              ? 'bg-yellow-50 text-yellow-700'
+                              : sourceFileStatus.type === 'error'
+                                ? 'bg-red-50 text-red-600'
+                                : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        {sourceFileStatus.message}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">
                     Remarks
@@ -1674,6 +1926,9 @@ export default function CustomerPoPage() {
                   onClick={() => {
                     setShowModal(false);
                     setEditingId(null);
+                    setSourceFile(null);
+                    setSourceFileStatus(null);
+                    setPendingExtraction(null);
                   }}
                   className="px-4 py-2 border rounded-lg text-sm"
                 >
