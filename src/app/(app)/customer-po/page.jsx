@@ -615,6 +615,16 @@ export default function CustomerPoPage() {
   async function handleSourceFileSelect(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    const ALLOWED_EXT = /\.(pdf|jpe?g|png)$/i;
+    const ALLOWED_MIME = /^(application\/pdf|image\/(jpeg|png))$/i;
+    if (!ALLOWED_EXT.test(file.name) || (file.type && !ALLOWED_MIME.test(file.type))) {
+      e.target.value = '';
+      setSourceFileStatus({
+        type: 'error',
+        message: 'Only PDF, JPG or PNG files can be uploaded here.',
+      });
+      return;
+    }
     if (file.size > 10 * 1024 * 1024) {
       setSourceFileStatus({ type: 'error', message: 'File too large. Max 10MB.' });
       return;
@@ -1874,7 +1884,7 @@ export default function CustomerPoPage() {
                     </label>
                     <input
                       type="file"
-                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                      accept=".pdf,.jpg,.jpeg,.png"
                       onChange={handleSourceFileSelect}
                       disabled={parsingSourceFile}
                       className="w-full text-sm"
