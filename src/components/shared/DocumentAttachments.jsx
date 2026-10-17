@@ -42,6 +42,10 @@ export default function DocumentAttachments({
   referenceId,
   referenceNumber,
   title = 'Attachments',
+  // Optional: restrict which files this instance accepts, e.g. ['.pdf', '.jpg', '.jpeg', '.png'].
+  // Leave unset (default) to keep accepting any file type, as every other screen using this
+  // component today does - this only narrows behavior where a caller explicitly asks for it.
+  allowedExtensions = null,
 }) {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +55,14 @@ export default function DocumentAttachments({
   const [docTitle, setDocTitle] = useState('');
   const [error, setError] = useState('');
   const fileRef = useRef();
+
+  const acceptAttr = allowedExtensions ? allowedExtensions.join(',') : undefined;
+  const allowedExtRegex = allowedExtensions
+    ? new RegExp(
+        `\\.(${allowedExtensions.map((e) => e.replace(/^\./, '')).join('|')})$`,
+        'i',
+      )
+    : null;
 
   async function fetchDocs() {
     if (!getToken() || !referenceId) {
@@ -80,6 +92,13 @@ export default function DocumentAttachments({
   function handleFileSelect(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (allowedExtRegex && !allowedExtRegex.test(file.name)) {
+      e.target.value = '';
+      setError(
+        `Your attach file format is not correct. Only ${allowedExtensions.join(', ')} files can be uploaded here.`,
+      );
+      return;
+    }
     if (file.size > 10 * 1024 * 1024) {
       setError('File too large. Max 10MB.');
       return;
@@ -232,6 +251,7 @@ export default function DocumentAttachments({
           <input
             ref={fileRef}
             type="file"
+            accept={acceptAttr}
             className="hidden"
             onChange={handleFileSelect}
           />

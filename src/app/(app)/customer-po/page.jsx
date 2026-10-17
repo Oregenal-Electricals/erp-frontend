@@ -1400,6 +1400,7 @@ export default function CustomerPoPage() {
                   referenceId={viewDetail?.id}
                   referenceNumber={viewDetail?.cpoNumber}
                   title="Customer PO Attachments"
+                  allowedExtensions={['.pdf', '.jpg', '.jpeg', '.png']}
                 />
               </div>
               <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
