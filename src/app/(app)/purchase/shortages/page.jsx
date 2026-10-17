@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -19,11 +19,84 @@ export default function MaterialShortagesPage() {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState('');
 
+  // --- Vendor searchable combobox state ---
+  const [vendorQuery, setVendorQuery] = useState('');
+  const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
+  const [showNewVendorForm, setShowNewVendorForm] = useState(false);
+  const [newVendorCode, setNewVendorCode] = useState('');
+  const [newVendorName, setNewVendorName] = useState('');
+  const [newVendorError, setNewVendorError] = useState('');
+  const [newVendorSaving, setNewVendorSaving] = useState(false);
+  const vendorBoxRef = useRef(null);
+
   const fetchVendors = useCallback(async () => {
     const res = await fetch(`${API}/vendors?limit=200&isActive=true`, { headers: { Authorization: `Bearer ${getToken()}` } });
     if (res.ok) { const d = await res.json(); setVendors(d.data || []); }
   }, []);
   useEffect(() => { fetchVendors(); }, [fetchVendors]);
+
+  // Close the vendor dropdown when clicking outside it
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (vendorBoxRef.current && !vendorBoxRef.current.contains(e.target)) {
+        setVendorDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredVendors = vendorQuery.trim()
+    ? vendors.filter(v =>
+        v.name.toLowerCase().includes(vendorQuery.trim().toLowerCase()) ||
+        (v.code || '').toLowerCase().includes(vendorQuery.trim().toLowerCase())
+      )
+    : vendors;
+
+  function selectVendor(v) {
+    setForm(f => ({ ...f, vendorId: v.id }));
+    setVendorQuery(v.name);
+    setVendorDropdownOpen(false);
+    setShowNewVendorForm(false);
+  }
+
+  function openNewVendorForm() {
+    setNewVendorName(vendorQuery.trim());
+    setNewVendorCode('');
+    setNewVendorError('');
+    setShowNewVendorForm(true);
+  }
+
+  async function handleCreateVendor() {
+    setNewVendorError('');
+    if (!newVendorCode.trim() || !newVendorName.trim()) {
+      setNewVendorError('Vendor Code and Name are both required.');
+      return;
+    }
+    setNewVendorSaving(true);
+    try {
+      const res = await fetch(`${API}/vendors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ code: newVendorCode.trim(), name: newVendorName.trim() }),
+      });
+      const created = await res.json();
+      if (!res.ok) {
+        setNewVendorError(created.message || 'Failed to create vendor.');
+        setNewVendorSaving(false);
+        return;
+      }
+      setVendors(prev => [created, ...prev]);
+      setForm(f => ({ ...f, vendorId: created.id }));
+      setVendorQuery(created.name);
+      setShowNewVendorForm(false);
+      setVendorDropdownOpen(false);
+      setNewVendorSaving(false);
+    } catch (e) {
+      setNewVendorError('Something went wrong creating the vendor.');
+      setNewVendorSaving(false);
+    }
+  }
 
   function toggleSelect(item, checked) {
     setSelected(prev => {
@@ -38,6 +111,9 @@ export default function MaterialShortagesPage() {
     const selectedItems = data.data.filter(d => selected[d.itemCode] !== undefined);
     setItems(selectedItems.map(d => ({ itemCode: d.itemCode, itemName: d.itemName, uom: d.uom, qty: selected[d.itemCode], unitPrice: '' })));
     setForm({ vendorId: '', deliveryDate: '' });
+    setVendorQuery('');
+    setVendorDropdownOpen(false);
+    setShowNewVendorForm(false);
     setModalError('');
     setShowModal(true);
   }
