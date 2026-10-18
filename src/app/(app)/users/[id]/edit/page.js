@@ -15,6 +15,7 @@ export default function EditUserPage() {
   const [error, setError]     = useState('');
   const [success, setSuccess] = useState('');
   const [roles, setRoles] = useState([]);
+  const [plants, setPlants] = useState([]);
 
   useEffect(() => {
     api.get(`/users/${id}`)
@@ -25,11 +26,13 @@ export default function EditUserPage() {
         role:         data.role,
         employeeCode: data.employeeCode || '',
         assignedStage: data.assignedStage || '',
+        plantId: data.plantId || '',
         isTestUser: !!data.isTestUser,
       }))
       .catch(() => setError('Failed to load user'))
       .finally(() => setLoading(false));
     api.get('/roles').then(({ data }) => setRoles(data?.data || data || []));
+    api.get('/masters/plants').then(({ data }) => setPlants(data));
   }, [id]);
 
   const handleChange = (e) => {
@@ -40,7 +43,9 @@ export default function EditUserPage() {
   const handleSubmit = async () => {
     setError(''); setSuccess(''); setSaving(true);
     try {
-      await api.put(`/users/${id}`, form);
+      const payload = { ...form };
+      if (!payload.plantId) delete payload.plantId;
+      await api.put(`/users/${id}`, payload);
       setSuccess('User updated successfully!');
       setTimeout(() => router.push('/users'), 1000);
     } catch (err) {
@@ -135,6 +140,19 @@ export default function EditUserPage() {
                 <option value="Packaging">Packaging</option>
               </select>
               <p className="text-xs text-gray-500 mt-1">If set, this user&apos;s Work Orders list is filtered to only this stage. Supervisors and above always see every stage regardless of this setting.</p>
+            </div>
+
+            <div className="col-span-2">
+              <label className={labelClass}>Home Plant <span className="text-xs font-normal text-gray-400">(optional)</span></label>
+              <select name="plantId" value={form.plantId || ''} onChange={handleChange}
+                style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                className={inputClass}>
+                <option value="">— No default plant —</option>
+                {plants.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Used to auto-fill and lock the Plant field on plant-specific screens, like Gate Inward Entry.
+              </p>
             </div>
 
             <div className="col-span-2 p-3 bg-orange-50 border-2 border-orange-200 rounded-lg flex items-center gap-3">

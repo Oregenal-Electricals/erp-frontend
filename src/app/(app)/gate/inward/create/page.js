@@ -32,10 +32,21 @@ export default function CreateGateInwardPage() {
   const [selectedPoLabel, setSelectedPoLabel] = useState('');
   const [error, setError]   = useState('');
   const [saving, setSaving] = useState(false);
+  // When the logged-in user has a home plant assigned (Settings -> User
+  // Management), the Plant field below is auto-filled and locked instead
+  // of asking them to pick one every time. Falls back to the normal
+  // dropdown for anyone without a plant assigned yet.
+  const [myPlant, setMyPlant] = useState(null);
   useEffect(() => {
     api.get('/masters/plants').then(({ data }) => setPlants(data));
     api.get('/vehicle-logs/active').then(({ data }) => setVehicleLogs(data));
     api.get('/purchase-orders?limit=200&status=SENT,PARTIALLY_RECEIVED&excludeGateInwarded=true').then((res) => setPurchaseOrders(res.data?.data || []));
+    api.get('/auth/me').then(({ data }) => {
+      if (data?.plantId && data?.plant) {
+        setMyPlant(data.plant);
+        setForm(p => ({ ...p, plantId: data.plantId }));
+      }
+    });
   }, []);
   const handleChange = (e) => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
   const handlePoSelect = async (poId, label) => {
@@ -195,11 +206,20 @@ export default function CreateGateInwardPage() {
           <div className="grid grid-cols-2 gap-4 mb-5">
             <div>
               <label className={labelClass}>Plant<span className="text-red-500">*</span></label>
+              {myPlant ? (
+                <div
+                  className="w-full border-2 border-gray-200 bg-gray-50 rounded-lg px-3 py-2.5 text-sm text-gray-700 font-medium"
+                  title="Set from your assigned plant in Settings → User Management"
+                >
+                  {myPlant.name} <span className="text-gray-400 font-mono text-xs">({myPlant.code})</span>
+                </div>
+              ) : (
               <select name="plantId" value={form.plantId} onChange={handleChange}
                 style={{ color: '#111827', backgroundColor: '#ffffff' }} className={inputClass}>
                 <option value="">Select Plant</option>
                 {plants.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
+              )}
             </div>
             <div>
               <label className={labelClass}>Link to Vehicle (Optional)</label>

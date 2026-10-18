@@ -12,16 +12,18 @@ export default function CreateUserPage() {
     employeeCode: '', password: '', role: '',
     additionalRoles: [],
     companyId: '', mustChangePwd: true,
-    assignedStage: '', isTestUser: false,
+    assignedStage: '', plantId: '', isTestUser: false,
   });
   const [companies, setCompanies] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [plants, setPlants] = useState([]);
   const [error, setError]   = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     api.get('/masters/companies').then(({ data }) => setCompanies(data));
     api.get('/roles').then(({ data }) => setRoles(data?.data || data || []));
+    api.get('/masters/plants').then(({ data }) => setPlants(data));
   }, []);
 
   const handleChange = (e) => {
@@ -37,7 +39,9 @@ export default function CreateUserPage() {
     setError('');
     setSaving(true);
     try {
-      await api.post('/users', form);
+      const payload = { ...form };
+      if (!payload.plantId) delete payload.plantId;
+      await api.post('/users', payload);
       router.push('/users');
     } catch (err) {
       const msg = err.response?.data?.message;
@@ -163,6 +167,19 @@ export default function CreateUserPage() {
                 <option value="Assembly">Assembly</option>
                 <option value="Packaging">Packaging</option>
               </select>
+            </div>
+
+            <div>
+              <label className={labelClass}>Home Plant <span className="text-xs font-normal text-gray-400">(optional)</span></label>
+              <select name="plantId" value={form.plantId} onChange={handleChange}
+                style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                className={inputClass}>
+                <option value="">— No default plant —</option>
+                {plants.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                Used to auto-fill and lock the Plant field on plant-specific screens, like Gate Inward Entry.
+              </p>
             </div>
 
             <div className="col-span-2">
