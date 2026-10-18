@@ -14,6 +14,7 @@ export default function CreateGateInwardPage() {
   const [form, setForm] = useState({
     plantId: '', vehicleLogId: '',
     vehicleNumber: '', driverName: '',
+    driverMobile: '', vehicleType: '',
     poId: '', poNumber: '',
     supplierName: '', supplierMobile: '', supplierGstin: '',
     invoiceNumber: '', invoiceDate: '', invoiceAmount: '',
@@ -111,6 +112,8 @@ export default function CreateGateInwardPage() {
       if (!payload.vehicleLogId)  delete payload.vehicleLogId;
       if (!payload.vehicleNumber) delete payload.vehicleNumber;
       if (!payload.driverName)    delete payload.driverName;
+      if (!payload.driverMobile)  delete payload.driverMobile;
+      if (!payload.vehicleType)   delete payload.vehicleType;
       if (!payload.invoiceDate)   delete payload.invoiceDate;
       if (!payload.invoiceAmount) delete payload.invoiceAmount;
       if (!payload.grossWeight)   delete payload.grossWeight;
@@ -238,9 +241,29 @@ export default function CreateGateInwardPage() {
                 style={{ color: '#111827', backgroundColor: '#ffffff' }} className={inputClass} />
             </div>
             <div>
+              <label className={labelClass}>Vehicle Type</label>
+              <select name="vehicleType" value={form.vehicleType} onChange={handleChange}
+                style={{ color: '#111827', backgroundColor: '#ffffff' }} className={inputClass}>
+                <option value="">Select Type</option>
+                <option value="TRUCK">Truck</option>
+                <option value="TEMPO">Tempo</option>
+                <option value="CAR">Car</option>
+                <option value="TWO_WHEELER">Two Wheeler</option>
+                <option value="CONTAINER">Container</option>
+                <option value="TANKER">Tanker</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+            <div>
               <label className={labelClass}>Driver Name</label>
               <input type="text" name="driverName" value={form.driverName} onChange={handleChange}
                 placeholder="Ramesh Kumar"
+                style={{ color: '#111827', backgroundColor: '#ffffff' }} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Driver Mobile</label>
+              <input type="text" name="driverMobile" value={form.driverMobile} onChange={handleChange}
+                placeholder="9876543210"
                 style={{ color: '#111827', backgroundColor: '#ffffff' }} className={inputClass} />
             </div>
           </div>
