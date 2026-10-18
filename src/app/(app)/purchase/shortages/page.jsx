@@ -272,12 +272,90 @@ export default function MaterialShortagesPage() {
             <div className="p-6 space-y-4">
               {modalError && <div className="bg-red-50 text-red-600 px-4 py-2 rounded text-sm">{modalError}</div>}
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div ref={vendorBoxRef} className="relative">
                   <label className="block text-sm text-gray-600 mb-1">Vendor *</label>
-                  <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.vendorId} onChange={e => setForm(f => ({ ...f, vendorId: e.target.value }))}>
-                    <option value="">— Select Vendor —</option>
-                    {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                  </select>
+                  <input
+                    type="text"
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                    placeholder="Type to search vendor..."
+                    value={vendorQuery}
+                    onFocus={() => setVendorDropdownOpen(true)}
+                    onChange={e => {
+                      setVendorQuery(e.target.value);
+                      setVendorDropdownOpen(true);
+                      setShowNewVendorForm(false);
+                      if (form.vendorId) setForm(f => ({ ...f, vendorId: '' }));
+                    }}
+                  />
+                  {vendorDropdownOpen && (
+                    <div className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                      {!showNewVendorForm ? (
+                        <>
+                          {filteredVendors.length > 0 ? (
+                            filteredVendors.map(v => (
+                              <div
+                                key={v.id}
+                                className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer"
+                                onClick={() => selectVendor(v)}
+                              >
+                                <span className="font-medium">{v.name}</span>
+                                <span className="text-gray-400 ml-2 text-xs font-mono">{v.code}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="px-3 py-2 text-sm text-gray-400">No vendor found.</div>
+                          )}
+                          <div
+                            className="px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 cursor-pointer border-t font-medium"
+                            onClick={openNewVendorForm}
+                          >
+                            + Add New Vendor{vendorQuery.trim() ? ` "${vendorQuery.trim()}"` : ''}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="p-3 space-y-2">
+                          <div className="text-xs font-semibold text-gray-500 mb-1">Create New Vendor</div>
+                          {newVendorError && <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">{newVendorError}</div>}
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-0.5">Vendor Code *</label>
+                            <input
+                              type="text"
+                              className="w-full border rounded px-2 py-1.5 text-sm"
+                              value={newVendorCode}
+                              onChange={e => setNewVendorCode(e.target.value)}
+                              placeholder="e.g. VEND001"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-0.5">Vendor Name *</label>
+                            <input
+                              type="text"
+                              className="w-full border rounded px-2 py-1.5 text-sm"
+                              value={newVendorName}
+                              onChange={e => setNewVendorName(e.target.value)}
+                            />
+                          </div>
+                          <div className="flex justify-end gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setShowNewVendorForm(false)}
+                              className="px-3 py-1.5 text-xs border rounded text-gray-600 hover:bg-gray-50"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCreateVendor}
+                              disabled={newVendorSaving}
+                              className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              {newVendorSaving ? 'Saving...' : 'Save Vendor'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Delivery Date *</label>
