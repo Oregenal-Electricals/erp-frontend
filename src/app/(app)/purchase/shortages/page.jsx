@@ -23,8 +23,16 @@ export default function MaterialShortagesPage() {
   const [vendorQuery, setVendorQuery] = useState('');
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [showNewVendorForm, setShowNewVendorForm] = useState(false);
-  const [newVendorCode, setNewVendorCode] = useState('');
-  const [newVendorName, setNewVendorName] = useState('');
+  const emptyNewVendor = {
+    code: '', name: '', legalName: '', vendorType: 'SUPPLIER',
+    gstin: '', pan: '', msmeNumber: '', isMsme: false,
+    email: '', phone: '', alternatePhone: '', website: '',
+    addressLine1: '', addressLine2: '', city: '', state: '', pincode: '', country: 'India',
+    bankName: '', bankBranch: '', accountNumber: '', ifscCode: '',
+    paymentTerms: 'NET_30', creditLimit: '', currency: 'INR',
+    tdsApplicable: false, tdsSection: '', rating: '', notes: '',
+  };
+  const [newVendorForm, setNewVendorForm] = useState(emptyNewVendor);
   const [newVendorError, setNewVendorError] = useState('');
   const [newVendorSaving, setNewVendorSaving] = useState(false);
   const vendorBoxRef = useRef(null);
@@ -61,24 +69,27 @@ export default function MaterialShortagesPage() {
   }
 
   function openNewVendorForm() {
-    setNewVendorName(vendorQuery.trim());
-    setNewVendorCode('');
+    setNewVendorForm({ ...emptyNewVendor, name: vendorQuery.trim() });
     setNewVendorError('');
+    setVendorDropdownOpen(false);
     setShowNewVendorForm(true);
   }
 
   async function handleCreateVendor() {
     setNewVendorError('');
-    if (!newVendorCode.trim() || !newVendorName.trim()) {
+    if (!newVendorForm.code.trim() || !newVendorForm.name.trim()) {
       setNewVendorError('Vendor Code and Name are both required.');
       return;
     }
     setNewVendorSaving(true);
     try {
+      const body = { ...newVendorForm, code: newVendorForm.code.trim(), name: newVendorForm.name.trim() };
+      if (body.creditLimit) body.creditLimit = parseFloat(body.creditLimit); else delete body.creditLimit;
+      if (body.rating) body.rating = parseInt(body.rating); else delete body.rating;
       const res = await fetch(`${API}/vendors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ code: newVendorCode.trim(), name: newVendorName.trim() }),
+        body: JSON.stringify(body),
       });
       const created = await res.json();
       if (!res.ok) {
@@ -90,7 +101,6 @@ export default function MaterialShortagesPage() {
       setForm(f => ({ ...f, vendorId: created.id }));
       setVendorQuery(created.name);
       setShowNewVendorForm(false);
-      setVendorDropdownOpen(false);
       setNewVendorSaving(false);
     } catch (e) {
       setNewVendorError('Something went wrong creating the vendor.');
@@ -114,6 +124,7 @@ export default function MaterialShortagesPage() {
     setVendorQuery('');
     setVendorDropdownOpen(false);
     setShowNewVendorForm(false);
+    setNewVendorForm(emptyNewVendor);
     setModalError('');
     setShowModal(true);
   }
@@ -276,6 +287,14 @@ export default function MaterialShortagesPage() {
                   <label className="block text-sm text-gray-600 mb-1">Vendor *</label>
                   <input
                     type="text"
+                    name="vendor-search-combobox"
+                    id="vendor-search-combobox"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                    aria-autocomplete="list"
+                    aria-expanded={vendorDropdownOpen}
                     className="w-full border rounded-lg px-3 py-2 text-sm"
                     placeholder="Type to search vendor..."
                     value={vendorQuery}
@@ -289,71 +308,26 @@ export default function MaterialShortagesPage() {
                   />
                   {vendorDropdownOpen && (
                     <div className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-56 overflow-y-auto">
-                      {!showNewVendorForm ? (
-                        <>
-                          {filteredVendors.length > 0 ? (
-                            filteredVendors.map(v => (
-                              <div
-                                key={v.id}
-                                className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer"
-                                onClick={() => selectVendor(v)}
-                              >
-                                <span className="font-medium">{v.name}</span>
-                                <span className="text-gray-400 ml-2 text-xs font-mono">{v.code}</span>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="px-3 py-2 text-sm text-gray-400">No vendor found.</div>
-                          )}
+                      {filteredVendors.length > 0 ? (
+                        filteredVendors.map(v => (
                           <div
-                            className="px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 cursor-pointer border-t font-medium"
-                            onClick={openNewVendorForm}
+                            key={v.id}
+                            className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer"
+                            onClick={() => selectVendor(v)}
                           >
-                            + Add New Vendor{vendorQuery.trim() ? ` "${vendorQuery.trim()}"` : ''}
+                            <span className="font-medium">{v.name}</span>
+                            <span className="text-gray-400 ml-2 text-xs font-mono">{v.code}</span>
                           </div>
-                        </>
+                        ))
                       ) : (
-                        <div className="p-3 space-y-2">
-                          <div className="text-xs font-semibold text-gray-500 mb-1">Create New Vendor</div>
-                          {newVendorError && <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">{newVendorError}</div>}
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-0.5">Vendor Code *</label>
-                            <input
-                              type="text"
-                              className="w-full border rounded px-2 py-1.5 text-sm"
-                              value={newVendorCode}
-                              onChange={e => setNewVendorCode(e.target.value)}
-                              placeholder="e.g. VEND001"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-0.5">Vendor Name *</label>
-                            <input
-                              type="text"
-                              className="w-full border rounded px-2 py-1.5 text-sm"
-                              value={newVendorName}
-                              onChange={e => setNewVendorName(e.target.value)}
-                            />
-                          </div>
-                          <div className="flex justify-end gap-2 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => setShowNewVendorForm(false)}
-                              className="px-3 py-1.5 text-xs border rounded text-gray-600 hover:bg-gray-50"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleCreateVendor}
-                              disabled={newVendorSaving}
-                              className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                            >
-                              {newVendorSaving ? 'Saving...' : 'Save Vendor'}
-                            </button>
-                          </div>
-                        </div>
+                        <div className="px-3 py-2 text-sm text-gray-400">No vendor found.</div>
                       )}
+                      <div
+                        className="px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 cursor-pointer border-t font-medium"
+                        onClick={openNewVendorForm}
+                      >
+                        + Add New Vendor{vendorQuery.trim() ? ` "${vendorQuery.trim()}"` : ''}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -392,6 +366,177 @@ export default function MaterialShortagesPage() {
             <div className="p-6 border-t flex justify-end gap-3">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
               <button onClick={handleCreatePo} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">{saving ? 'Creating...' : 'Create Purchase Order'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showNewVendorForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white">
+              <h2 className="text-lg font-bold">Add New Vendor</h2>
+              <button onClick={() => setShowNewVendorForm(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            <div className="p-6 space-y-6">
+              {newVendorError && <div className="bg-red-50 text-red-600 px-4 py-2 rounded text-sm">{newVendorError}</div>}
+
+              <div>
+                <h3 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Basic Info</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Code *</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.code} onChange={e => setNewVendorForm(f => ({ ...f, code: e.target.value }))} placeholder="e.g. VEND001" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Vendor Type</label>
+                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.vendorType} onChange={e => setNewVendorForm(f => ({ ...f, vendorType: e.target.value }))}>
+                      {['SUPPLIER', 'CONTRACTOR', 'SERVICE_PROVIDER', 'TRANSPORTER'].map(t => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm text-gray-600 mb-1">Name *</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.name} onChange={e => setNewVendorForm(f => ({ ...f, name: e.target.value }))} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm text-gray-600 mb-1">Legal Name</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.legalName} onChange={e => setNewVendorForm(f => ({ ...f, legalName: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">GSTIN</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono" value={newVendorForm.gstin} onChange={e => setNewVendorForm(f => ({ ...f, gstin: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">PAN</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono" value={newVendorForm.pan} onChange={e => setNewVendorForm(f => ({ ...f, pan: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">MSME Number</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.msmeNumber} onChange={e => setNewVendorForm(f => ({ ...f, msmeNumber: e.target.value }))} />
+                  </div>
+                  <div className="flex items-center gap-2 pt-5">
+                    <input type="checkbox" id="newVendorIsMsme" checked={newVendorForm.isMsme} onChange={e => setNewVendorForm(f => ({ ...f, isMsme: e.target.checked }))} />
+                    <label htmlFor="newVendorIsMsme" className="text-sm text-gray-600">MSME Registered</label>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Contact</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Email</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.email} onChange={e => setNewVendorForm(f => ({ ...f, email: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Phone</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.phone} onChange={e => setNewVendorForm(f => ({ ...f, phone: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Alternate Phone</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.alternatePhone} onChange={e => setNewVendorForm(f => ({ ...f, alternatePhone: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Website</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.website} onChange={e => setNewVendorForm(f => ({ ...f, website: e.target.value }))} />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Address</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-sm text-gray-600 mb-1">Address Line 1</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.addressLine1} onChange={e => setNewVendorForm(f => ({ ...f, addressLine1: e.target.value }))} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm text-gray-600 mb-1">Address Line 2</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.addressLine2} onChange={e => setNewVendorForm(f => ({ ...f, addressLine2: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">City</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.city} onChange={e => setNewVendorForm(f => ({ ...f, city: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">State</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.state} onChange={e => setNewVendorForm(f => ({ ...f, state: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Pincode</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.pincode} onChange={e => setNewVendorForm(f => ({ ...f, pincode: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Country</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.country} onChange={e => setNewVendorForm(f => ({ ...f, country: e.target.value }))} />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Bank & Payment</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Bank Name</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.bankName} onChange={e => setNewVendorForm(f => ({ ...f, bankName: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Branch</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.bankBranch} onChange={e => setNewVendorForm(f => ({ ...f, bankBranch: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Account Number</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono" value={newVendorForm.accountNumber} onChange={e => setNewVendorForm(f => ({ ...f, accountNumber: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">IFSC Code</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono" value={newVendorForm.ifscCode} onChange={e => setNewVendorForm(f => ({ ...f, ifscCode: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Payment Terms</label>
+                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.paymentTerms} onChange={e => setNewVendorForm(f => ({ ...f, paymentTerms: e.target.value }))}>
+                      {['IMMEDIATE', 'NET_15', 'NET_30', 'NET_45', 'NET_60', 'NET_90'].map(t => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Credit Limit (₹)</label>
+                    <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.creditLimit} onChange={e => setNewVendorForm(f => ({ ...f, creditLimit: e.target.value }))} />
+                  </div>
+                  <div className="flex items-center gap-2 pt-5">
+                    <input type="checkbox" id="newVendorTds" checked={newVendorForm.tdsApplicable} onChange={e => setNewVendorForm(f => ({ ...f, tdsApplicable: e.target.checked }))} />
+                    <label htmlFor="newVendorTds" className="text-sm text-gray-600">TDS Applicable</label>
+                  </div>
+                  {newVendorForm.tdsApplicable && (
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">TDS Section</label>
+                      <input className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.tdsSection} onChange={e => setNewVendorForm(f => ({ ...f, tdsSection: e.target.value }))} />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Other</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Rating (1-5)</label>
+                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={newVendorForm.rating} onChange={e => setNewVendorForm(f => ({ ...f, rating: e.target.value }))}>
+                      <option value="">No Rating</option>
+                      {[1, 2, 3, 4, 5].map(r => <option key={r} value={r}>{'⭐'.repeat(r)} ({r})</option>)}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm text-gray-600 mb-1">Notes</label>
+                    <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} value={newVendorForm.notes} onChange={e => setNewVendorForm(f => ({ ...f, notes: e.target.value }))} />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
+              <button onClick={() => setShowNewVendorForm(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+              <button onClick={handleCreateVendor} disabled={newVendorSaving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
+                {newVendorSaving ? 'Saving...' : 'Create Vendor'}
+              </button>
             </div>
           </div>
         </div>
