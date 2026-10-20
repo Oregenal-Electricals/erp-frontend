@@ -179,7 +179,18 @@ export default function BomDetailPage() {
 
   async function handleSubmitForApproval() {
     if (!confirm('Submit this BOM for approval? It will go through the configured approval chain before it becomes usable.')) return;
-    const res = await fetch(`${API}/boms/${id}/submit-for-approval`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
+    // On a resubmission (the BOM was previously REJECTED), capture why -
+    // this shows up in the approval history alongside the earlier
+    // rejection reason, so reviewers can see what changed.
+    let remarks;
+    if (bom.status === 'REJECTED') {
+      remarks = window.prompt('Reason for resubmission (what changed since it was rejected - optional):') || undefined;
+    }
+    const res = await fetch(`${API}/boms/${id}/submit-for-approval`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ remarks }),
+    });
     if (res.ok) { fetchBom(); fetchChain(); }
     else { const d = await res.json(); alert(d.message || 'Failed to submit for approval'); }
   }
