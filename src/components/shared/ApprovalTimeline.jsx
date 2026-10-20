@@ -24,6 +24,12 @@ const STATUS_COLORS = {
  */
 export default function ApprovalTimeline({ documentType, documentId, queries, onDone, onLoaded }) {
   const [request, setRequest] = useState(null);
+  // Every REJECTED approval request this document had before the current
+  // (latest) one - a rejected-then-resubmitted BOM gets a brand new
+  // ApprovalRequest row each time, so without these the rejection and its
+  // reason from an earlier cycle would disappear from the history the
+  // moment a resubmission happens.
+  const [priorRequests, setPriorRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [acting, setActing] = useState(false);
@@ -32,19 +38,30 @@ export default function ApprovalTimeline({ documentType, documentId, queries, on
   const load = useCallback(async () => {
     if (!documentId) return;
     setLoading(true); setError('');
-    const listRes = await fetch(`${API}/workflows/requests?documentType=${documentType}&documentId=${documentId}&limit=1`, {
+    // No limit=1 here - we want every cycle this document has been
+    // through (submit -> reject -> resubmit -> ...), not just the latest.
+    const listRes = await fetch(`${API}/workflows/requests?documentType=${documentType}&documentId=${documentId}&limit=50`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (!listRes.ok) { setError('Could not load approval history'); setLoading(false); return; }
     const listData = await listRes.json();
-    const latest = listData.data?.[0];
-    if (!latest) { setLoading(false); return; }
-    const detailRes = await fetch(`${API}/workflows/requests/${latest.id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
-    if (detailRes.ok) {
-      const data = await detailRes.json();
-      setRequest(data);
-      onLoaded?.(data);
-    }
+    const all = listData.data || [];
+    if (all.length === 0) { setRequest(null); setPriorRequests([]); setLoading(false); return; }
+    // Oldest first, so cycle 1's events always sort ahead of cycle 2's.
+    const ordered = [...all].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    // The list endpoint only returns each request's latest action, so
+    // fetch the full detail (every level's action, actor names, steps)
+    // for every cycle, not just the current one.
+    const details = await Promise.all(
+      ordered.map(r => fetch(`${API}/workflows/requests/${r.id}`, { headers: { Authorization: `Bearer ${getToken()}` } })
+        .then(res => res.ok ? res.json() : null))
+    );
+    const valid = details.filter(Boolean);
+    if (valid.length === 0) { setLoading(false); return; }
+    const latest = valid[valid.length - 1];
+    setRequest(latest);
+    setPriorRequests(valid.slice(0, -1));
+    onLoaded?.(latest);
     setLoading(false);
   }, [documentType, documentId]);
 
@@ -81,19 +98,30 @@ export default function ApprovalTimeline({ documentType, documentId, queries, on
     user.role === 'SUPER_ADMIN' || !currentStep?.approverUserId || currentStep.approverUserId === user.id
   );
 
-  // Merge the step timeline with any queries into one chronologically-sorted feed.
+  // Merge every cycle's step timeline (prior rejected-and-superseded
+  // requests, plus the current one) with any queries into one
+  // chronologically-sorted feed, so a reject -> resubmit -> approve
+  // history reads as a single continuous story rather than losing
+  // everything before the latest resubmission.
   const events = [];
-  events.push({ type: 'submitted', at: request.createdAt, by: nameOf(request.actorNames, request.requestedBy) });
-  for (const step of request.workflow?.steps || []) {
-    const action = request.actions?.find(a => a.level === step.level);
-    if (action) {
-      events.push({
-        type: action.action === 'APPROVED' ? 'approved' : 'rejected',
-        at: action.actionDate, by: nameOf(request.actorNames, action.actionBy),
-        level: step.level, stepName: step.stepName, comments: action.comments,
-      });
+  const allCycles = [...priorRequests, request];
+  allCycles.forEach((req, cycleIndex) => {
+    events.push(
+      cycleIndex === 0
+        ? { type: 'submitted', at: req.createdAt, by: nameOf(req.actorNames, req.requestedBy) }
+        : { type: 'resubmitted', at: req.createdAt, by: nameOf(req.actorNames, req.requestedBy), reason: req.remarks }
+    );
+    for (const step of req.workflow?.steps || []) {
+      const action = req.actions?.find(a => a.level === step.level);
+      if (action) {
+        events.push({
+          type: action.action === 'APPROVED' ? 'approved' : 'rejected',
+          at: action.actionDate, by: nameOf(req.actorNames, action.actionBy),
+          level: step.level, stepName: step.stepName, comments: action.comments,
+        });
+      }
     }
-  }
+  });
   for (const q of queries || []) {
     events.push({ type: 'query-raised', at: q.createdAt, message: q.message, status: q.status });
     if (q.response) events.push({ type: 'query-resolved', at: q.updatedAt || q.createdAt, message: q.response });
@@ -166,6 +194,7 @@ export default function ApprovalTimeline({ documentType, documentId, queries, on
             <div key={i} className="flex gap-2 text-xs">
               <span className="text-gray-400 w-36 flex-shrink-0">{fmtDate(e.at)}</span>
               {e.type === 'submitted' && <span>Submitted for approval by <span className="font-medium">{e.by || 'someone'}</span></span>}
+              {e.type === 'resubmitted' && <span className="text-indigo-700">Resubmitted for approval by <span className="font-medium">{e.by || 'someone'}</span>{e.reason && ` — ${e.reason}`}</span>}
               {e.type === 'approved' && <span className="text-green-700">Level {e.level} ({e.stepName}) approved by <span className="font-medium">{e.by || 'someone'}</span>{e.comments && ` — ${e.comments}`}</span>}
               {e.type === 'rejected' && <span className="text-red-700">Level {e.level} ({e.stepName}) rejected by <span className="font-medium">{e.by || 'someone'}</span>{e.comments && ` — ${e.comments}`}</span>}
               {e.type === 'query-raised' && <span className="text-amber-700">Query raised: {e.message}</span>}
