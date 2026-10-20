@@ -715,7 +715,7 @@ export default function BomDetailPage() {
                   </button>
                 )}
                 {elementVisible('page.bom.button.raiseQuery') && (
-                  <button onClick={() => { setShowQueryModal(true); setQueryError(''); }} disabled={!!previewRole} className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600 disabled:opacity-50">Raise Query</button>
+                  <button onClick={() => { setShowQueryModal(true); setQueryError(''); }} disabled title="No approval chain yet - submit this BOM for approval first" className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600 disabled:opacity-50">Raise Query</button>
                 )}
               </div>
             </div>
