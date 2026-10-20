@@ -72,9 +72,9 @@ export default function SalesOrdersPage() {
       fetch(`${API}/sales-orders/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/customer-po?status=ACKNOWLEDGED&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
-    if (oRes.ok) { const d = awaitoRes.json(); setOrders(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
+    if (oRes.ok) { const d = await oRes.json(); setOrders(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
     if (sRes.ok) setStats(await sRes.json());
-    if (cRes.ok) { const d = awaitcRes.json(); setCpos(d.data||[]); }
+    if (cRes.ok) { const d = await cRes.json(); setCpos(d.data||[]); }
     setLoading(false);
   }
 
