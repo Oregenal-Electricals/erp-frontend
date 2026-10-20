@@ -693,7 +693,7 @@ export default function BomDetailPage() {
             of the item list, so acting on a BOM means actually scrolling
             through its items, stages, and routing first - not just
             clicking the moment the page loads. */}
-        {bom.status === 'DRAFT' && (() => {
+        {(bom.status === 'DRAFT' || bom.status === 'REJECTED') && (() => {
           const hasOpenQuery = bom.queries?.some((q) => q.status === 'OPEN');
           const needsRouting = bom.bomType === 'MASTER' && !routings.some((r) => r.finalProductId === bom.productId || r.finalProduct?.id === bom.productId);
           const submitBlockedReason = hasOpenQuery ? 'Resolve the open query first' : needsRouting ? 'Create the production routing first' : (!bom.items || bom.items.length === 0) ? 'Add at least one item first' : '';
