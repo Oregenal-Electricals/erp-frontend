@@ -74,7 +74,7 @@ export default function WorkOrdersPage() {
       fetch(`${API}/work-orders?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/work-orders/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/warehouses?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/bom?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      fetch(`${API}/boms?limit=100&status=APPROVED`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (woRes.ok) { const d = await woRes.json(); setWos(d.data); setTotalPages(d.totalPages); setTotal(d.total); }
     if (statsRes.ok) setStats(await statsRes.json());
