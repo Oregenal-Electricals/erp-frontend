@@ -464,7 +464,7 @@ export default function BomDetailPage() {
             <h2 className="font-semibold text-gray-700">BOM Items</h2>
             <div className="flex gap-2">
               {canEditItems && elementVisible('page.bom.button.addItem') && (
-                <button onClick={openAdd} disabled={!!previewRole} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-sm disabled:opacity-50">+ Add Item</button>
+                <button onClick={() => openAdd()} disabled={!!previewRole} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-sm disabled:opacity-50">+ Add Item</button>
               )}
               {bom.status === 'APPROVED' && elementVisible('page.bom.button.markObsolete') && (
                 <button onClick={handleObsolete} disabled={!!previewRole} className="bg-gray-500 text-white px-3 py-1.5 rounded-lg hover:bg-gray-600 text-sm disabled:opacity-50">Mark Obsolete</button>
