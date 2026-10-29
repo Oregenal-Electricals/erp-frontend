@@ -199,7 +199,7 @@ export default function RejectedStockPage() {
                   <div className="px-4 pb-4 bg-red-50 border-t">
                     <table className="w-full text-xs mt-3">
                       <thead className="bg-white text-gray-500 uppercase">
-                        <tr>{['Item Code','Item Name','UOM','Rejected Qty','Reason','Disposition','Action'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
+                        <tr>{['Item Code','Item Name','UOM','Rejected Qty','Reason','Disposition','Vendor Window','Action'].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr>
                       </thead>
                       <tbody className="divide-y divide-red-100">
                         {rec.items.map(item => (
@@ -211,10 +211,19 @@ export default function RejectedStockPage() {
                             <td className="px-3 py-2 text-gray-600">{item.rejectionReason || '—'}</td>
                             <td className="px-3 py-2"><span className={`px-2 py-1 rounded-full text-xs font-medium ${DISP_COLORS[item.disposition]}`}>{item.disposition}</span></td>
                             <td className="px-3 py-2">
-                              {item.disposition === 'PENDING' && rec.status !== 'CLOSED' && (
-                                <button onClick={() => { setShowDisposeModal({ recId: rec.id, itemId: item.id }); setDisposeForm({ disposition: 'RTV', dispositionNotes: '', dispositionBy: '' }); setError(''); }} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Dispose</button>
+                              {item.disposition === 'RTV' && item.vendorPickupDeadline ? (
+                                item.disposalEligible ? (
+                                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Window passed — eligible to scrap</span>
+                                ) : (
+                                  <span className="text-xs text-gray-500">Vendor has until {new Date(item.vendorPickupDeadline).toLocaleDateString()}</span>
+                                )
+                              ) : <span className="text-xs text-gray-300">—</span>}
+                            </td>
+                            <td className="px-3 py-2">
+                              {(item.disposition === 'PENDING' || item.disposition === 'RTV') && rec.status !== 'CLOSED' && (
+                                <button onClick={() => { setShowDisposeModal({ recId: rec.id, itemId: item.id }); setDisposeForm({ disposition: item.disposition === 'RTV' ? 'SCRAPPED' : 'RTV', dispositionNotes: '', dispositionBy: '' }); setError(''); }} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">{item.disposition === 'RTV' ? 'Re-disposition' : 'Dispose'}</button>
                               )}
-                              {item.disposition !== 'PENDING' && (
+                              {item.disposition !== 'PENDING' && item.disposition !== 'RTV' && (
                                 <span className="text-xs text-gray-400">{item.dispositionBy || '—'}</span>
                               )}
                             </td>

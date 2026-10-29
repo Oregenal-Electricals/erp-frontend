@@ -30,7 +30,7 @@ export default function VendorsPage() {
     addressLine1: '', addressLine2: '', city: '', state: '', pincode: '', country: 'India',
     bankName: '', bankBranch: '', accountNumber: '', ifscCode: '',
     paymentTerms: 'NET_30', creditLimit: '', currency: 'INR',
-    tdsApplicable: false, tdsSection: '', rating: '', notes: '',
+    tdsApplicable: false, tdsSection: '', rating: '', returnWindowDays: '', notes: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -67,7 +67,7 @@ export default function VendorsPage() {
       addressLine1: '', addressLine2: '', city: '', state: '', pincode: '', country: 'India',
       bankName: '', bankBranch: '', accountNumber: '', ifscCode: '',
       paymentTerms: 'NET_30', creditLimit: '', currency: 'INR',
-      tdsApplicable: false, tdsSection: '', rating: '', notes: '',
+      tdsApplicable: false, tdsSection: '', rating: '', returnWindowDays: '', notes: '',
     });
     setError('');
     setShowModal(true);
@@ -85,7 +85,7 @@ export default function VendorsPage() {
       accountNumber: v.accountNumber || '', ifscCode: v.ifscCode || '',
       paymentTerms: v.paymentTerms || 'NET_30', creditLimit: v.creditLimit || '',
       currency: v.currency || 'INR', tdsApplicable: v.tdsApplicable, tdsSection: v.tdsSection || '',
-      rating: v.rating || '', notes: v.notes || '',
+      rating: v.rating || '', returnWindowDays: v.returnWindowDays ?? '', notes: v.notes || '',
     });
     setError('');
     setShowModal(true);
@@ -97,6 +97,8 @@ export default function VendorsPage() {
     if (body.creditLimit) body.creditLimit = parseFloat(body.creditLimit);
     if (body.rating) body.rating = parseInt(body.rating);
     else delete body.rating;
+    if (body.returnWindowDays !== '') body.returnWindowDays = parseInt(body.returnWindowDays, 10);
+    else delete body.returnWindowDays;
     if (editVendor) delete body.code; // UpdateVendorDto doesn't accept code (immutable) - forbidNonWhitelisted rejects it if present
     const url = editVendor ? `${API}/vendors/${editVendor.id}` : `${API}/vendors`;
     const method = editVendor ? 'PUT' : 'POST';
@@ -376,6 +378,11 @@ export default function VendorsPage() {
                       <option value="">No Rating</option>
                       {[1,2,3,4,5].map(r => <option key={r} value={r}>{'⭐'.repeat(r)} ({r})</option>)}
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Rejected-Material Return Window (days)</label>
+                    <input type="number" min="1" placeholder="21 (company default)" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.returnWindowDays} onChange={e => setForm(f => ({ ...f, returnWindowDays: e.target.value }))} />
+                    <div className="text-xs text-gray-400 mt-1">How many days this vendor has to pick up or replace IQC-rejected material before it becomes eligible to scrap. Leave blank to use the company default (21 days).</div>
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm text-gray-600 mb-1">Notes</label>
