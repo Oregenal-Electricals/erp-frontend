@@ -16,6 +16,11 @@ const WO_STATUS_COLORS = { DRAFT:'bg-gray-100 text-gray-500', RELEASED:'bg-blue-
 // "Hourly Target/Actual production self-entry": without this, the page
 // only ever showed Actual.
 const achColor = pct => pct == null ? 'text-gray-400' : pct >= 100 ? 'text-green-600' : pct >= 80 ? 'text-yellow-600' : 'text-red-600';
+// manpowerAllotted is the Plant Head's approved allocation; manpowerQty is
+// what the supervisor actually had this entry - they can differ (people
+// pulled to another line) and that gap matters for efficiency costing, so
+// show both rather than just the one figure.
+const manpowerColor = (used, allotted) => allotted == null || used == null ? 'text-gray-500' : used < allotted ? 'text-amber-600' : used > allotted ? 'text-blue-600' : 'text-gray-700';
 
 export default function ProductionRecordingPage() {
   const [entries, setEntries] = useState([]);
@@ -187,11 +192,11 @@ export default function ProductionRecordingPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                <tr>{['Entry No.','Work Order','Product','Date','Shift','Operator','Machine','Target','Good Qty','Scrap','Achievement','Status','Action'].map(h => <th key={h} className="px-3 py-3 text-left">{h}</th>)}</tr>
+                <tr>{['Entry No.','Work Order','Product','Date','Shift','Operator','Machine','Manpower','Target','Good Qty','Scrap','Achievement','Status','Action'].map(h => <th key={h} className="px-3 py-3 text-left">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y">
-                {loading ? <tr><td colSpan={13} className="text-center py-10 text-gray-400">Loading...</td></tr>
-                : entries.length === 0 ? <tr><td colSpan={13} className="text-center py-10 text-gray-400">No production entries</td></tr>
+                {loading ? <tr><td colSpan={14} className="text-center py-10 text-gray-400">Loading...</td></tr>
+                : entries.length === 0 ? <tr><td colSpan={14} className="text-center py-10 text-gray-400">No production entries</td></tr>
                 : entries.map(e => (
                   <tr key={e.id} className="hover:bg-gray-50">
                     <td className="px-3 py-2 font-mono text-xs text-blue-600 font-bold">{e.entryNumber}</td>
@@ -201,6 +206,9 @@ export default function ProductionRecordingPage() {
                     <td className="px-3 py-2"><span className={`px-2 py-1 rounded text-xs font-medium ${SHIFT_COLORS[e.shift]}`}>{e.shift}</span></td>
                     <td className="px-3 py-2 text-xs text-gray-600">{e.operatorName||'—'}</td>
                     <td className="px-3 py-2 text-xs text-gray-500">{e.machineName||'—'}</td>
+                    <td className={`px-3 py-2 text-xs font-medium ${manpowerColor(e.manpowerQty, e.manpowerAllotted)}`} title="Used / Allotted (by Plant Head)">
+                      {e.manpowerQty ?? '—'}{e.manpowerAllotted != null && e.manpowerAllotted !== e.manpowerQty ? ` / ${e.manpowerAllotted}` : ''}
+                    </td>
                     <td className="px-3 py-2 text-xs text-gray-500">{e.targetQty != null ? e.targetQty : 'No rate set'}</td>
                     <td className="px-3 py-2 text-xs font-bold text-green-700">{e.goodQty}</td>
                     <td className="px-3 py-2 text-xs font-bold text-red-500">{e.scrapQty}</td>
@@ -269,8 +277,9 @@ export default function ProductionRecordingPage() {
                     <input type="number" step="0.01" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.reworkQty} onChange={e=>setForm(f=>({...f,reworkQty:e.target.value}))} />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">Manpower Qty</label>
-                    <input type="number" min="1" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.manpowerQty} onChange={e=>setForm(f=>({...f,manpowerQty:e.target.value}))} />
+                    <label className="block text-sm text-gray-600 mb-1">Manpower Used This Entry</label>
+                    <input type="number" min="1" className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Leave blank to use the allotted figure" value={form.manpowerQty} onChange={e=>setForm(f=>({...f,manpowerQty:e.target.value}))} />
+                    <div className="text-xs text-gray-400 mt-1">Only fill this in if it is different from the manpower the Plant Head allotted to this work order — e.g. someone was pulled to another line this hour. The allotted figure is kept separately either way.</div>
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Period Start *</label>
