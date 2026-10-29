@@ -929,9 +929,10 @@ export default function CustomerPoPage() {
                       {c.status === 'RECEIVED' && (
                         <button
                           onClick={() => handleAction(c.id, 'acknowledge')}
+                          title={c.conversionError ? `Conversion to Sales Order failed: ${c.conversionError}` : 'Conversion to Sales Order has not completed yet'}
                           className="px-2 py-1 text-xs bg-blue-600 text-white rounded"
                         >
-                          Acknowledge
+                          Retry Conversion
                         </button>
                       )}
                       <button
@@ -1070,6 +1071,13 @@ export default function CustomerPoPage() {
                         <span className="text-blue-600">
                           {fmtDate(viewDetail.acknowledgedDate)}
                         </span>
+                      </div>
+                    )}
+                    {viewDetail.status === 'RECEIVED' && viewDetail.conversionError && (
+                      <div className="mt-2 p-2 bg-red-50 rounded text-xs text-red-600">
+                        Automatic conversion to Sales Order failed: {viewDetail.conversionError}
+                        <br />
+                        Fix the issue below (e.g. map the item under Customer Item Mapping), then use Retry Conversion.
                       </div>
                     )}
                     {viewDetail.cancelReason && (
@@ -1329,7 +1337,7 @@ export default function CustomerPoPage() {
                     onClick={() => handleAction(viewDetail.id, 'acknowledge')}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm"
                   >
-                    Acknowledge
+                    Retry Conversion
                   </button>
                 )}
                 {!['COMPLETED', 'CANCELLED'].includes(viewDetail.status) && (
