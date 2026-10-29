@@ -67,6 +67,10 @@ export default function CustomerPortalPage() {
 
             {loading?<div className="text-center py-10 text-gray-400">Loading...</div>:(
               <>
+                {activeTab==='Dashboard' && !dashboard && (
+                  <div className="text-center py-10 text-gray-400">Could not load this customer&apos;s dashboard. Try selecting the customer again.</div>
+                )}
+
                 {activeTab==='Dashboard' && dashboard && (
                   <div className="space-y-6">
                     <div className="grid grid-cols-3 gap-4">
