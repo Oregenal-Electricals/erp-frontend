@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
 import DocumentAttachments from '@/components/shared/DocumentAttachments';
@@ -28,6 +29,20 @@ const STATUS_COLORS = {
 };
 
 export default function PurchaseOrdersPage() {
+  return (
+    <Suspense fallback={null}>
+      <PurchaseOrdersPageInner />
+    </Suspense>
+  );
+}
+
+function PurchaseOrdersPageInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const fromPr = searchParams.get('fromPr');
+  const [linkedPr, setLinkedPr] = useState(null);
+  const [prBanner, setPrBanner] = useState('');
+
   const [pos, setPos] = useState([]);
   const [stats, setStats] = useState(null);
   const [vendors, setVendors] = useState([]);
@@ -98,6 +113,37 @@ export default function PurchaseOrdersPage() {
   useEffect(() => { fetchStats(); fetchVendors(); fetchRawMaterials(); }, [fetchStats, fetchVendors, fetchRawMaterials]);
   useEffect(() => { fetchPos(); }, [fetchPos]);
 
+  // Arrived via "Create Purchase Order" on an approved PR's detail page -
+  // load it and pre-fill the New PO modal with its still-unraised items,
+  // carrying each one's prItemId so the backend can mark it PO_RAISED
+  // instead of leaving the PR stuck at APPROVED forever.
+  useEffect(() => {
+    if (!fromPr) return;
+    (async () => {
+      const res = await fetch(`${API}/purchase-requisitions/${fromPr}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (!res.ok) { setPrBanner('Could not load that purchase requisition - open it again from the PR page.'); router.replace('/purchase/orders'); return; }
+      const pr = await res.json();
+      const unraised = (pr.items || []).filter(i => i.status !== 'PO_RAISED');
+      if (unraised.length === 0) {
+        setPrBanner(`All items on ${pr.prNumber} are already on a purchase order.`);
+        router.replace('/purchase/orders');
+        return;
+      }
+      setLinkedPr(pr);
+      setForm(f => ({ ...f, notes: `Raised from ${pr.prNumber}${pr.title ? ` - ${pr.title}` : ''}` }));
+      setPoItems(unraised.map(item => ({
+        itemCode: item.itemCode, itemName: item.itemName, uom: item.uom,
+        orderedQty: String(item.requiredQty), unitPrice: item.estimatedUnitPrice != null ? String(item.estimatedUnitPrice) : '',
+        taxRate: 18, prItemId: item.id, _search: `${item.itemCode} — ${item.itemName}`, _showDropdown: false,
+      })));
+      setShowModal(true);
+      router.replace('/purchase/orders');
+    })();
+    // Runs once off the fromPr param this page loaded with - the query
+    // string is stripped right after, so this never re-fires.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromPr]);
+
   async function handleCreate() {
     if (!form.vendorId) { setError('Select a vendor'); return; }
     if (!form.deliveryDate) { setError('Set a delivery date'); return; }
@@ -113,8 +159,10 @@ export default function PurchaseOrdersPage() {
       items: validItems.map(it => ({
         itemCode: it.itemCode, itemName: it.itemName, uom: it.uom,
         orderedQty: parseFloat(it.orderedQty), unitPrice: parseFloat(it.unitPrice), taxRate: parseFloat(it.taxRate) || 0,
+        ...(it.prItemId ? { prItemId: it.prItemId } : {}),
       })),
     };
+    if (linkedPr) body.prId = linkedPr.id;
     if (!body.deliveryAddress) delete body.deliveryAddress;
     if (!body.paymentTerms) delete body.paymentTerms;
     if (!body.notes) delete body.notes;
@@ -190,9 +238,16 @@ export default function PurchaseOrdersPage() {
             <h1 className="text-2xl font-bold text-gray-900">Purchase Orders</h1>
             <p className="text-gray-500 text-sm mt-1">Legally binding purchase documents — prices frozen after approval</p>
           </div>
-          <button onClick={() => { setForm({ vendorId: '', deliveryDate: '', deliveryAddress: '', paymentTerms: '', notes: '' }); setPoItems([]); setVendorSearch(''); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New PO</button>
+          <button onClick={() => { setLinkedPr(null); setForm({ vendorId: '', deliveryDate: '', deliveryAddress: '', paymentTerms: '', notes: '' }); setPoItems([]); setVendorSearch(''); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New PO</button>
           <button onClick={()=>downloadExcel('/excel/purchase-orders','Purchase Orders')} className="px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">⬇ Excel</button>
         </div>
+
+        {prBanner && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-700 rounded-lg p-3 mb-4 text-sm flex justify-between items-center">
+            <span>{prBanner}</span>
+            <button onClick={() => setPrBanner('')} className="text-amber-500 hover:text-amber-700">✕</button>
+          </div>
+        )}
 
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -289,7 +344,14 @@ export default function PurchaseOrdersPage() {
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
               <div className="p-6 border-b flex justify-between items-center">
-                <h2 className="text-lg font-bold">New Purchase Order</h2>
+                <div>
+                  <h2 className="text-lg font-bold">New Purchase Order</h2>
+                  {linkedPr && (
+                    <p className="text-xs text-blue-600 mt-0.5">
+                      Linked to {linkedPr.prNumber} — items below are carried over; pick a vendor and review before saving.
+                    </p>
+                  )}
+                </div>
                 <button onClick={() => setShowModal(false)} className="text-gray-400 text-xl">✕</button>
               </div>
               <div className="p-6 space-y-4">

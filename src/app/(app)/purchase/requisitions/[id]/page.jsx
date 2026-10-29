@@ -24,6 +24,13 @@ const PRIORITY_COLORS = {
   URGENT: 'bg-red-100 text-red-700',
 };
 
+const ITEM_STATUS_COLORS = {
+  PENDING: 'bg-gray-100 text-gray-600',
+  APPROVED: 'bg-green-100 text-green-700',
+  REJECTED: 'bg-red-100 text-red-700',
+  PO_RAISED: 'bg-blue-100 text-blue-700',
+};
+
 export default function PurchaseRequisitionDetailPage() {
   const { id } = useParams();
   const [pr, setPr] = useState(null);
@@ -45,6 +52,9 @@ export default function PurchaseRequisitionDetailPage() {
   useEffect(() => { fetchPr(); }, [fetchPr]);
 
   const isDraft = pr?.status === 'DRAFT';
+  // Items not already carried onto a PO - what a new "Create Purchase
+  // Order" pass would actually send, and the count shown on the button.
+  const unraisedItems = pr?.items?.filter(i => i.status !== 'PO_RAISED') || [];
 
   async function handleAddItem() {
     setSaving(true); setError('');
@@ -141,6 +151,14 @@ export default function PurchaseRequisitionDetailPage() {
                   <button onClick={() => setShowRejectModal(true)} className="bg-red-500 text-white px-3 py-1.5 rounded-lg text-sm">Reject</button>
                 </>
               )}
+              {pr.status === 'APPROVED' && unraisedItems.length > 0 && (
+                <Link href={`/purchase/orders?fromPr=${id}`} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700">
+                  Create Purchase Order ({unraisedItems.length})
+                </Link>
+              )}
+              {pr.status === 'APPROVED' && unraisedItems.length === 0 && (
+                <span className="text-xs text-gray-400 self-center">All items already on a PO</span>
+              )}
             </div>
           </div>
 
@@ -162,7 +180,7 @@ export default function PurchaseRequisitionDetailPage() {
                     <td className="px-4 py-3 text-gray-600">{item.estimatedUnitPrice ? `₹${item.estimatedUnitPrice}` : '—'}</td>
                     <td className="px-4 py-3 font-medium text-gray-800">{item.estimatedTotal ? `₹${item.estimatedTotal.toLocaleString()}` : '—'}</td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-500">{item.hsnCode || '—'}</td>
-                    <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{item.status}</span></td>
+                    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs ${ITEM_STATUS_COLORS[item.status] || 'bg-gray-100 text-gray-600'}`}>{item.status}</span></td>
                     <td className="px-4 py-3">
                       {isDraft && <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:underline text-xs">Remove</button>}
                     </td>
