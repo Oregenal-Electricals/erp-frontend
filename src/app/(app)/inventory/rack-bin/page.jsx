@@ -28,6 +28,13 @@ export default function RackBinPage() {
   const [zoneForm, setZoneForm] = useState({ code: '', name: '', description: '' });
   const [rackForm, setRackForm] = useState({ zoneId: '', code: '', name: '', description: '' });
   const [binForm, setBinForm] = useState({ rackId: '', prefix: '', count: 10, maxQty: '' });
+  // Task #56 (Phase 3): racks are physically vertical (bay/column x shelf
+  // level) - 'vertical' drives the real generateRackLocations() generator
+  // and is the default; 'flat' keeps the old one-dimensional bulk-create
+  // around for a rack that genuinely has no bay/level structure.
+  const [binMode, setBinMode] = useState('vertical');
+  const [genForm, setGenForm] = useState({ rackId: '', bays: 4, levels: 5, codePrefix: '', maxQty: '' });
+  const [genResult, setGenResult] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [warehouseError, setWarehouseError] = useState('');
@@ -119,6 +126,31 @@ export default function RackBinPage() {
     const data = await res.json();
     if (res.ok) { setShowBinForm(false); if (selectedRack?.id === binForm.rackId) handleSelectRack(selectedRack); fetchWarehouseData(); }
     else setError(data.message || 'Failed');
+    setSaving(false);
+  }
+
+  async function handleGenerateVertical() {
+    setSaving(true); setError(''); setGenResult(null);
+    const res = await fetch(`${API}/rack-bin/bins/generate-vertical`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({
+        warehouseId: selectedWh,
+        rackId: genForm.rackId,
+        bays: parseInt(genForm.bays),
+        levels: parseInt(genForm.levels),
+        codePrefix: genForm.codePrefix || undefined,
+        maxQty: parseFloat(genForm.maxQty) || undefined,
+      }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setGenResult(data);
+      if (selectedRack?.id === genForm.rackId) handleSelectRack(selectedRack);
+      fetchWarehouseData();
+    } else {
+      setError(data.message || 'Failed to generate bin locations');
+    }
     setSaving(false);
   }
 
@@ -264,32 +296,76 @@ export default function RackBinPage() {
                     <span className="ml-2 text-xs text-gray-400">{bins.length} bins</span>
                   </div>
                   <button onClick={() => {
-                    setError('');
+                    setError(''); setGenResult(null);
+                    setBinMode('vertical');
                     setBinForm({ rackId: selectedRack.id, prefix: selectedRack.code+'-01', count: 5, maxQty: '' });
+                    setGenForm({ rackId: selectedRack.id, bays: 4, levels: 5, codePrefix: selectedRack.code, maxQty: '' });
                     setShowBinForm(v => !v);
                   }} className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">{showBinForm ? 'Cancel' : '+ Add Bins'}</button>
                 </div>
 
                 {showBinForm && (
                   <div className="p-4 border-b bg-blue-50 space-y-3">
-                    <div className="bg-blue-100 rounded-lg p-3 text-xs text-blue-700">
-                      Bins will be created as: <strong>{binForm.prefix}-01</strong>, <strong>{binForm.prefix}-02</strong>, ...
+                    <div className="flex gap-2">
+                      <button onClick={() => { setBinMode('vertical'); setError(''); setGenResult(null); }} className={`px-3 py-1 text-xs rounded font-medium ${binMode==='vertical' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border'}`}>Bay &times; Level (vertical-first)</button>
+                      <button onClick={() => { setBinMode('flat'); setError(''); setGenResult(null); }} className={`px-3 py-1 text-xs rounded font-medium ${binMode==='flat' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border'}`}>Simple List</button>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">Bin Prefix *</label>
-                        <input className="w-full border rounded-lg px-3 py-1.5 text-sm font-mono" placeholder="A-01" value={binForm.prefix} onChange={e => setBinForm(f => ({ ...f, prefix: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">Number of Bins *</label>
-                        <input type="number" min="1" max="100" className="w-full border rounded-lg px-3 py-1.5 text-sm" value={binForm.count} onChange={e => setBinForm(f => ({ ...f, count: e.target.value }))} />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-xs text-gray-600 mb-1">Max Qty per Bin</label>
-                        <input type="number" className="w-full border rounded-lg px-3 py-1.5 text-sm" placeholder="Leave empty for unlimited" value={binForm.maxQty} onChange={e => setBinForm(f => ({ ...f, maxQty: e.target.value }))} />
-                      </div>
-                    </div>
-                    <button onClick={handleBulkCreateBins} disabled={saving} className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">{saving ? 'Creating...' : `Create ${binForm.count} Bins`}</button>
+
+                    {binMode === 'vertical' ? (
+                      <>
+                        <div className="bg-blue-100 rounded-lg p-3 text-xs text-blue-700">
+                          Matches the physical rack: {genForm.bays || 0} side-by-side bay{genForm.bays === 1 ? '' : 's'}, {genForm.levels || 0} shelf level{genForm.levels === 1 ? '' : 's'} each.
+                          Bins are numbered vertical-first — every level in Bay A before Bay B — e.g. <strong>{(genForm.codePrefix || selectedRack.code)}-A1</strong>, <strong>{(genForm.codePrefix || selectedRack.code)}-A2</strong>, ... then <strong>{(genForm.codePrefix || selectedRack.code)}-B1</strong>.
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Bays (columns) *</label>
+                            <input type="number" min="1" max="676" className="w-full border rounded-lg px-3 py-1.5 text-sm" value={genForm.bays} onChange={e => setGenForm(f => ({ ...f, bays: e.target.value }))} />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Levels (shelves per bay) *</label>
+                            <input type="number" min="1" max="999" className="w-full border rounded-lg px-3 py-1.5 text-sm" value={genForm.levels} onChange={e => setGenForm(f => ({ ...f, levels: e.target.value }))} />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Code Prefix</label>
+                            <input className="w-full border rounded-lg px-3 py-1.5 text-sm font-mono uppercase" placeholder={selectedRack.code} value={genForm.codePrefix} onChange={e => setGenForm(f => ({ ...f, codePrefix: e.target.value.toUpperCase() }))} />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Max Qty per Bin</label>
+                            <input type="number" className="w-full border rounded-lg px-3 py-1.5 text-sm" placeholder="Unlimited" value={genForm.maxQty} onChange={e => setGenForm(f => ({ ...f, maxQty: e.target.value }))} />
+                          </div>
+                        </div>
+                        <button onClick={handleGenerateVertical} disabled={saving || !genForm.bays || !genForm.levels} className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+                          {saving ? 'Generating...' : `Generate ${(parseInt(genForm.bays) || 0) * (parseInt(genForm.levels) || 0)} Bin Locations`}
+                        </button>
+                        {genResult && (
+                          <div className="bg-green-50 text-green-700 rounded-lg p-3 text-xs">
+                            {genResult.message}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="bg-blue-100 rounded-lg p-3 text-xs text-blue-700">
+                          Bins will be created as: <strong>{binForm.prefix}-01</strong>, <strong>{binForm.prefix}-02</strong>, ... with no bay/level structure. Use this only for a rack that genuinely has no shelf layout to model.
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Bin Prefix *</label>
+                            <input className="w-full border rounded-lg px-3 py-1.5 text-sm font-mono" placeholder="A-01" value={binForm.prefix} onChange={e => setBinForm(f => ({ ...f, prefix: e.target.value }))} />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Number of Bins *</label>
+                            <input type="number" min="1" max="100" className="w-full border rounded-lg px-3 py-1.5 text-sm" value={binForm.count} onChange={e => setBinForm(f => ({ ...f, count: e.target.value }))} />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="block text-xs text-gray-600 mb-1">Max Qty per Bin</label>
+                            <input type="number" className="w-full border rounded-lg px-3 py-1.5 text-sm" placeholder="Leave empty for unlimited" value={binForm.maxQty} onChange={e => setBinForm(f => ({ ...f, maxQty: e.target.value }))} />
+                          </div>
+                        </div>
+                        <button onClick={handleBulkCreateBins} disabled={saving} className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">{saving ? 'Creating...' : `Create ${binForm.count} Bins`}</button>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -298,6 +374,7 @@ export default function RackBinPage() {
                     {bins.map(bin => (
                       <div key={bin.id} className={`p-2 rounded-lg border text-center ${BIN_STATUS_COLORS[bin.status]} border-current border-opacity-30`}>
                         <div className="font-mono text-xs font-bold">{bin.code}</div>
+                        {bin.bay && <div className="text-[10px] opacity-60">Bay {bin.bay} / Lvl {bin.level}</div>}
                         <div className="text-xs mt-1">{bin.status}</div>
                         {bin.itemCode && <div className="text-xs opacity-70 truncate">{bin.itemCode}</div>}
                         {bin.currentQty > 0 && <div className="text-xs font-medium">{bin.currentQty}</div>}
