@@ -96,13 +96,13 @@ export default function PurchaseRequisitionsPage() {
   }
 
   async function handleApprove(id) {
-    await fetch(`${API}/purchase-requisitions/${id}/approve`, {method:'PUT', headers:{Authorization:`Bearer ${getToken()}`}});
+    await fetch(`${API}/purchase-requisitions/${id}/approve`, {method:'POST', headers:{Authorization:`Bearer ${getToken()}`}});
     fetchAll();
   }
 
   async function handleCancel(id) {
     if (!confirm('Cancel this PR?')) return;
-    await fetch(`${API}/purchase-requisitions/${id}/cancel`, {method:'PUT', headers:{Authorization:`Bearer ${getToken()}`}});
+    await fetch(`${API}/purchase-requisitions/${id}/cancel`, {method:'POST', headers:{Authorization:`Bearer ${getToken()}`}});
     fetchAll();
   }
 
