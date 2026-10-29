@@ -34,6 +34,7 @@ export default function VouchersPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
     if (vType) params.set('voucherType', vType);
@@ -46,7 +47,12 @@ export default function VouchersPage() {
     if (vRes.ok) { const d = await vRes.json(); setVouchers(d.data||[]); setTotal(d.total); setTotalPages(d.totalPages||1); }
     if (sRes.ok) setStats(await sRes.json());
     if (aRes.ok) { const d = await aRes.json(); setAccounts(d.data||[]); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchAll(); }, [page, search, vType, status]);

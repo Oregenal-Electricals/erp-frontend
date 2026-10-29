@@ -33,6 +33,7 @@ export default function ReworkPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const [reworkRes, qcRes] = await Promise.all([
       fetch(`${API}/rework`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/production-qc?limit=200`, { headers: { Authorization: `Bearer ${getToken()}` } }),
@@ -46,7 +47,12 @@ export default function ReworkPage() {
       // creation time, this is just for a sensible dropdown.
       setPendingQc((d.data || []).filter(q => q.reworkQty > 0));
     }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

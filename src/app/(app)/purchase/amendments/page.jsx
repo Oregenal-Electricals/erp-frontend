@@ -43,6 +43,7 @@ export default function PoAmendmentsPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
     if (status) params.set('status', status);
@@ -54,7 +55,12 @@ export default function PoAmendmentsPage() {
     if (amdRes.ok) { const d = await amdRes.json(); setAmendments(d.data); setTotalPages(d.totalPages); setTotal(d.total); }
     if (statsRes.ok) setStats(await statsRes.json());
     if (posRes.ok) { const d = await posRes.json(); setPos(d.data.filter(p => ['APPROVED','SENT','PARTIALLY_RECEIVED'].includes(p.status))); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, [page, search, status]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

@@ -35,6 +35,7 @@ export default function SupplierQualityPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const [ratRes, carRes, statsRes, vRes, ncrRes] = await Promise.all([
       fetch(`${API}/supplier-quality/ratings`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/supplier-quality/cars`, { headers: { Authorization: `Bearer ${getToken()}` } }),
@@ -47,7 +48,12 @@ export default function SupplierQualityPage() {
     if (statsRes.ok) setStats(await statsRes.json());
     if (vRes.ok) { const d = await vRes.json(); setVendors(d.data||d||[]); }
     if (ncrRes.ok) { const d = await ncrRes.json(); setNcrs(d.data||[]); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchAll(); }, []);

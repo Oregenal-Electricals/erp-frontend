@@ -33,13 +33,19 @@ export default function PurchaseRequisitionsPage() {
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
+    try {
     const [prRes, rmRes] = await Promise.all([
       fetch(`${API}/purchase-requisitions?limit=50`, {headers:{Authorization:`Bearer ${getToken()}`}}),
       fetch(`${API}/raw-materials?limit=200`, {headers:{Authorization:`Bearer ${getToken()}`}}),
     ]);
     if (prRes.ok) { const d=await prRes.json(); setPrs(d.data||[]); }
     if (rmRes.ok) { const d=await rmRes.json(); setRawMaterials(d.data||[]); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(()=>{ fetchAll(); },[]);

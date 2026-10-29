@@ -23,6 +23,7 @@ export default function PoApprovalsPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const [pendingRes, statsRes, settingsRes] = await Promise.all([
       fetch(`${API}/po-approvals/pending`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/po-approvals/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
@@ -31,7 +32,12 @@ export default function PoApprovalsPage() {
     if (pendingRes.ok) setPending(await pendingRes.json());
     if (statsRes.ok) setStats(await statsRes.json());
     if (settingsRes.ok) setSettings(await settingsRes.json());
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

@@ -26,6 +26,7 @@ export default function ScrapPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const [scrapRes, qcRes] = await Promise.all([
       fetch(`${API}/scrap`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/production-qc?limit=200`, { headers: { Authorization: `Bearer ${getToken()}` } }),
@@ -35,7 +36,12 @@ export default function ScrapPage() {
       const d = await qcRes.json();
       setPendingQc((d.data || []).filter(q => q.failQty > 0));
     }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

@@ -35,13 +35,19 @@ export default function TdsPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const [dRes, eRes] = await Promise.all([
       fetch(`${API}/tds?financialYear=${fy}`, {headers:{Authorization:`Bearer ${getToken()}`}}),
       fetch(`${API}/employees?limit=200`, {headers:{Authorization:`Bearer ${getToken()}`}}),
     ]);
     if (dRes.ok) setDeclarations(await dRes.json());
     if (eRes.ok) { const d=await eRes.json(); setEmployees(d.data||[]); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(()=>{ fetchAll(); },[fy]);

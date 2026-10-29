@@ -67,6 +67,7 @@ export default function WorkOrdersPage() {
 
   async function fetchAll() {
     setLoading(true);
+    try {
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
     if (status) params.set('status', status);
@@ -80,7 +81,12 @@ export default function WorkOrdersPage() {
     if (statsRes.ok) setStats(await statsRes.json());
     if (whRes.ok) { const d = await whRes.json(); setWarehouses(d.data || d); }
     if (bomRes.ok) { const d = await bomRes.json(); setBoms(d.data || []); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchAll(); fetchOpenDowntimes(); }, [page, search, status]);

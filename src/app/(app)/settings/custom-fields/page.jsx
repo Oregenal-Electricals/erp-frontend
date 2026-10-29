@@ -24,13 +24,19 @@ export default function CustomFieldsSettingsPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const [allRes, statsRes] = await Promise.all([
       fetch(`${API}/custom-fields/definitions/all`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/custom-fields/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (allRes.ok) setAllFields(await allRes.json());
     if (statsRes.ok) setStats(await statsRes.json());
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

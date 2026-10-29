@@ -53,17 +53,22 @@ export default function ProductsPage() {
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ page, limit: 20 });
-    if (search) params.set('search', search);
-    if (productType) params.set('productType', productType);
-    const res = await fetch(`${API}/products?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
-    if (res.ok) {
-      const d = await res.json();
-      setProducts(d.data);
-      setTotalPages(d.totalPages);
-      setTotal(d.total);
+    try {
+      const params = new URLSearchParams({ page, limit: 20 });
+      if (search) params.set('search', search);
+      if (productType) params.set('productType', productType);
+      const res = await fetch(`${API}/products?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (res.ok) {
+        const d = await res.json();
+        setProducts(d.data);
+        setTotalPages(d.totalPages);
+        setTotal(d.total);
+      }
+    } catch {
+      // A network hiccup must not leave the page stuck on "Loading..." forever.
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [page, search, productType]);
 
   useEffect(() => { fetchStats(); fetchDropdowns(); }, [fetchStats, fetchDropdowns]);

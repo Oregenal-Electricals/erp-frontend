@@ -37,32 +37,44 @@ export default function UiControlCenterPage() {
 
   const load = async () => {
     setLoading(true);
-    const [structRes, pageElRes, roleRes, userRes] = await Promise.all([
-      api.get('/ui-control/structure'),
-      api.get('/ui-control/page-elements'),
-      api.get('/roles'),
-      api.get('/users'),
-    ]);
-    setStructure(structRes.data || []);
-    setPageElements(pageElRes.data || {});
-    setRoles(roleRes.data || []);
-    setUsers(userRes.data?.items || userRes.data || []);
-    setLoading(false);
+    try {
+      const [structRes, pageElRes, roleRes, userRes] = await Promise.all([
+        api.get('/ui-control/structure'),
+        api.get('/ui-control/page-elements'),
+        api.get('/roles'),
+        api.get('/users'),
+      ]);
+      setStructure(structRes.data || []);
+      setPageElements(pageElRes.data || {});
+      setRoles(roleRes.data || []);
+      setUsers(userRes.data?.items || userRes.data || []);
+    } catch {
+      // A network hiccup must not leave the page stuck on "Loading..." forever.
+      // (api.get throws on any non-2xx, unlike plain fetch, so this is
+      // reachable even for an ordinary permission/auth error.)
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Same fetch, but doesn't swap the whole page to the "Loading…" screen —
   // used after Save/Discard so it doesn't feel like a page reload.
   const silentReload = async () => {
-    const [structRes, pageElRes, roleRes, userRes] = await Promise.all([
-      api.get('/ui-control/structure'),
-      api.get('/ui-control/page-elements'),
-      api.get('/roles'),
-      api.get('/users'),
-    ]);
-    setStructure(structRes.data || []);
-    setPageElements(pageElRes.data || {});
-    setRoles(roleRes.data || []);
-    setUsers(userRes.data?.items || userRes.data || []);
+    try {
+      const [structRes, pageElRes, roleRes, userRes] = await Promise.all([
+        api.get('/ui-control/structure'),
+        api.get('/ui-control/page-elements'),
+        api.get('/roles'),
+        api.get('/users'),
+      ]);
+      setStructure(structRes.data || []);
+      setPageElements(pageElRes.data || {});
+      setRoles(roleRes.data || []);
+      setUsers(userRes.data?.items || userRes.data || []);
+    } catch {
+      // Don't let a reload failure after Save/Discard surface as an
+      // unhandled rejection - the mutation itself already succeeded.
+    }
   };
 
   const showToast = (message) => {

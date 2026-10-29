@@ -26,13 +26,19 @@ export default function GstPage() {
 
   async function fetchDashboard() {
     setLoading(true);
+    try {
     const [dRes, rRes] = await Promise.all([
       fetch(`${API}/gst/dashboard?period=${period}`, {headers:{Authorization:`Bearer ${getToken()}`}}),
       fetch(`${API}/gst/returns`, {headers:{Authorization:`Bearer ${getToken()}`}}),
     ]);
     if (dRes.ok) setDashboard(await dRes.json());
     if (rRes.ok) setReturns(await rRes.json());
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function fetchGstr1() {

@@ -37,6 +37,7 @@ export default function TransfersPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
     if (status) params.set('status', status);
@@ -50,7 +51,12 @@ export default function TransfersPage() {
     if (statsRes.ok) setStats(await statsRes.json());
     if (whRes.ok) { const d = await whRes.json(); setWarehouses(d.data || d); }
     if (balRes.ok) { const d = await balRes.json(); setStockBalance(d.data || []); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, [page, search, status]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

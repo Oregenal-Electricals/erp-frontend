@@ -14,13 +14,18 @@ export default function IqcDashboardPage() {
 
   useEffect(() => {
     (async () => {
-      const [sRes, pRes] = await Promise.all([
-        fetch(`${API}/iqc/stats`, { headers: authHeaders() }),
-        fetch(`${API}/iqc?status=PENDING&limit=8`, { headers: authHeaders() }),
-      ]);
-      if (sRes.ok) setStats(await sRes.json());
-      if (pRes.ok) { const d = await pRes.json(); setPending(d.data || []); }
-      setLoading(false);
+      try {
+        const [sRes, pRes] = await Promise.all([
+          fetch(`${API}/iqc/stats`, { headers: authHeaders() }),
+          fetch(`${API}/iqc?status=PENDING&limit=8`, { headers: authHeaders() }),
+        ]);
+        if (sRes.ok) setStats(await sRes.json());
+        if (pRes.ok) { const d = await pRes.json(); setPending(d.data || []); }
+      } catch {
+        // A network hiccup must not leave the page stuck on "Loading..." forever.
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 

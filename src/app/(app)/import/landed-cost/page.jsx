@@ -32,6 +32,7 @@ export default function LandedCostPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
     if (status) params.set('status', status);
@@ -43,7 +44,12 @@ export default function LandedCostPage() {
     if (lcRes.ok) { const d = await lcRes.json(); setCosts(d.data); setTotalPages(d.totalPages); setTotal(d.total); }
     if (statsRes.ok) setStats(await statsRes.json());
     if (ipoRes.ok) { const d = await ipoRes.json(); setIpos(d.data.filter(i => ['CUSTOMS_CLEARED','SHIPPED','CLOSED'].includes(i.status))); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, [page, search, status]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

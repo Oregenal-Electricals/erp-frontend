@@ -51,6 +51,7 @@ export default function AccountsPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
     if (typeFilter) params.set('accountType', typeFilter);
@@ -62,7 +63,12 @@ export default function AccountsPage() {
     if (aRes.ok) { const d = await aRes.json(); setAccounts(d.data||[]); }
     if (tRes.ok) setTree(await tRes.json());
     if (sRes.ok) setStats(await sRes.json());
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchAll(); }, [search, typeFilter]);

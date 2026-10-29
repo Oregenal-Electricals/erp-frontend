@@ -38,6 +38,7 @@ export default function IotPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const [dRes, mRes, aRes] = await Promise.all([
       fetch(`${API}/iot/dashboard`, {headers:{Authorization:`Bearer ${getToken()}`}}),
       fetch(`${API}/iot/machines`, {headers:{Authorization:`Bearer ${getToken()}`}}),
@@ -46,7 +47,12 @@ export default function IotPage() {
     if (dRes.ok) setDashboard(await dRes.json());
     if (mRes.ok) setMachines(await mRes.json());
     if (aRes.ok) setAlerts(await aRes.json());
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function fetchInsights() {

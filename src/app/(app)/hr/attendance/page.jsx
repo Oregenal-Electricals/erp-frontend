@@ -55,6 +55,7 @@ export default function AttendancePage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const params = new URLSearchParams({month, year, limit:100});
     if (empFilter) params.set('employeeId', empFilter);
     if (statusFilter) params.set('status', statusFilter);
@@ -68,7 +69,12 @@ export default function AttendancePage() {
     if (eRes.ok) { const d=await eRes.json(); setEmployees(d.data||[]); }
     if (sRes.ok) setShifts(await sRes.json());
     if (stRes.ok) setStats(await stRes.json());
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(()=>{ fetchAll(); },[month, year, empFilter, statusFilter]);

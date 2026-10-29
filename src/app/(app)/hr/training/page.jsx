@@ -40,6 +40,7 @@ export default function TrainingPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const [sRes, pRes, eRes, stRes] = await Promise.all([
       fetch(`${API}/training/sessions?limit=50`, {headers:{Authorization:`Bearer ${getToken()}`}}),
       fetch(`${API}/training/programs`, {headers:{Authorization:`Bearer ${getToken()}`}}),
@@ -50,7 +51,12 @@ export default function TrainingPage() {
     if (pRes.ok) setPrograms(await pRes.json());
     if (eRes.ok) { const d=await eRes.json(); setEmployees(d.data||[]); }
     if (stRes.ok) setStats(await stRes.json());
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function fetchSessionDetail(id) {

@@ -29,6 +29,7 @@ export default function CustomersPage() {
 
   async function fetchAll() {
     setLoading(true);
+    try {
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
     const [cRes, sRes] = await Promise.all([
@@ -37,7 +38,12 @@ export default function CustomersPage() {
     ]);
     if (cRes.ok) { const d = await cRes.json(); setCustomers(d.data); setTotalPages(d.totalPages); setTotal(d.total); }
     if (sRes.ok) setStats(await sRes.json());
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => { fetchAll(); }, [page, search]);
 

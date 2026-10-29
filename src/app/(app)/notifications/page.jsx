@@ -33,6 +33,7 @@ export default function NotificationsPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const params = new URLSearchParams({ page, limit: 20 });
     if (filter==='unread') params.set('unreadOnly','true');
     const [nRes, cRes] = await Promise.all([
@@ -41,7 +42,12 @@ export default function NotificationsPage() {
     ]);
     if (nRes.ok) { const d=await nRes.json(); setNotifications(d.data||[]); setTotal(d.total); setTotalPages(d.totalPages||1); setUnreadCount(d.unreadCount||0); }
     if (cRes.ok) { const d=await cRes.json(); setUnreadCount(d.unreadCount); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(()=>{ fetchAll(); },[page,filter]);
