@@ -23,6 +23,20 @@ const nextConfig = {
         destination: '/purchase/requisitions',
         permanent: false,
       },
+      // Same situation for Purchase Orders: /purchase-orders is an older,
+      // modal-only implementation (no deep-linkable detail page). The sidebar
+      // row for it (sidebar.purchase.orders in seed-ui-control.ts) still
+      // points there, but /purchase/orders + /purchase/orders/[id] is the
+      // one notificationRoutes.js links to (PURCHASE_ORDER -> /purchase/orders/:id)
+      // and the one carrying the new PR -> PO conversion flow. Verified the
+      // detail page has equivalent add/edit/remove-item coverage before
+      // redirecting (see /purchase/orders/[id]/page.jsx: openAddItem,
+      // handleSaveItem, handleRemoveItem).
+      {
+        source: '/purchase-orders',
+        destination: '/purchase/orders',
+        permanent: false,
+      },
     ];
   },
 };
