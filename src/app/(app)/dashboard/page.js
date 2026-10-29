@@ -2,12 +2,21 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { getUser } from '@/lib/auth';
+import WidgetCard from '@/components/dashboard/WidgetCard';
+import StatusPill from '@/components/common/StatusPill';
 import { ShoppingCart, ClipboardList, Truck, Database, Factory, BadgeCheck, Users2, CreditCard, Shield, Warehouse, Layers } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 const fmt = n => `₹${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+const fmtDate = s => (s ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' }) : '—');
+const fullName = r => `${r.firstName || ''} ${r.lastName || ''}`.trim() || '—';
 
+// Every widget below drives three things off ONE stats fetch + (on demand)
+// ONE list fetch: the headline numbers (stats), a status-colored mini chart
+// (chart), and a live drill-down table reusing that module's own list
+// endpoint (details) with a link to the real page for full management -
+// never a second, parallel table UI for the same data.
 const WIDGETS = [
   {
     key: 'customerPo', title: 'Customer Orders', icon: ClipboardList, color: 'indigo',
@@ -17,6 +26,25 @@ const WIDGETS = [
       { label: 'Open', value: d.received + d.acknowledged },
       { label: 'Overdue', value: d.overdueCount },
       { label: 'Order Value', value: fmt(d.totalOrderValue) },
+    ],
+    chart: {
+      type: 'bar',
+      data: (d) => [
+        { label: 'Received', value: d.received, tone: 'info' },
+        { label: 'Acknowledged', value: d.acknowledged, tone: 'good' },
+        { label: 'Overdue', value: d.overdueCount, tone: 'critical' },
+      ],
+    },
+    details: [
+      {
+        key: 'recent', label: 'Recent Orders', url: '/customer-po?limit=5', link: '/customer-po',
+        columns: [
+          { key: 'cpoNumber', label: 'PO #' },
+          { key: 'customerName', label: 'Customer' },
+          { key: 'status', label: 'Status', render: (r) => <StatusPill value={r.status} /> },
+          { key: 'deliveryDate', label: 'Delivery', render: (r) => fmtDate(r.deliveryDate) },
+        ],
+      },
     ],
   },
   {
@@ -28,6 +56,24 @@ const WIDGETS = [
       { label: 'Approved', value: d.approved },
       { label: 'Value', value: fmt(d.totalValue) },
     ],
+    chart: {
+      type: 'bar',
+      data: (d) => [
+        { label: 'Draft', value: d.draft, tone: 'neutral' },
+        { label: 'Approved', value: d.approved, tone: 'good' },
+      ],
+    },
+    details: [
+      {
+        key: 'recent', label: 'Recent POs', url: '/purchase-orders?limit=5', link: '/purchase/orders',
+        columns: [
+          { key: 'poNumber', label: 'PO #' },
+          { key: 'vendor', label: 'Vendor', render: (r) => r.vendor?.name || '—' },
+          { key: 'status', label: 'Status', render: (r) => <StatusPill value={r.status} /> },
+          { key: 'totalAmount', label: 'Amount', render: (r) => fmt(r.totalAmount) },
+        ],
+      },
+    ],
   },
   {
     key: 'salesOrders', title: 'Sales Orders', icon: Truck, color: 'teal',
@@ -37,6 +83,24 @@ const WIDGETS = [
       { label: 'In Production', value: d.inProduction },
       { label: 'Overdue', value: d.overdue },
       { label: 'Value', value: fmt(d.totalValue) },
+    ],
+    chart: {
+      type: 'bar',
+      data: (d) => [
+        { label: 'In Production', value: d.inProduction, tone: 'info' },
+        { label: 'Overdue', value: d.overdue, tone: 'critical' },
+      ],
+    },
+    details: [
+      {
+        key: 'recent', label: 'Recent Orders', url: '/sales-orders?limit=5', link: '/sales/sales-orders',
+        columns: [
+          { key: 'soNumber', label: 'SO #' },
+          { key: 'cpo', label: 'Customer PO', render: (r) => r.cpo?.cpoNumber || r.cpo?.customerPoNumber || '—' },
+          { key: 'status', label: 'Status', render: (r) => <StatusPill value={r.status} /> },
+          { key: 'deliveryDate', label: 'Delivery', render: (r) => fmtDate(r.deliveryDate) },
+        ],
+      },
     ],
   },
   {
@@ -48,6 +112,23 @@ const WIDGETS = [
       { label: 'Pending GRN', value: d.pendingGrns },
       { label: 'Pending IQC', value: d.pendingIqc },
     ],
+    chart: {
+      type: 'bar',
+      data: (d) => [
+        { label: 'Pending GRN', value: d.pendingGrns, tone: 'warning' },
+        { label: 'Pending IQC', value: d.pendingIqc, tone: 'warning' },
+      ],
+    },
+    details: [
+      {
+        key: 'stock', label: 'Stock Balance', url: '/stock-ledger/balance?limit=5', link: '/inventory/stock',
+        columns: [
+          { key: 'itemCode', label: 'Item' },
+          { key: 'availableQty', label: 'Available Qty' },
+          { key: 'isLowStock', label: 'Status', render: (r) => <StatusPill value={r.isLowStock ? 'LOW_STOCK' : 'OK'} /> },
+        ],
+      },
+    ],
   },
   {
     key: 'production', title: 'Production', icon: Factory, color: 'orange',
@@ -57,6 +138,24 @@ const WIDGETS = [
       { label: 'In Progress', value: d.workOrders?.inProgress },
       { label: "Today's Good Qty", value: d.today?.goodQty },
       { label: "Today's Scrap", value: d.today?.scrapQty },
+    ],
+    chart: {
+      type: 'bar',
+      data: (d) => [
+        { label: 'Work Orders In Progress', value: d.workOrders?.inProgress, tone: 'info' },
+        { label: "Today's Good Qty", value: d.today?.goodQty, tone: 'good' },
+        { label: "Today's Scrap", value: d.today?.scrapQty, tone: 'critical' },
+      ],
+    },
+    details: [
+      {
+        key: 'wo', label: 'Work Orders', url: '/work-orders?limit=5', link: '/production/work-orders',
+        columns: [
+          { key: 'id', label: 'WO', render: (r) => r.routingGroupId || r.id?.slice(0, 8) || '—' },
+          { key: 'plannedQty', label: 'Planned Qty' },
+          { key: 'plannedManpower', label: 'Manpower' },
+        ],
+      },
     ],
   },
   {
@@ -68,6 +167,34 @@ const WIDGETS = [
       { label: 'CAPA Overdue', value: d.capa?.overdue },
       { label: 'CAPA In Progress', value: d.capa?.inProgress },
     ],
+    chart: {
+      type: 'bar',
+      data: (d) => [
+        { label: 'NCR Open', value: d.ncr?.open, tone: 'warning' },
+        { label: 'NCR Critical', value: d.ncr?.critical, tone: 'critical' },
+        { label: 'CAPA Overdue', value: d.capa?.overdue, tone: 'critical' },
+        { label: 'CAPA In Progress', value: d.capa?.inProgress, tone: 'info' },
+      ],
+    },
+    details: [
+      {
+        key: 'ncr', label: 'NCR', url: '/ncr?limit=5', link: '/quality/ncr',
+        columns: [
+          { key: 'ncrNumber', label: 'NCR #' },
+          { key: 'severity', label: 'Severity', render: (r) => <StatusPill value={r.severity} /> },
+          { key: 'status', label: 'Status', render: (r) => <StatusPill value={r.status} /> },
+          { key: 'itemCode', label: 'Item' },
+        ],
+      },
+      {
+        key: 'capa', label: 'CAPA', url: '/capa?limit=5', link: '/quality/capa',
+        columns: [
+          { key: 'capaNumber', label: 'CAPA #' },
+          { key: 'status', label: 'Status', render: (r) => <StatusPill value={r.status} /> },
+          { key: 'dueDate', label: 'Due', render: (r) => fmtDate(r.dueDate) },
+        ],
+      },
+    ],
   },
   {
     key: 'hr', title: 'HR', icon: Users2, color: 'violet',
@@ -77,6 +204,24 @@ const WIDGETS = [
       { label: 'Active', value: d.active },
       { label: 'On Probation', value: d.onProbation },
       { label: 'Departments', value: d.departments },
+    ],
+    chart: {
+      type: 'bar',
+      data: (d) => [
+        { label: 'Active', value: d.active, tone: 'good' },
+        { label: 'On Probation', value: d.onProbation, tone: 'warning' },
+      ],
+    },
+    details: [
+      {
+        key: 'emp', label: 'Employees', url: '/employees?limit=5', link: '/hr/employees',
+        columns: [
+          { key: 'employeeNumber', label: 'Emp #' },
+          { key: 'name', label: 'Name', render: fullName },
+          { key: 'department', label: 'Department', render: (r) => r.department?.name || '—' },
+          { key: 'status', label: 'Status', render: (r) => <StatusPill value={r.status} /> },
+        ],
+      },
     ],
   },
   {
@@ -88,6 +233,31 @@ const WIDGETS = [
       { label: 'AR Outstanding', value: fmt(d.arOutstanding) },
       { label: 'AP Outstanding', value: fmt(d.apOutstanding) },
     ],
+    chart: {
+      type: 'bar',
+      data: (d) => [
+        { label: 'AR Outstanding', value: d.arOutstanding, display: fmt(d.arOutstanding), tone: 'info' },
+        { label: 'AP Outstanding', value: d.apOutstanding, display: fmt(d.apOutstanding), tone: 'warning' },
+      ],
+    },
+    details: [
+      {
+        key: 'ar', label: 'Receivables', url: '/ar?limit=5', link: '/finance/ar',
+        columns: [
+          { key: 'invoiceNumber', label: 'Invoice #' },
+          { key: 'status', label: 'Status', render: (r) => <StatusPill value={r.status} /> },
+          { key: 'dueDate', label: 'Due', render: (r) => fmtDate(r.dueDate) },
+        ],
+      },
+      {
+        key: 'ap', label: 'Payables', url: '/ap?limit=5', link: '/finance/ap',
+        columns: [
+          { key: 'ref', label: 'Ref', render: (r) => r.billNumber || r.invoiceNumber || r.id?.slice(0, 8) || '—' },
+          { key: 'status', label: 'Status', render: (r) => <StatusPill value={r.status} /> },
+          { key: 'dueDate', label: 'Due', render: (r) => fmtDate(r.dueDate) },
+        ],
+      },
+    ],
   },
   {
     key: 'gate', title: 'Gate Security', icon: Shield, color: 'slate',
@@ -98,12 +268,35 @@ const WIDGETS = [
       { label: 'Pending Gate Passes', value: d.liveStats?.pendingPasses },
       { label: 'Pending GRN Inward', value: d.liveStats?.pendingGINs },
     ],
+    chart: {
+      type: 'bar',
+      data: (d) => [
+        { label: 'Visitors Inside', value: d.liveStats?.visitorsInside, tone: 'info' },
+        { label: 'Vehicles Inside', value: d.liveStats?.vehiclesInside, tone: 'info' },
+        { label: 'Pending Gate Passes', value: d.liveStats?.pendingPasses, tone: 'warning' },
+        { label: 'Pending GRN Inward', value: d.liveStats?.pendingGINs, tone: 'warning' },
+      ],
+    },
+    details: [
+      {
+        key: 'visitors', label: 'Visitors', url: '/visitors', link: '/gate/visitors',
+        columns: [{ key: 'name', label: 'Visitor', render: fullName }],
+      },
+      {
+        key: 'vehicles', label: 'Vehicles', url: '/vehicles', link: '/gate/vehicles',
+        columns: [
+          { key: 'vehicleNumber', label: 'Vehicle #' },
+          { key: 'vehicleType', label: 'Type' },
+          { key: 'ownerName', label: 'Owner' },
+        ],
+      },
+    ],
   },
   {
     // STORE-018: the real operational action cards, reusing the same
     // getActionCards() the Stock hub could also read from - never a
     // second, separately-maintained set of counts.
-    key: 'storeActions', title: 'Store Actions', icon: Warehouse, color: 'emerald',
+    key: 'storeActions', title: 'Store Actions', icon: Warehouse, color: 'cyan',
     permission: 'INVENTORY_DASHBOARD_VIEW', endpoint: '/inventory-dashboard/action-cards',
     stats: (d) => [
       { label: 'Hold Material', value: d.holdMaterial },
@@ -111,9 +304,34 @@ const WIDGETS = [
       { label: 'RTV Pending', value: (d.rtvApprovalPending || 0) + (d.rtvGateOutPending || 0) },
       { label: 'Reservation Shortfall', value: d.reservationShortfall },
     ],
+    chart: {
+      type: 'bar',
+      data: (d) => [
+        { label: 'Hold Material', value: d.holdMaterial, tone: 'warning' },
+        { label: 'Stock Count Variance', value: d.stockCountVariancePending, tone: 'warning' },
+        { label: 'RTV Pending', value: (d.rtvApprovalPending || 0) + (d.rtvGateOutPending || 0), tone: 'warning' },
+        { label: 'Reservation Shortfall', value: d.reservationShortfall, tone: 'critical' },
+      ],
+    },
+    details: [
+      {
+        key: 'adjust', label: 'Stock Adjustments', url: '/stock-adjustments?limit=5', link: '/inventory/stock-hub',
+        columns: [
+          { key: 'id', label: 'Adjustment', render: (r) => r.id?.slice(0, 8) || '—' },
+          { key: 'status', label: 'Status', render: (r) => <StatusPill value={r.status} /> },
+        ],
+      },
+      {
+        key: 'rtv', label: 'RTV Pending', url: '/rtv/pending', link: '/inventory/rtv-requests',
+        columns: [
+          { key: 'id', label: 'RTV', render: (r) => r.rtvNumber || r.id?.slice(0, 8) || '—' },
+          { key: 'status', label: 'Status', render: (r) => <StatusPill value={r.status} /> },
+        ],
+      },
+    ],
   },
   {
-    key: 'bom', title: 'BOM', icon: Layers, color: 'violet',
+    key: 'bom', title: 'BOM', icon: Layers, color: 'fuchsia',
     permission: 'BOM_VIEW', endpoint: '/boms/stats',
     stats: (d) => [
       { label: 'Total BOMs', value: d.total },
@@ -123,55 +341,40 @@ const WIDGETS = [
       { label: 'Draft', value: d.draft },
       { label: 'Items (Active)', value: d.totalItems },
     ],
+    chart: {
+      type: 'donut',
+      data: (d) => [
+        { label: 'Approved', value: d.approved, tone: 'good' },
+        { label: 'Active', value: d.active, tone: 'info' },
+        { label: 'Draft', value: d.draft, tone: 'warning' },
+        { label: 'Obsolete', value: d.obsolete, tone: 'neutral' },
+      ],
+    },
+    details: [
+      {
+        key: 'boms', label: 'BOMs', url: '/boms?limit=5', link: '/inventory/bom',
+        columns: [
+          { key: 'bomNumber', label: 'BOM #' },
+          { key: 'product', label: 'Product', render: (r) => r.product?.name || '—' },
+          { key: 'version', label: 'Version' },
+          { key: 'status', label: 'Status', render: (r) => <StatusPill value={r.status} /> },
+        ],
+      },
+    ],
   },
 ];
-
-const COLOR_CLASSES = {
-  indigo: 'bg-indigo-50 text-indigo-700 border-indigo-100',
-  blue: 'bg-blue-50 text-blue-700 border-blue-100',
-  teal: 'bg-teal-50 text-teal-700 border-teal-100',
-  emerald: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-  orange: 'bg-orange-50 text-orange-700 border-orange-100',
-  rose: 'bg-rose-50 text-rose-700 border-rose-100',
-  violet: 'bg-violet-50 text-violet-700 border-violet-100',
-  amber: 'bg-amber-50 text-amber-700 border-amber-100',
-  slate: 'bg-slate-50 text-slate-700 border-slate-100',
-};
-
-function WidgetCard({ widget, data, loading }) {
-  const Icon = widget.icon;
-  const colorClass = COLOR_CLASSES[widget.color];
-  return (
-    <div className="bg-white rounded-xl border shadow-sm p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${colorClass}`}>
-          <Icon size={16} />
-        </div>
-        <h3 className="font-semibold text-gray-800 text-sm">{widget.title}</h3>
-      </div>
-      {loading ? (
-        <div className="text-xs text-gray-400">Loading...</div>
-      ) : data ? (
-        <div className="grid grid-cols-2 gap-3">
-          {widget.stats(data).map((s, i) => (
-            <div key={i}>
-              <div className="text-lg font-bold text-gray-900">{s.value ?? '—'}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-xs text-gray-400">No data available</div>
-      )}
-    </div>
-  );
-}
 
 export default function DashboardPage() {
   const [user, setUser] = useState(null);
   const [myPermissions, setMyPermissions] = useState(null);
   const [widgetData, setWidgetData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [expandedKeys, setExpandedKeys] = useState(() => new Set());
+  const toggleExpanded = (key) => setExpandedKeys((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
 
   useEffect(() => { setUser(getUser()); }, []);
 
@@ -230,7 +433,15 @@ export default function DashboardPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {visibleWidgets.map(w => (
-            <WidgetCard key={w.key} widget={w} data={widgetData[w.key]} loading={loading} />
+            <div key={w.key} className={expandedKeys.has(w.key) ? 'md:col-span-2' : ''}>
+              <WidgetCard
+                widget={w}
+                data={widgetData[w.key]}
+                loading={loading}
+                expanded={expandedKeys.has(w.key)}
+                onToggle={() => toggleExpanded(w.key)}
+              />
+            </div>
           ))}
         </div>
       )}
