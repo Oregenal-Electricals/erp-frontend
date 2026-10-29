@@ -32,6 +32,7 @@ export default function ProductsPage() {
     categoryId: '', uomId: '', hsnCode: '', gstRate: 18,
     brand: '', model: '', revision: '', drawingNumber: '',
     minOrderQty: '', leadTimeDays: '', specifications: '',
+    hourlyTarget: '', dailyTarget: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -94,6 +95,7 @@ export default function ProductsPage() {
       categoryId: '', uomId: '', hsnCode: '', gstRate: 18,
       brand: '', model: '', revision: '', drawingNumber: '',
       minOrderQty: '', leadTimeDays: '', specifications: '',
+      hourlyTarget: '', dailyTarget: '',
     };
   }
 
@@ -114,6 +116,7 @@ export default function ProductsPage() {
       drawingNumber: p.drawingNumber || '', minOrderQty: p.minOrderQty || '',
       leadTimeDays: p.leadTimeDays || '',
       specifications: p.specifications ? JSON.stringify(p.specifications, null, 2) : '',
+      hourlyTarget: p.hourlyTarget ?? '', dailyTarget: p.dailyTarget ?? '',
     });
     setError('');
     setShowModal(true);
@@ -134,6 +137,12 @@ export default function ProductsPage() {
     } else delete body.specifications;
     if (!body.categoryId) delete body.categoryId;
     if (!body.uomId) delete body.uomId;
+    // 0 is a legitimate target value (not "unset") - only an empty field
+    // omits the key, matching the backend's own "undefined means don't
+    // touch this field" vs "0 means zero" distinction (ProductService.
+    // assertCanSetTargets checks `=== undefined`, not falsy).
+    if (body.hourlyTarget !== '') body.hourlyTarget = parseFloat(body.hourlyTarget); else delete body.hourlyTarget;
+    if (body.dailyTarget !== '') body.dailyTarget = parseFloat(body.dailyTarget); else delete body.dailyTarget;
 
     const url = editProduct ? `${API}/products/${editProduct.id}` : `${API}/products`;
     const method = editProduct ? 'PUT' : 'POST';
@@ -345,6 +354,17 @@ export default function ProductsPage() {
                   <div className="col-span-2">
                     <label className="block text-sm text-gray-600 mb-1">Specifications (JSON)</label>
                     <textarea className="w-full border rounded-lg px-3 py-2 text-sm font-mono" rows={3} placeholder='{"voltage":"230V","current":"32A"}' value={form.specifications} onChange={e => setForm(f => ({ ...f, specifications: e.target.value }))} />
+                  </div>
+                  <div className="col-span-2 pt-2 border-t">
+                    <div className="text-xs font-semibold text-gray-500 mb-2">PRODUCTION TARGETS (requires separate Production Target permission)</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Hourly Target</label>
+                    <input type="number" step="0.01" min="0" className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Units/hour" value={form.hourlyTarget} onChange={e => setForm(f => ({ ...f, hourlyTarget: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Daily Target</label>
+                    <input type="number" step="0.01" min="0" className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Units/day" value={form.dailyTarget} onChange={e => setForm(f => ({ ...f, dailyTarget: e.target.value }))} />
                   </div>
                 </div>
               </div>

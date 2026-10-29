@@ -9,6 +9,13 @@ const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 const STATUS_COLORS = { DRAFT: 'bg-gray-100 text-gray-600', CONFIRMED: 'bg-green-100 text-green-700' };
 const SHIFT_COLORS = { MORNING: 'bg-yellow-100 text-yellow-700', EVENING: 'bg-blue-100 text-blue-700', NIGHT: 'bg-purple-100 text-purple-700' };
 const WO_STATUS_COLORS = { DRAFT:'bg-gray-100 text-gray-500', RELEASED:'bg-blue-100 text-blue-700', IN_PROGRESS:'bg-yellow-100 text-yellow-700', COMPLETED:'bg-green-100 text-green-700' };
+// ProductionEntryService.create() already snapshots a targetQty (from the
+// product's standard productivity rate x manpower x period duration) and
+// an achievementPercent on every entry - this just surfaces what was
+// already being computed and returned, closing the "Target" half of
+// "Hourly Target/Actual production self-entry": without this, the page
+// only ever showed Actual.
+const achColor = pct => pct == null ? 'text-gray-400' : pct >= 100 ? 'text-green-600' : pct >= 80 ? 'text-yellow-600' : 'text-red-600';
 
 export default function ProductionRecordingPage() {
   const [entries, setEntries] = useState([]);
@@ -180,11 +187,11 @@ export default function ProductionRecordingPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                <tr>{['Entry No.','Work Order','Product','Date','Shift','Operator','Machine','Good Qty','Scrap','Total','Status','Action'].map(h => <th key={h} className="px-3 py-3 text-left">{h}</th>)}</tr>
+                <tr>{['Entry No.','Work Order','Product','Date','Shift','Operator','Machine','Target','Good Qty','Scrap','Achievement','Status','Action'].map(h => <th key={h} className="px-3 py-3 text-left">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y">
-                {loading ? <tr><td colSpan={12} className="text-center py-10 text-gray-400">Loading...</td></tr>
-                : entries.length === 0 ? <tr><td colSpan={12} className="text-center py-10 text-gray-400">No production entries</td></tr>
+                {loading ? <tr><td colSpan={13} className="text-center py-10 text-gray-400">Loading...</td></tr>
+                : entries.length === 0 ? <tr><td colSpan={13} className="text-center py-10 text-gray-400">No production entries</td></tr>
                 : entries.map(e => (
                   <tr key={e.id} className="hover:bg-gray-50">
                     <td className="px-3 py-2 font-mono text-xs text-blue-600 font-bold">{e.entryNumber}</td>
@@ -194,9 +201,10 @@ export default function ProductionRecordingPage() {
                     <td className="px-3 py-2"><span className={`px-2 py-1 rounded text-xs font-medium ${SHIFT_COLORS[e.shift]}`}>{e.shift}</span></td>
                     <td className="px-3 py-2 text-xs text-gray-600">{e.operatorName||'—'}</td>
                     <td className="px-3 py-2 text-xs text-gray-500">{e.machineName||'—'}</td>
+                    <td className="px-3 py-2 text-xs text-gray-500">{e.targetQty != null ? e.targetQty : 'No rate set'}</td>
                     <td className="px-3 py-2 text-xs font-bold text-green-700">{e.goodQty}</td>
                     <td className="px-3 py-2 text-xs font-bold text-red-500">{e.scrapQty}</td>
-                    <td className="px-3 py-2 text-xs font-bold">{e.totalQty}</td>
+                    <td className={`px-3 py-2 text-xs font-bold ${achColor(e.achievementPercent)}`}>{e.achievementPercent != null ? `${e.achievementPercent}%` : '—'}</td>
                     <td className="px-3 py-2"><span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[e.status]}`}>{e.status}</span></td>
                     <td className="px-3 py-2">
                       {e.status === 'DRAFT' && <button onClick={() => handleConfirm(e.id)} className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Confirm</button>}
