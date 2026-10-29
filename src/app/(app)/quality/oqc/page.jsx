@@ -11,7 +11,19 @@ const RESULT_COLORS = { PASS:'bg-green-100 text-green-700', FAIL:'bg-red-100 tex
 const STATUS_COLORS = { PENDING:'bg-gray-100 text-gray-600', COMPLETED:'bg-blue-100 text-blue-700', RELEASED:'bg-green-100 text-green-700' };
 const CHECK_COLORS = { PASS:'text-green-600 font-bold', FAIL:'text-red-600 font-bold', NA:'text-gray-400' };
 const CHECKS = ['PASS','FAIL','NA'];
-const CHECK_PARAMS = [{key:'visualCheck',label:'Visual'},{key:'dimensionalCheck',label:'Dimensional'},{key:'functionalCheck',label:'Functional'},{key:'packagingCheck',label:'Packaging'},{key:'labellingCheck',label:'Labelling'}];
+// Task #60: OQC is now two distinct, sequential gates - PRE_PACK
+// (full-product: visual/dimensional/functional, before packing) and
+// POST_PACK (packaging/labelling, after packing). Each stage only ever
+// shows/sends its own checklist - the backend rejects the other stage's
+// fields outright (see OqcService.STAGE_FIELDS), and stock is only
+// credited once BOTH gates have RELEASED with PASS.
+const STAGE_CHECK_PARAMS = {
+  PRE_PACK: [{key:'visualCheck',label:'Visual'},{key:'dimensionalCheck',label:'Dimensional'},{key:'functionalCheck',label:'Functional'}],
+  POST_PACK: [{key:'packagingCheck',label:'Packaging'},{key:'labellingCheck',label:'Labelling'}],
+};
+const ALL_CHECK_PARAMS = [...STAGE_CHECK_PARAMS.PRE_PACK, ...STAGE_CHECK_PARAMS.POST_PACK];
+const STAGE_LABELS = { PRE_PACK: 'Pre-Pack', POST_PACK: 'Post-Pack' };
+const STAGE_COLORS = { PRE_PACK: 'bg-purple-100 text-purple-700', POST_PACK: 'bg-indigo-100 text-indigo-700' };
 
 export default function OqcPage() {
   const [records, setRecords] = useState([]);
@@ -21,13 +33,15 @@ export default function OqcPage() {
   const [search, setSearch] = useState('');
   const [result, setResult] = useState('');
   const [status, setStatus] = useState('');
+  const [stage, setStage] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [expandedDetail, setExpandedDetail] = useState(null);
-  const [form, setForm] = useState({ fgReceiptId:'', workOrderId:'', itemCode:'', itemName:'', customerName:'', lotNumber:'', batchNumber:'', inspectorName:'', sampleSize:'', passQty:'', failQty:'0', visualCheck:'PASS', dimensionalCheck:'PASS', functionalCheck:'PASS', packagingCheck:'PASS', labellingCheck:'PASS', cocNumber:'', defectsFound:'', remarks:'' });
+  const blankForm = { fgReceiptId:'', stage:'', workOrderId:'', itemCode:'', itemName:'', customerName:'', lotNumber:'', batchNumber:'', inspectorName:'', sampleSize:'', passQty:'', failQty:'0', visualCheck:'PASS', dimensionalCheck:'PASS', functionalCheck:'PASS', packagingCheck:'PASS', labellingCheck:'PASS', cocNumber:'', defectsFound:'', remarks:'' };
+  const [form, setForm] = useState(blankForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -39,6 +53,7 @@ export default function OqcPage() {
     if (search) params.set('search', search);
     if (result) params.set('result', result);
     if (status) params.set('status', status);
+    if (stage) params.set('stage', stage);
     const [recRes, statsRes, fgrRes] = await Promise.all([
       fetch(`${API}/oqc?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/oqc/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
@@ -55,18 +70,29 @@ export default function OqcPage() {
     }
   }
 
-  useEffect(() => { fetchAll(); }, [page, search, result, status]);
+  useEffect(() => { fetchAll(); }, [page, search, result, status, stage]);
 
   function handleFgrSelect(fgrId) {
     const fgr = fgReceipts.find(f => f.id === fgrId);
-    if (fgr) setForm(f => ({ ...f, fgReceiptId: fgrId, workOrderId: fgr.workOrderId||f.workOrderId, itemCode: fgr.itemCode, itemName: fgr.itemName, batchNumber: fgr.batchNumber||f.batchNumber }));
-    else setForm(f => ({ ...f, fgReceiptId: fgrId }));
+    // nextStage comes from the server (getPendingFgReceipts) - it's
+    // PRE_PACK if this receipt has no inspection yet, or POST_PACK once
+    // PRE_PACK has RELEASED+PASS. Never let the user pick a stage
+    // themselves: which gate is next is a fact about the receipt, not a
+    // choice, and the backend enforces the same sequencing anyway.
+    if (fgr) setForm(f => ({ ...f, fgReceiptId: fgrId, stage: fgr.nextStage, workOrderId: fgr.workOrderId||f.workOrderId, itemCode: fgr.itemCode, itemName: fgr.itemName, batchNumber: fgr.batchNumber||f.batchNumber }));
+    else setForm(f => ({ ...f, fgReceiptId: fgrId, stage: '' }));
   }
 
   async function handleCreate() {
     if (!form.fgReceiptId) { setError('Select which FG Receipt this inspection is for - every OQC now has to be tied to one.'); return; }
+    if (!form.stage) { setError('Could not determine the inspection stage for this FG Receipt - refresh and try again.'); return; }
     setSaving(true); setError('');
     const body = { ...form, sampleSize: parseInt(form.sampleSize)||0, passQty: parseInt(form.passQty)||0, failQty: parseInt(form.failQty)||0 };
+    // Only this stage's checklist fields are valid - the backend rejects
+    // the other stage's fields outright (OqcService.STAGE_FIELDS), so
+    // they must not even be sent, not just left at a default.
+    const otherStage = form.stage === 'PRE_PACK' ? 'POST_PACK' : 'PRE_PACK';
+    STAGE_CHECK_PARAMS[otherStage].forEach(p => delete body[p.key]);
     ['fgReceiptId','workOrderId','customerName','lotNumber','batchNumber','inspectorName','cocNumber','defectsFound','remarks'].forEach(k => { if (!body[k]) delete body[k]; });
     const res = await fetch(`${API}/oqc`, {
       method: 'POST',
@@ -102,17 +128,18 @@ export default function OqcPage() {
             <h1 className="text-2xl font-bold text-gray-900">Outgoing Quality Control (OQC)</h1>
             <p className="text-gray-500 text-sm mt-1">Final quality inspection before dispatch to customer</p>
           </div>
-          <button onClick={()=>{ setForm({fgReceiptId:'',workOrderId:'',itemCode:'',itemName:'',customerName:'',lotNumber:'',batchNumber:'',inspectorName:'',sampleSize:'',passQty:'',failQty:'0',visualCheck:'PASS',dimensionalCheck:'PASS',functionalCheck:'PASS',packagingCheck:'PASS',labellingCheck:'PASS',cocNumber:'',defectsFound:'',remarks:''}); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New OQC</button>
+          <button onClick={()=>{ setForm(blankForm); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ New OQC</button>
         </div>
 
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
             {[
               {label:'Pending OQC', value:fgReceipts.length, color:fgReceipts.length>0?'bg-orange-50':'bg-gray-50'},
               {label:'Pass Rate', value:`${stats.passRate}%`, color:stats.passRate>=95?'bg-green-50':stats.passRate>=80?'bg-yellow-50':'bg-red-50'},
               {label:'PASS', value:stats.pass, color:'bg-green-50'},
               {label:'FAIL', value:stats.fail, color:'bg-red-50'},
               {label:'Released', value:stats.released, color:'bg-blue-50'},
+              {label:'Dispatch Ready', value:stats.byStage?.dispatchReady ?? 0, color:'bg-purple-50'},
             ].map(s=>(
               <div key={s.label} className={`${s.color} rounded-lg p-4 text-center`}>
                 <div className="text-xl font-bold text-gray-800">{s.value}</div>
@@ -133,6 +160,11 @@ export default function OqcPage() {
               <option value="">All Status</option>
               {['PENDING','COMPLETED','RELEASED'].map(s=><option key={s}>{s}</option>)}
             </select>
+            <select className="border rounded-lg px-3 py-2 text-sm" value={stage} onChange={e=>{setStage(e.target.value);setPage(1);}}>
+              <option value="">All Stages</option>
+              <option value="PRE_PACK">Pre-Pack</option>
+              <option value="POST_PACK">Post-Pack</option>
+            </select>
             <span className="text-sm text-gray-500 self-center">{total} inspections</span>
           </div>
 
@@ -145,6 +177,7 @@ export default function OqcPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-wrap">
                       <span className="font-mono font-bold text-blue-600">{r.oqcNumber}</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${STAGE_COLORS[r.stage]}`}>{STAGE_LABELS[r.stage] || r.stage}</span>
                       <span className={`px-2 py-1 rounded-full text-xs font-bold ${RESULT_COLORS[r.result]}`}>{r.result}</span>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[r.status]}`}>{r.status}</span>
                       <span className="font-mono text-xs text-gray-600">{r.itemCode}</span>
@@ -168,8 +201,11 @@ export default function OqcPage() {
                   <div className="px-6 pb-6 bg-blue-50 border-t">
                     <div className="grid grid-cols-2 gap-6 mt-4">
                       <div className="bg-white rounded-xl border p-4">
-                        <div className="text-sm font-semibold text-gray-700 mb-3">Inspection Parameters</div>
-                        {CHECK_PARAMS.map(p=>(
+                        <div className="text-sm font-semibold text-gray-700 mb-3">
+                          Inspection Parameters
+                          <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${STAGE_COLORS[expandedDetail.stage]}`}>{STAGE_LABELS[expandedDetail.stage] || expandedDetail.stage}</span>
+                        </div>
+                        {(STAGE_CHECK_PARAMS[expandedDetail.stage] || ALL_CHECK_PARAMS).map(p=>(
                           <div key={p.key} className="flex justify-between py-1.5 border-b last:border-0">
                             <span className="text-sm text-gray-600">{p.label} Check</span>
                             <span className={`text-sm ${CHECK_COLORS[expandedDetail[p.key]||'NA']}`}>{expandedDetail[p.key]||'NA'}</span>
@@ -227,9 +263,14 @@ export default function OqcPage() {
                     <label className="block text-sm text-gray-600 mb-1">FG Receipt awaiting OQC *</label>
                     <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.fgReceiptId} onChange={e=>handleFgrSelect(e.target.value)}>
                       <option value="">— Select FG Receipt —</option>
-                      {fgReceipts.map(f=><option key={f.id} value={f.id}>{f.receiptNumber} — {f.itemCode} (qty:{f.receivedQty})</option>)}
+                      {fgReceipts.map(f=><option key={f.id} value={f.id}>{f.receiptNumber} — {f.itemCode} (qty:{f.receivedQty}) · {STAGE_LABELS[f.nextStage] || f.nextStage} due</option>)}
                     </select>
                     {fgReceipts.length===0 && <p className="text-xs text-gray-400 mt-1">No FG Receipts are currently waiting on OQC.</p>}
+                    {form.stage && (
+                      <p className="text-xs mt-1">
+                        This will be a <span className={`px-1.5 py-0.5 rounded-full font-bold ${STAGE_COLORS[form.stage]}`}>{STAGE_LABELS[form.stage]}</span> inspection — {form.stage === 'PRE_PACK' ? 'the full-product check, before this lot goes into its shipping pack.' : 'the packaging/labelling check, now that Pre-Pack has passed.'}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Item Code *</label>
@@ -265,17 +306,24 @@ export default function OqcPage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-gray-700 mb-2">Inspection Parameters</div>
-                  <div className="grid grid-cols-5 gap-2">
-                    {CHECK_PARAMS.map(p=>(
-                      <div key={p.key}>
-                        <label className="block text-xs text-gray-500 mb-1">{p.label}</label>
-                        <select className="w-full border rounded px-2 py-1.5 text-xs" value={form[p.key]} onChange={e=>setForm(f=>({...f,[p.key]:e.target.value}))}>
-                          {CHECKS.map(c=><option key={c}>{c}</option>)}
-                        </select>
-                      </div>
-                    ))}
+                  <div className="text-sm font-semibold text-gray-700 mb-2">
+                    Inspection Parameters
+                    {form.stage && <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${STAGE_COLORS[form.stage]}`}>{STAGE_LABELS[form.stage]}</span>}
                   </div>
+                  {!form.stage ? (
+                    <p className="text-xs text-gray-400">Select an FG Receipt above to see the checklist for its next stage.</p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      {STAGE_CHECK_PARAMS[form.stage].map(p=>(
+                        <div key={p.key}>
+                          <label className="block text-xs text-gray-500 mb-1">{p.label}</label>
+                          <select className="w-full border rounded px-2 py-1.5 text-xs" value={form[p.key]} onChange={e=>setForm(f=>({...f,[p.key]:e.target.value}))}>
+                            {CHECKS.map(c=><option key={c}>{c}</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Defects Found</label>
