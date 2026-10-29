@@ -96,13 +96,13 @@ export default function PurchaseRequisitionsPage() {
   }
 
   async function handleApprove(id) {
-    await fetch(`${API}/purchase-requisitions/${id}/approve`, {method:'PUT', headers:{Authorization:`Bearer ${getToken()}`}});
+    await fetch(`${API}/purchase-requisitions/${id}/approve`, {method:'POST', headers:{Authorization:`Bearer ${getToken()}`}});
     fetchAll();
   }
 
   async function handleCancel(id) {
     if (!confirm('Cancel this PR?')) return;
-    await fetch(`${API}/purchase-requisitions/${id}/cancel`, {method:'PUT', headers:{Authorization:`Bearer ${getToken()}`}});
+    await fetch(`${API}/purchase-requisitions/${id}/cancel`, {method:'POST', headers:{Authorization:`Bearer ${getToken()}`}});
     fetchAll();
   }
 
@@ -139,7 +139,7 @@ export default function PurchaseRequisitionsPage() {
                   <tr key={pr.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono font-bold text-indigo-600">{pr.prNumber}</td>
                     <td className="px-4 py-3 text-xs text-gray-500">{fmtDate(pr.createdAt)}</td>
-                    <td className="px-4 py-3">{pr.items?.length||0} items</td>
+                    <td className="px-4 py-3">{pr._count?.items ?? pr.items?.length ?? 0} items</td>
                     <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[pr.status]||'bg-gray-100'}`}>{pr.status}</span></td>
                     <td className="px-4 py-3 text-xs text-gray-500">{pr.remarks||'—'}</td>
                     <td className="px-4 py-3">
