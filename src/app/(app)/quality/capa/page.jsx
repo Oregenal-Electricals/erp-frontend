@@ -24,26 +24,36 @@ export default function CapaPage() {
   const [verifyModal, setVerifyModal] = useState(null);
   const [verifyForm, setVerifyForm] = useState({ effectivenessCheck:'' });
   const [saving, setSaving] = useState(false);
+  const [health, setHealth] = useState(null);
+  const [escalations, setEscalations] = useState(null);
 
   async function fetchAll() {
-    // Fetch health score and escalations
-    const [hRes, eRes] = await Promise.all([
-      fetch(`${API}/capa-automation/health-score`, {headers:{Authorization:`Bearer ${getToken()}`}}),
-      fetch(`${API}/capa-automation/escalations`, {headers:{Authorization:`Bearer ${getToken()}`}}),
-    ]);
-    if (hRes.ok) { const d = await hRes.json(); setHealth(d); }
-    if (eRes.ok) { const d = await eRes.json(); setEscalations(d); }
-    if (!getToken()) { setLoading(false); return; }
     setLoading(true);
-    const params = new URLSearchParams({ page, limit: 20 });
-    if (status) params.set('status', status);
-    const [recRes, statsRes] = await Promise.all([
-      fetch(`${API}/capa?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/capa/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-    ]);
-    if (recRes.ok) { const d = await recRes.json(); setRecords(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
-    if (statsRes.ok) setStats(await statsRes.json());
-    setLoading(false);
+    try {
+      // Fetch health score and escalations
+      const [hRes, eRes] = await Promise.all([
+        fetch(`${API}/capa-automation/health-score`, {headers:{Authorization:`Bearer ${getToken()}`}}),
+        fetch(`${API}/capa-automation/escalations`, {headers:{Authorization:`Bearer ${getToken()}`}}),
+      ]);
+      if (hRes.ok) { const d = await hRes.json(); setHealth(d); }
+      if (eRes.ok) { const d = await eRes.json(); setEscalations(d); }
+      if (!getToken()) return;
+      const params = new URLSearchParams({ page, limit: 20 });
+      if (status) params.set('status', status);
+      const [recRes, statsRes] = await Promise.all([
+        fetch(`${API}/capa?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+        fetch(`${API}/capa/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      ]);
+      if (recRes.ok) { const d = await recRes.json(); setRecords(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
+      if (statsRes.ok) setStats(await statsRes.json());
+    } catch (err) {
+      // Never let a thrown exception (network error, bad JSON, etc.) from
+      // any of the 4 calls above leave the page stuck on "Loading..."
+      // forever - always fall through to setLoading(false) below.
+      console.error('CAPA fetchAll failed:', err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchAll(); }, [page, status]);
