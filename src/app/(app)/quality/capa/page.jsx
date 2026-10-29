@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
-import DocumentAttachments from '@/components/shared/DocumentAttachments';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
@@ -159,7 +158,6 @@ export default function CapaPage() {
                   placeholder="Describe how you verified the corrective action was effective..."
                   value={verifyForm.effectivenessCheck} onChange={e=>setVerifyForm({effectivenessCheck:e.target.value})} />
 
-              <DocumentAttachments referenceType="CAPA" referenceId={viewDetail?.id} referenceNumber={viewDetail?.capaNumber} title="CAPA Attachments" />
               </div>
               <div className="p-6 border-t flex justify-end gap-3">
                 <button onClick={()=>setVerifyModal(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
