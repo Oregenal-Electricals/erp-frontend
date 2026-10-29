@@ -24,13 +24,19 @@ export default function WarehousePage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const [wRes, pRes] = await Promise.all([
       fetch(`${API}/warehouses?page=${page}&limit=20`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/masters/plants?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
     ]);
     if (wRes.ok) { const d = await wRes.json(); const list = Array.isArray(d) ? d : (d.data || []); setData(list); setTotal(d.total ?? list.length); }
     if (pRes.ok) { const d = await pRes.json(); setPlants(Array.isArray(d) ? d : (d.data || [])); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, [page]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

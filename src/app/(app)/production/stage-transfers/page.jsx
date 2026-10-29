@@ -32,6 +32,7 @@ export default function StageTransfersPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const [transferRes, compRes, draftRes, relRes, ipRes] = await Promise.all([
       fetch(`${API}/stage-transfers`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/work-orders?status=COMPLETED&limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } }),
@@ -51,7 +52,12 @@ export default function StageTransfersPage() {
     // transferable quantity too.
     setCompletedWos([...(ipData.data || []), ...(compData.data || [])]);
     setDestWos([...(ipData.data || []), ...(relData.data || []), ...(draftData.data || [])]);
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

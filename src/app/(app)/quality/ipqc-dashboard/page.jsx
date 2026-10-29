@@ -14,13 +14,18 @@ export default function IpqcDashboardPage() {
 
   useEffect(() => {
     (async () => {
-      const [sRes, pRes] = await Promise.all([
-        fetch(`${API}/production-qc/stats`, { headers: authHeaders() }),
-        fetch(`${API}/production-qc?status=PENDING&limit=8`, { headers: authHeaders() }),
-      ]);
-      if (sRes.ok) setStats(await sRes.json());
-      if (pRes.ok) { const d = await pRes.json(); setPending(d.data || []); }
-      setLoading(false);
+      try {
+        const [sRes, pRes] = await Promise.all([
+          fetch(`${API}/production-qc/stats`, { headers: authHeaders() }),
+          fetch(`${API}/production-qc?status=PENDING&limit=8`, { headers: authHeaders() }),
+        ]);
+        if (sRes.ok) setStats(await sRes.json());
+        if (pRes.ok) { const d = await pRes.json(); setPending(d.data || []); }
+      } catch {
+        // A network hiccup must not leave the page stuck on "Loading..." forever.
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 

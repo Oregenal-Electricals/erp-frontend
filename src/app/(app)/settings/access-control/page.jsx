@@ -209,15 +209,21 @@ export default function AccessControlPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [rRes, sRes] = await Promise.all([
-      fetch(`${API}/roles`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/ui-control/structure`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-    ]);
-    const rolesData = rRes.ok ? await rRes.json() : [];
-    setRoles(rolesData);
-    setStructure(sRes.ok ? await sRes.json() : []);
-    setLoading(false);
-    return rolesData;
+    try {
+      const [rRes, sRes] = await Promise.all([
+        fetch(`${API}/roles`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+        fetch(`${API}/ui-control/structure`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      ]);
+      const rolesData = rRes.ok ? await rRes.json() : [];
+      setRoles(rolesData);
+      setStructure(sRes.ok ? await sRes.json() : []);
+      return rolesData;
+    } catch {
+      // A network hiccup must not leave the page stuck on "Loading..." forever.
+      return [];
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {

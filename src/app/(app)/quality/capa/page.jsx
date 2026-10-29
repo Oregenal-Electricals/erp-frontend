@@ -28,6 +28,7 @@ export default function CapaPage() {
   const [escalations, setEscalations] = useState(null);
 
   async function fetchAll() {
+    if (!getToken()) { setLoading(false); return; }
     setLoading(true);
     try {
       // Fetch health score and escalations
@@ -37,7 +38,6 @@ export default function CapaPage() {
       ]);
       if (hRes.ok) { const d = await hRes.json(); setHealth(d); }
       if (eRes.ok) { const d = await eRes.json(); setEscalations(d); }
-      if (!getToken()) return;
       const params = new URLSearchParams({ page, limit: 20 });
       if (status) params.set('status', status);
       const [recRes, statsRes] = await Promise.all([

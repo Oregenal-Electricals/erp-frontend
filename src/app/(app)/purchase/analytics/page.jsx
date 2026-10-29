@@ -22,6 +22,7 @@ export default function PurchaseAnalyticsPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const headers = { Authorization: `Bearer ${getToken()}` };
     const [ovRes, vRes, mRes, sRes, rRes, iRes] = await Promise.all([
       fetch(`${API}/purchase-analytics/overview`, { headers }),
@@ -37,7 +38,12 @@ export default function PurchaseAnalyticsPage() {
     if (sRes.ok) setPoStatus(await sRes.json());
     if (rRes.ok) setRfqConv(await rRes.json());
     if (iRes.ok) setTopItems(await iRes.json());
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

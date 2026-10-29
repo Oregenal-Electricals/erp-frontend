@@ -33,14 +33,19 @@ export default function QuotationComparisonPage() {
 
   async function loadMatrix(rfqId) {
     setLoading(true); setError(''); setMatrix(null); setSummary(null); setPendingSelections({});
-    const [mRes, sRes] = await Promise.all([
-      fetch(`${API}/quotation-comparison/${rfqId}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/quotation-comparison/${rfqId}/summary`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-    ]);
-    if (mRes.ok) setMatrix(await mRes.json());
-    else setError('Failed to load comparison matrix');
-    if (sRes.ok) setSummary(await sRes.json());
-    setLoading(false);
+    try {
+      const [mRes, sRes] = await Promise.all([
+        fetch(`${API}/quotation-comparison/${rfqId}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+        fetch(`${API}/quotation-comparison/${rfqId}/summary`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      ]);
+      if (mRes.ok) setMatrix(await mRes.json());
+      else setError('Failed to load comparison matrix');
+      if (sRes.ok) setSummary(await sRes.json());
+    } catch {
+      setError('Could not reach the server. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleSelectVendor(rfqItemId, vendor) {

@@ -21,6 +21,7 @@ export default function PurchaseOrdersPage() {
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
+    try {
     const [poRes,vendorRes,rmRes] = await Promise.all([
       fetch(`${API}/purchase-orders?limit=50`,{headers:{Authorization:`Bearer ${getToken()}`}}),
       fetch(`${API}/vendors?limit=100`,{headers:{Authorization:`Bearer ${getToken()}`}}),
@@ -29,7 +30,12 @@ export default function PurchaseOrdersPage() {
     if (poRes.ok) { const d=await poRes.json(); setPos(d.data||[]); }
     if (vendorRes.ok) { const d=await vendorRes.json(); setVendors(d.data||[]); }
     if (rmRes.ok) { const d=await rmRes.json(); setRawMaterials(d.data||[]); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(()=>{ fetchAll(); },[]);
   useEffect(()=>{ if (showForm) fetchAll(); },[showForm]);

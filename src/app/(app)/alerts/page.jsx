@@ -31,6 +31,7 @@ export default function AlertsPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const logParams = new URLSearchParams({ page: logPage, limit: 20 });
     if (logFilter) logParams.set('status', logFilter);
     const [tRes, lRes, sRes] = await Promise.all([
@@ -41,7 +42,12 @@ export default function AlertsPage() {
     if (tRes.ok) setTemplates(await tRes.json());
     if (lRes.ok) { const d=await lRes.json(); setLogs(d.data||[]); setLogTotal(d.total); setLogTotalPages(d.totalPages||1); }
     if (sRes.ok) setStats(await sRes.json());
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(()=>{ fetchAll(); },[logPage, logFilter]);

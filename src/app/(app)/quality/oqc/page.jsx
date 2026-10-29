@@ -34,6 +34,7 @@ export default function OqcPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
     if (result) params.set('result', result);
@@ -46,7 +47,12 @@ export default function OqcPage() {
     if (recRes.ok) { const d = await recRes.json(); setRecords(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
     if (statsRes.ok) setStats(await statsRes.json());
     if (fgrRes.ok) { const d = await fgrRes.json(); setFgReceipts(d.data || []); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchAll(); }, [page, search, result, status]);

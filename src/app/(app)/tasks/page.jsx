@@ -48,6 +48,7 @@ export default function TasksPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const params = new URLSearchParams({ page, limit:20 });
     if (statusFilter) params.set('status', statusFilter);
     if (priorityFilter) params.set('priority', priorityFilter);
@@ -62,7 +63,12 @@ export default function TasksPage() {
     if (mRes.ok) { const d=await mRes.json(); setMyTasks(d.data||[]); }
     if (sRes.ok) setStats(await sRes.json());
     if (uRes.ok) { const d=await uRes.json(); setUsers(d.data||d||[]); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(()=>{ fetchAll(); },[page, statusFilter, priorityFilter, categoryFilter]);

@@ -64,18 +64,24 @@ export default function SalesOrdersPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
-    const params = new URLSearchParams({ page, limit: 20 });
-    if (search) params.set('search', search);
-    if (status) params.set('status', status);
-    const [oRes, sRes, cRes] = await Promise.all([
-      fetch(`${API}/sales-orders?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/sales-orders/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/customer-po?status=ACKNOWLEDGED&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-    ]);
-    if (oRes.ok) { const d = await oRes.json(); setOrders(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
-    if (sRes.ok) setStats(await sRes.json());
-    if (cRes.ok) { const d = await cRes.json(); setCpos(d.data||[]); }
-    setLoading(false);
+    try {
+      const params = new URLSearchParams({ page, limit: 20 });
+      if (search) params.set('search', search);
+      if (status) params.set('status', status);
+      const [oRes, sRes, cRes] = await Promise.all([
+        fetch(`${API}/sales-orders?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+        fetch(`${API}/sales-orders/stats`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+        fetch(`${API}/customer-po?status=ACKNOWLEDGED&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      ]);
+      if (oRes.ok) { const d = await oRes.json(); setOrders(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
+      if (sRes.ok) setStats(await sRes.json());
+      if (cRes.ok) { const d = await cRes.json(); setCpos(d.data||[]); }
+    } catch {
+      // A network hiccup on any one of these must not leave the page
+      // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchAll(); },[page, search, status]);

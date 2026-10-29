@@ -35,6 +35,7 @@ export default function WorkflowsPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const params = new URLSearchParams({ page, limit: 20 });
     if (statusFilter) params.set('status', statusFilter);
     const [rRes, pRes, wRes, sRes] = await Promise.all([
@@ -47,7 +48,12 @@ export default function WorkflowsPage() {
     if (pRes.ok) { const d=await pRes.json(); setPending(d.data||[]); }
     if (wRes.ok) setWorkflows(await wRes.json());
     if (sRes.ok) setStats(await sRes.json());
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(()=>{ fetchAll(); },[page, statusFilter, activeTab]);

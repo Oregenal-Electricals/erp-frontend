@@ -108,6 +108,7 @@ export default function CustomerPoPage() {
   }
 
   async function fetchAll() {
+    try {
     if (!getToken()) {
       setLoading(false);
       return;
@@ -159,7 +160,12 @@ export default function CustomerPoPage() {
       const d = await rmRes.json();
       setRawMaterials(d.data || d || []);
     }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {

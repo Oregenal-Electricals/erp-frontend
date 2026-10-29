@@ -32,6 +32,7 @@ export default function CostSheetPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const params = new URLSearchParams({ page, limit: 20 });
     if (status) params.set('status', status);
     const [shRes, statsRes, woRes] = await Promise.all([
@@ -42,7 +43,12 @@ export default function CostSheetPage() {
     if (shRes.ok) { const d = await shRes.json(); setSheets(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
     if (statsRes.ok) setStats(await statsRes.json());
     if (woRes.ok) { const d = await woRes.json(); setWos((d.data||[]).filter(w => ['IN_PROGRESS','COMPLETED'].includes(w.status))); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchAll(); }, [page, status]);

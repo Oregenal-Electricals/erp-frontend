@@ -54,6 +54,7 @@ export default function LeavePage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const params = new URLSearchParams({limit:50});
     if (statusFilter) params.set('status', statusFilter);
     if (empFilter) params.set('employeeId', empFilter);
@@ -67,7 +68,12 @@ export default function LeavePage() {
     if (tRes.ok) setLeaveTypes(await tRes.json());
     if (eRes.ok) { const d=await eRes.json(); setEmployees(d.data||[]); }
     if (sRes.ok) setStats(await sRes.json());
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(()=>{ fetchAll(); },[statusFilter, empFilter]);

@@ -38,14 +38,18 @@ export default function RackBinPage() {
 
   const fetchWarehouseData = useCallback(async () => {
     if (!selectedWh) return;
-    const [statsRes, zonesRes, racksRes] = await Promise.all([
-      fetch(`${API}/rack-bin/stats/${selectedWh}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/rack-bin/zones/${selectedWh}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-      fetch(`${API}/rack-bin/racks/${selectedWh}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
-    ]);
-    if (statsRes.ok) setStats(await statsRes.json());
-    if (zonesRes.ok) setZones(await zonesRes.json());
-    if (racksRes.ok) setRacks(await racksRes.json());
+    try {
+      const [statsRes, zonesRes, racksRes] = await Promise.all([
+        fetch(`${API}/rack-bin/stats/${selectedWh}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+        fetch(`${API}/rack-bin/zones/${selectedWh}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+        fetch(`${API}/rack-bin/racks/${selectedWh}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      ]);
+      if (statsRes.ok) setStats(await statsRes.json());
+      if (zonesRes.ok) setZones(await zonesRes.json());
+      if (racksRes.ok) setRacks(await racksRes.json());
+    } catch {
+      // A network hiccup here shouldn't surface as an unhandled rejection.
+    }
   }, [selectedWh]);
 
   useEffect(() => { fetchWarehouseData(); }, [fetchWarehouseData]);

@@ -38,6 +38,7 @@ export default function StockPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const balParams = new URLSearchParams({ page, limit: 50 });
     if (search) balParams.set('search', search);
     if (warehouseId) balParams.set('warehouseId', warehouseId);
@@ -57,7 +58,12 @@ export default function StockPage() {
     if (statsRes.ok) setStats(await statsRes.json());
     if (whRes.ok) { const d = await whRes.json(); setWarehouses(d.data || d); }
     if (iqcRes.ok) { const d = await iqcRes.json(); setApprovedIqcs(Array.isArray(d) ? d : (d.data || [])); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, [page, search, warehouseId, txnType, tab]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

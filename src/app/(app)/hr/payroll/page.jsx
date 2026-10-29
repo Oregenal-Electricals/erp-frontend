@@ -53,13 +53,19 @@ export default function PayrollPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const [rRes, sRes] = await Promise.all([
       fetch(`${API}/payroll`, {headers:{Authorization:`Bearer ${getToken()}`}}),
       fetch(`${API}/payroll/stats`, {headers:{Authorization:`Bearer ${getToken()}`}}),
     ]);
     if (rRes.ok) { const d=await rRes.json(); setRuns(d.data||[]); }
     if (sRes.ok) setStats(await sRes.json());
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function fetchRun(id) {

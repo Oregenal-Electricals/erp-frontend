@@ -111,10 +111,15 @@ export default function BomDetailPage() {
 
   const fetchBom = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`${API}/boms/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
-    if (res.ok) { setBom(await res.json()); setFetchError(''); }
-    else { const d = await res.json().catch(() => ({})); setFetchError(d.message || (res.status === 403 ? 'You do not have permission to view this BOM' : 'BOM not found')); }
-    setLoading(false);
+    try {
+      const res = await fetch(`${API}/boms/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (res.ok) { setBom(await res.json()); setFetchError(''); }
+      else { const d = await res.json().catch(() => ({})); setFetchError(d.message || (res.status === 403 ? 'You do not have permission to view this BOM' : 'BOM not found')); }
+    } catch {
+      setFetchError('Could not reach the server. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
   useEffect(() => {

@@ -35,6 +35,7 @@ export default function RcaPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const params = new URLSearchParams({ page, limit: 20 });
     const [recRes, statsRes, ncrRes] = await Promise.all([
       fetch(`${API}/rca?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
@@ -44,7 +45,12 @@ export default function RcaPage() {
     if (recRes.ok) { const d = await recRes.json(); setRecords(d.data); setTotal(d.total); setTotalPages(d.totalPages); }
     if (statsRes.ok) setStats(await statsRes.json());
     if (ncrRes.ok) { const d = await ncrRes.json(); setNcrs((d.data||[]).filter(n => n.status !== 'CLOSED')); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchAll(); }, [page]);

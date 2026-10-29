@@ -16,6 +16,7 @@ export default function ProductionFloorPage() {
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
+    try {
     const [relRes, ipRes] = await Promise.all([
       fetch(`${API}/work-orders?status=RELEASED&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/work-orders?status=IN_PROGRESS&limit=50`, { headers: { Authorization: `Bearer ${getToken()}` } }),
@@ -24,7 +25,12 @@ export default function ProductionFloorPage() {
     const list = [...(ipData.data || []), ...(relData.data || [])];
     setOrders(list);
     setSelectedId(prev => (prev && list.some(o => o.id === prev)) ? prev : (list[0]?.id || ''));
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);

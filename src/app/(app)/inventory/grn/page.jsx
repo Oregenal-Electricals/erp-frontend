@@ -57,6 +57,7 @@ export default function GrnPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
     if (status) params.set('status', status);
@@ -81,7 +82,12 @@ export default function GrnPage() {
       const alreadyCoveredGinIds = new Set(grnListForFilter.map(g => g.gateInwardEntryId).filter(Boolean));
       setGateEntries(ginList.filter(g => ['VERIFIED','SENT_TO_STORES','COMPLETED'].includes(g.status) && !alreadyCoveredGinIds.has(g.id)));
     }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, [page, search, status, grnType]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

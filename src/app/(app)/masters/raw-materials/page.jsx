@@ -49,17 +49,22 @@ export default function RawMaterialsPage() {
 
   const fetchMaterials = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ page, limit: 20 });
-    if (search) params.set('search', search);
-    if (materialType) params.set('materialType', materialType);
-    const res = await fetch(`${API}/raw-materials?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
-    if (res.ok) {
-      const d = await res.json();
-      setMaterials(d.data);
-      setTotalPages(d.totalPages);
-      setTotal(d.total);
+    try {
+      const params = new URLSearchParams({ page, limit: 20 });
+      if (search) params.set('search', search);
+      if (materialType) params.set('materialType', materialType);
+      const res = await fetch(`${API}/raw-materials?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (res.ok) {
+        const d = await res.json();
+        setMaterials(d.data);
+        setTotalPages(d.totalPages);
+        setTotal(d.total);
+      }
+    } catch {
+      // A network hiccup must not leave the page stuck on "Loading..." forever.
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [page, search, materialType]);
 
   useEffect(() => { fetchStats(); fetchDropdowns(); }, [fetchStats, fetchDropdowns]);

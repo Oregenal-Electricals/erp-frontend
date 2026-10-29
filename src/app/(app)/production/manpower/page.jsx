@@ -62,6 +62,7 @@ export default function ManpowerPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const [allocRes, userRes, relRes, ipRes] = await Promise.all([
       fetch(`${API}/manpower/allocations`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       fetch(`${API}/users?limit=200`, { headers: { Authorization: `Bearer ${getToken()}` } }),
@@ -75,7 +76,12 @@ export default function ManpowerPage() {
       ipRes.ok ? ipRes.json() : { data: [] },
     ]);
     setWorkOrders([...(ipData.data || []), ...(relData.data || [])]);
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const fetchReconciliation = useCallback(async () => {

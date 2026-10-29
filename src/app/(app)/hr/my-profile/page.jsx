@@ -37,6 +37,7 @@ export default function MyProfilePage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+    try {
     const emp = await fetchEmployee();
     if (!emp) { setLoading(false); return; }
 
@@ -53,7 +54,12 @@ export default function MyProfilePage() {
     if (ltRes.ok) setLeaveTypes(await ltRes.json());
     if (leavesRes.ok) { const d=await leavesRes.json(); setMyLeaves(d.data||[]); }
     if (payRes.ok) setPayslips(await payRes.json());
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(()=>{ fetchAll(); },[month, year]);

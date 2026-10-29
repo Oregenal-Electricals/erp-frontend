@@ -22,6 +22,7 @@ export default function ProductionDashboardPage() {
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
     setLoading(true);
+ try {
     const h = { Authorization: `Bearer ${getToken()}` };
     const [ov, wos, td, al, q, hm] = await Promise.all([
       fetch(`${API}/production-dashboard/overview`, {headers:h}).then(r=>r.ok?r.json():null),
@@ -32,7 +33,12 @@ export default function ProductionDashboardPage() {
       fetch(`${API}/production-dashboard/hourly-monitoring`, {headers:h}).then(r=>r.ok?r.json():null),
     ]);
     setOverview(ov); setActiveWos(wos||[]); setToday(td); setAlerts(al); setQuality(q); setHourly(hm);
-    setLastRefresh(new Date()); setLoading(false);
+    setLastRefresh(new Date()); } catch {
+ // A network hiccup on any one of these must not leave the page
+ // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+ } finally {
+   setLoading(false);
+ }
   }
 
   useEffect(() => { fetchAll(); }, []);

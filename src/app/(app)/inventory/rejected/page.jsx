@@ -40,6 +40,7 @@ export default function RejectedStockPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
     if (status) params.set('status', status);
@@ -51,7 +52,12 @@ export default function RejectedStockPage() {
     if (recRes.ok) { const d = await recRes.json(); setRecords(d.data); setTotalPages(d.totalPages); setTotal(d.total); }
     if (statsRes.ok) setStats(await statsRes.json());
     if (iqcRes.ok) { const d = await iqcRes.json(); setApprovedIqcs(d.data?.filter(i => i._count?.items > 0) || []); }
-    setLoading(false);
+    } catch {
+    // A network hiccup on any one of these must not leave the page
+    // stuck on "Loading..." forever (same failure mode fixed for CAPA).
+    } finally {
+      setLoading(false);
+    }
   }, [page, search, status]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
