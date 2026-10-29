@@ -7,25 +7,35 @@ function getToken() { if (typeof window !== 'undefined') return localStorage.get
 
 export default function ShortageVerificationPage() {
   const [rows, setRows] = useState([]);
-  const [totalPending, setTotalPending] = useState(0);
+  const [totalPending, setTotalPending] = useState(null);
   const [loading, setLoading] = useState(true);
   const [verifyModal, setVerifyModal] = useState(null); // the shortage row being verified
   const [verifiedQty, setVerifiedQty] = useState('');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const res = await fetch(`${API}/customer-po/shortages/pending-verification`, { headers: { Authorization: `Bearer ${getToken()}` } });
       if (res.ok) {
         const d = await res.json();
         setRows(d.data || []);
         setTotalPending(d.totalPending || 0);
+      } else {
+        // Don't let a permission error or server failure render as "queue
+        // is empty" - that's actively misleading (looks like nothing to
+        // do, when actually the page couldn't load anything).
+        const d = await res.json().catch(() => null);
+        setRows([]);
+        setLoadError(d?.message || `Could not load the verification queue (${res.status})`);
       }
     } catch {
-      // A network hiccup must not leave the page stuck on "Loading..." forever.
+      setRows([]);
+      setLoadError('Could not reach the server - check your connection and retry.');
     } finally {
       setLoading(false);
     }
@@ -75,7 +85,7 @@ export default function ShortageVerificationPage() {
             </p>
           </div>
           <div className="bg-orange-50 rounded-lg px-4 py-2 text-center">
-            <div className="text-xl font-bold text-orange-700">{totalPending}</div>
+            <div className="text-xl font-bold text-orange-700">{totalPending === null ? '—' : totalPending}</div>
             <div className="text-xs text-orange-600">Awaiting Verification</div>
           </div>
         </div>
@@ -83,6 +93,15 @@ export default function ShortageVerificationPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           {loading ? (
             <div className="text-center py-10 text-gray-400">Loading...</div>
+          ) : loadError ? (
+            <div className="text-center py-10 text-red-500">
+              {loadError}
+              <div className="mt-3">
+                <button onClick={fetchAll} className="px-3 py-1.5 text-xs font-medium border border-red-300 text-red-600 rounded hover:bg-red-50">
+                  Retry
+                </button>
+              </div>
+            </div>
           ) : rows.length === 0 ? (
             <div className="text-center py-10 text-gray-400">No shortages awaiting verification — Purchase&apos;s queue is current.</div>
           ) : (
