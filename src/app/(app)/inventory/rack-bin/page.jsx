@@ -30,10 +30,30 @@ export default function RackBinPage() {
   const [binForm, setBinForm] = useState({ rackId: '', prefix: '', count: 10, maxQty: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [warehouseError, setWarehouseError] = useState('');
 
   useEffect(() => {
+    // Unlike every other page on this pattern, this one used to parse the
+    // body on ANY status and trust `d.data || d` was a list - a role
+    // without WAREHOUSE_VIEW (e.g. Plant Manager) gets a 403 error object
+    // back here, `d.data` is undefined so `list` becomes that error object
+    // itself, and `warehouses.find(...)` below then throws and crashes the
+    // whole page. Guard on res.ok and Array.isArray like the rest of the
+    // app already does for this same /warehouses list, and surface the
+    // permission gap instead of just silently showing an empty page.
     fetch(`${API}/warehouses?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } })
-      .then(r => r.json()).then(d => { const list = d.data || d; setWarehouses(list); if (list[0]) setSelectedWh(list[0].id); });
+      .then(async r => {
+        if (r.ok) return { list: await r.json() };
+        const d = await r.json().catch(() => ({}));
+        return { err: d.message || (r.status === 403 ? 'You do not have permission to view warehouses' : 'Could not load warehouses') };
+      })
+      .then(({ list, err }) => {
+        if (err) { setWarehouseError(err); return; }
+        const items = Array.isArray(list) ? list : Array.isArray(list.data) ? list.data : [];
+        setWarehouses(items);
+        if (items[0]) setSelectedWh(items[0].id);
+      })
+      .catch(() => setWarehouseError('Could not reach the server. Please try again.'));
   }, []);
 
   const fetchWarehouseData = useCallback(async () => {
@@ -101,6 +121,8 @@ export default function RackBinPage() {
     else setError(data.message || 'Failed');
     setSaving(false);
   }
+
+  if (warehouseError) return <AppLayout><div className="p-6 text-red-500">{warehouseError}</div></AppLayout>;
 
   const selectedWhObj = warehouses.find(w => w.id === selectedWh);
   const utilColor = stats?.utilization > 80 ? 'text-red-600' : stats?.utilization > 50 ? 'text-yellow-600' : 'text-green-600';
