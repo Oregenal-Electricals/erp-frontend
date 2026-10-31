@@ -1,30 +1,60 @@
 'use client';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 
-// Shift Board — a deliberately simple hourly production-entry tool.
-// No time picker: the clock picks the current hour. One form per line,
-// per hour. Day totals + costing update live underneath.
+// Shift Board — hourly production entry + live costing, one slot table per
+// line for the whole shift (Slot / MP / Target / Actual / Reject / Eff%),
+// matching the layout Rahul liked from his earlier P&L tool. Colors follow
+// the rest of the ERP (white cards, gray borders, blue accent — see
+// Sidebar.jsx's active-state classes and masters/vendors/page.jsx), not a
+// separate theme of its own.
 //
 // Client-side only for now (localStorage) while Rahul iterates the UX
 // directly in the real app. Nothing here touches ProductionEntry,
 // WorkOrder, or any costing module — once the flow is settled this gets
 // wired to real shared storage.
 
-const STORAGE_KEY = 'shopfloor_shift_board_v1';
+const STORAGE_KEY = 'shopfloor_shift_board_v2';
 const DEPT_ORDER = ['ASSEMBLY', 'MI', 'SMT'];
 
+// Fixed shift slots, 8 AM to 5:30 PM — Rahul's real shift timing.
+const SHIFT_SLOTS = [
+  { key: '08', label: '8-9', dur: 1 },
+  { key: '09', label: '9-10', dur: 1 },
+  { key: '10', label: '10-11', dur: 1 },
+  { key: '11', label: '11-12', dur: 1 },
+  { key: '12', label: '12-1', dur: 1 },
+  { key: '13', label: '1-2', dur: 1 },
+  { key: '14', label: '2-3', dur: 1 },
+  { key: '15', label: '3-4', dur: 1 },
+  { key: '16', label: '4-5', dur: 1 },
+  { key: '17', label: '5-5:30', dur: 0.5 },
+];
+
 function uid() { return 'l' + Math.random().toString(36).slice(2, 9); }
-function hour12(h) { const ap = h >= 12 ? 'PM' : 'AM'; let h12 = h % 12; if (h12 === 0) h12 = 12; return h12 + ' ' + ap; }
-function slotLabel(h) { return hour12(h) + ' – ' + hour12((h + 1) % 24); }
-function slotKey(h) { return String(h).padStart(2, '0'); }
 function fmtDateIN(iso) { if (!iso) return ''; const p = iso.split('-'); return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : iso; }
 function money(n) { if (n === null || n === undefined || isNaN(n)) return '—'; const neg = n < 0; n = Math.abs(n); return (neg ? '−' : '') + '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 0 }); }
 function num(n) { return (n === null || n === undefined || isNaN(n)) ? '—' : Math.round(n).toLocaleString('en-IN'); }
+function toNum(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
 
-// Example data loaded from Rahul's own 29-Oct board photos, so the maths
+function freshSlots(manpower, target) {
+  const slots = {};
+  SHIFT_SLOTS.forEach((s) => { slots[s.key] = { mp: manpower, target: Math.round(target * s.dur), a: 0, r: 0 }; });
+  return slots;
+}
+
+function newLine(name = 'New line') {
+  return { id: uid(), name, manpower: 1, target: 100, stdCost: 10, closed: false, slots: freshSlots(1, 100), ot: { hours: 0, manpower: 0, target: 0, actual: 0 }, remarks: '' };
+}
+
+// Example data ported from Rahul's own 29-Oct board photos, so the maths
 // can be checked against numbers he already knows.
 function exampleState() {
+  const withSlots = (manpower, target, actuals) => {
+    const slots = freshSlots(manpower, target);
+    Object.entries(actuals).forEach(([k, [a, r]]) => { if (slots[k]) { slots[k].a = a; slots[k].r = r; } });
+    return slots;
+  };
   return {
     date: '2026-10-29',
     shift: 'Day Shift · 8:00 AM–5:30 PM',
@@ -33,56 +63,59 @@ function exampleState() {
       ASSEMBLY: {
         label: 'Assembly & Packing', workerRate: 60,
         lines: [
-          { id: 'assy01', name: 'Assy-01 (2x2 Havells Assy)', manpower: 9, target: 140, stdCost: 12 },
-          { id: 'pack01', name: 'Packing-01 (Gluing)', manpower: 3, target: 180, stdCost: 10 },
-          { id: 'assy02', name: 'Assy-02 (Framing)', manpower: 1, target: 180, stdCost: 8 },
-          { id: 'pack02', name: 'Packing-02 (Panel Packing)', manpower: 9, target: 140, stdCost: 12 },
+          { id: 'assy01', name: 'Assy-01 (2x2 Havells Assy)', manpower: 9, target: 140, stdCost: 12, closed: false, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+            slots: withSlots(9, 140, { '08': [140, 0], '09': [140, 0], '10': [140, 1], '11': [140, 0], '13': [140, 0], '14': [72, 0], '15': [140, 1] }) },
+          { id: 'pack01', name: 'Packing-01 (Gluing)', manpower: 3, target: 180, stdCost: 10, closed: false, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+            slots: withSlots(3, 180, { '08': [80, 1], '09': [80, 0], '10': [143, 0], '11': [160, 1], '13': [160, 0], '14': [77, 0], '15': [160, 0] }) },
+          { id: 'assy02', name: 'Assy-02 (Framing)', manpower: 1, target: 180, stdCost: 8, closed: false, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+            slots: withSlots(1, 180, { '08': [180, 0], '09': [180, 2], '10': [180, 0], '11': [180, 0], '13': [180, 1], '14': [80, 0], '15': [180, 0] }) },
+          { id: 'pack02', name: 'Packing-02 (Panel Packing)', manpower: 9, target: 140, stdCost: 12, closed: false, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+            slots: withSlots(9, 140, { '08': [140, 0], '09': [140, 1], '10': [140, 0], '11': [140, 0], '13': [140, 0], '14': [72, 0], '15': [140, 0] }) },
         ],
-        log: {
-          '08': { assy01: { a: 140, r: 0 }, pack01: { a: 80, r: 1 }, assy02: { a: 180, r: 0 }, pack02: { a: 140, r: 0 } },
-          '09': { assy01: { a: 140, r: 0 }, pack01: { a: 80, r: 0 }, assy02: { a: 180, r: 2 }, pack02: { a: 140, r: 1 } },
-          '10': { assy01: { a: 140, r: 1 }, pack01: { a: 143, r: 0 }, assy02: { a: 180, r: 0 }, pack02: { a: 140, r: 0 } },
-          '11': { assy01: { a: 140, r: 0 }, pack01: { a: 160, r: 1 }, assy02: { a: 180, r: 0 }, pack02: { a: 140, r: 0 } },
-          '13': { assy01: { a: 140, r: 0 }, pack01: { a: 160, r: 0 }, assy02: { a: 180, r: 1 }, pack02: { a: 140, r: 0 } },
-          '14': { assy01: { a: 72, r: 0 }, pack01: { a: 77, r: 0 }, assy02: { a: 80, r: 0 }, pack02: { a: 72, r: 0 } },
-          '15': { assy01: { a: 140, r: 1 }, pack01: { a: 160, r: 0 }, assy02: { a: 180, r: 0 }, pack02: { a: 140, r: 0 } },
-        },
       },
       MI: {
         label: 'MI', workerRate: 60,
-        lines: [{ id: 'mi36w', name: '36W 2x2 Driver', manpower: 7, target: 322, stdCost: 6 }],
-        log: {
-          '08': { mi36w: { a: 210, r: 2 } }, '09': { mi36w: { a: 270, r: 3 } }, '10': { mi36w: { a: 300, r: 3 } },
-          '11': { mi36w: { a: 280, r: 4 } }, '12': { mi36w: { a: 304, r: 8 } }, '14': { mi36w: { a: 300, r: 5 } },
-        },
+        lines: [
+          { id: 'mi36w', name: '36W 2x2 Driver', manpower: 7, target: 322, stdCost: 6, closed: false, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+            slots: withSlots(7, 322, { '08': [210, 2], '09': [270, 3], '10': [300, 3], '11': [280, 4], '12': [304, 8], '14': [300, 5] }) },
+        ],
       },
       SMT: {
         label: 'SMT', workerRate: 60,
-        lines: [{ id: 'smt9w', name: '9W Inv DOB Bulb (Rework)', manpower: 2, target: 0, stdCost: 4 }],
-        log: { '10': { smt9w: { a: 120, r: 0 } }, '14': { smt9w: { a: 91, r: 0 } } },
+        lines: [
+          { id: 'smt9w', name: '9W Inv DOB Bulb (Rework)', manpower: 2, target: 0, stdCost: 4, closed: false, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+            slots: withSlots(2, 0, { '10': [120, 0], '14': [91, 0] }) },
+        ],
       },
     },
   };
 }
 
-function lineTotals(dept, lineId) {
-  let actual = 0, rej = 0, hours = 0;
-  for (const k in dept.log) {
-    const e = dept.log[k][lineId];
-    if (e) { actual += (e.a || 0); rej += (e.r || 0); hours++; }
-  }
-  return { actual, rej, hours, good: actual - rej };
+function lineSlotTotals(line, workerRate) {
+  let target = 0, actual = 0, rej = 0, cost = 0;
+  SHIFT_SLOTS.forEach((s) => {
+    const row = line.slots[s.key];
+    if (!row) return;
+    target += row.target || 0;
+    actual += row.a || 0;
+    rej += row.r || 0;
+    cost += (row.mp || 0) * s.dur * (workerRate || 0);
+  });
+  cost += (line.ot?.manpower || 0) * (line.ot?.hours || 0) * (workerRate || 0);
+  target += line.ot?.target || 0;
+  actual += line.ot?.actual || 0;
+  return { target, actual, rej, good: actual - rej, cost };
 }
 
 function deptCosting(dept) {
   let totalTarget = 0, totalActual = 0, totalRej = 0, totalCost = 0, totalValue = 0, totalManpower = 0;
   dept.lines.forEach((ln) => {
-    const t = lineTotals(dept, ln.id);
-    totalTarget += ln.target * t.hours;
+    const t = lineSlotTotals(ln, dept.workerRate);
+    totalTarget += t.target;
     totalActual += t.actual;
     totalRej += t.rej;
     totalManpower += (ln.manpower || 0);
-    totalCost += (ln.manpower || 0) * t.hours * (dept.workerRate || 0);
+    totalCost += t.cost;
     totalValue += t.good * (ln.stdCost || 0);
   });
   const good = totalActual - totalRej;
@@ -96,9 +129,6 @@ function deptCosting(dept) {
 
 export default function ShiftBoardPage() {
   const [state, setState] = useState(null);
-  const [editingSlot, setEditingSlot] = useState(null); // null = this hour
-  const [draft, setDraft] = useState({});
-  const [now, setNow] = useState(() => new Date());
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -106,8 +136,6 @@ export default function ShiftBoardPage() {
       const raw = localStorage.getItem(STORAGE_KEY);
       setState(raw ? JSON.parse(raw) : exampleState());
     } catch (e) { setState(exampleState()); }
-    const t = setInterval(() => setNow(new Date()), 60000);
-    return () => clearInterval(t);
   }, []);
 
   useEffect(() => {
@@ -116,21 +144,6 @@ export default function ShiftBoardPage() {
   }, [state]);
 
   const dept = state ? state.departments[state.activeDept] : null;
-  const currentHour = now.getHours();
-  const activeHour = editingSlot !== null ? parseInt(editingSlot, 10) : currentHour;
-  const activeKey = slotKey(activeHour);
-  const isCurrent = editingSlot === null;
-
-  // Reset the entry form whenever the department or the hour being edited changes.
-  useEffect(() => {
-    if (!dept) return;
-    const next = {};
-    dept.lines.forEach((ln) => {
-      const existing = dept.log[activeKey] && dept.log[activeKey][ln.id];
-      next[ln.id] = { a: existing ? String(existing.a) : '', r: existing ? String(existing.r) : '' };
-    });
-    setDraft(next);
-  }, [state?.activeDept, activeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const costing = useMemo(() => (dept ? deptCosting(dept) : null), [dept]);
   const allCosting = useMemo(() => {
@@ -143,65 +156,76 @@ export default function ShiftBoardPage() {
     return tot;
   }, [state]);
 
-  const setDept = useCallback((k) => {
-    setEditingSlot(null);
+  function setDept(k) {
     setState((s) => ({ ...s, activeDept: k }));
-  }, []);
-
-  // Not wrapped in useCallback: it closes over `draft`, which the React
-  // Compiler can't prove stays stable, so manual memoization here would be
-  // silently dropped anyway (compiler auto-memoizes this component instead).
-  function saveHour() {
-    setState((s) => {
-      const next = structuredClone(s);
-      const d = next.departments[next.activeDept];
-      const entry = d.log[activeKey] || {};
-      d.lines.forEach((ln) => {
-        const v = draft[ln.id] || {};
-        entry[ln.id] = { a: v.a === '' || v.a === undefined ? 0 : parseInt(v.a, 10), r: v.r === '' || v.r === undefined ? 0 : parseInt(v.r, 10) };
-      });
-      d.log[activeKey] = entry;
-      return next;
-    });
-    setEditingSlot(null);
   }
 
-  const updateLine = useCallback((idx, field, value) => {
+  function withLine(lineId, fn) {
     setState((s) => {
       const next = structuredClone(s);
       const d = next.departments[next.activeDept];
-      d.lines[idx][field] = field === 'name' ? value : (parseFloat(value) || 0);
+      const idx = d.lines.findIndex((l) => l.id === lineId);
+      if (idx === -1) return s;
+      fn(d.lines[idx], d);
       return next;
     });
-  }, []);
+  }
 
-  const removeLine = useCallback((idx) => {
+  function updateSlotField(lineId, slotKey, field, value) {
+    withLine(lineId, (ln) => { ln.slots[slotKey][field] = toNum(value); });
+  }
+
+  function updateBaseManpower(lineId, value) {
+    const mp = toNum(value);
+    withLine(lineId, (ln) => {
+      ln.manpower = mp;
+      SHIFT_SLOTS.forEach((s) => { ln.slots[s.key].mp = mp; });
+    });
+  }
+
+  function updateLineTarget(lineId, value) {
+    const t = toNum(value);
+    withLine(lineId, (ln) => {
+      ln.target = t;
+      SHIFT_SLOTS.forEach((s) => { ln.slots[s.key].target = Math.round(t * s.dur); });
+    });
+  }
+
+  function updateLineField(lineId, field, value) {
+    withLine(lineId, (ln) => { ln[field] = field === 'name' || field === 'remarks' ? value : toNum(value); });
+  }
+
+  function updateOt(lineId, field, value) {
+    withLine(lineId, (ln) => { ln.ot[field] = toNum(value); });
+  }
+
+  function toggleClosed(lineId) {
+    withLine(lineId, (ln) => { ln.closed = !ln.closed; });
+  }
+
+  function addLine() {
+    setState((s) => {
+      const next = structuredClone(s);
+      next.departments[next.activeDept].lines.push(newLine());
+      return next;
+    });
+  }
+
+  function removeLine(lineId) {
     setState((s) => {
       const next = structuredClone(s);
       const d = next.departments[next.activeDept];
-      const removed = d.lines.splice(idx, 1)[0];
-      for (const k in d.log) delete d.log[k][removed.id];
+      d.lines = d.lines.filter((l) => l.id !== lineId);
       return next;
     });
-  }, []);
+  }
 
-  const addLine = useCallback(() => {
-    setState((s) => {
-      const next = structuredClone(s);
-      next.departments[next.activeDept].lines.push({ id: uid(), name: 'New line', manpower: 1, target: 100, stdCost: 10 });
-      return next;
-    });
-  }, []);
+  function updateWorkerRate(value) {
+    const r = toNum(value);
+    setState((s) => { const n = structuredClone(s); n.departments[n.activeDept].workerRate = r; return n; });
+  }
 
-  const resetToday = useCallback(() => {
-    setState((s) => {
-      const next = structuredClone(s);
-      next.departments[next.activeDept].log = {};
-      return next;
-    });
-  }, []);
-
-  const copyWhatsApp = useCallback(() => {
+  function copyWhatsApp() {
     if (!state) return;
     const lines = [`*OREGENAL ELECTRICALS* — ${fmtDateIN(state.date)}`, state.shift, ''];
     let grand = { target: 0, actual: 0, pnl: 0 };
@@ -221,210 +245,241 @@ export default function ShiftBoardPage() {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
     } else fallbackCopy(text, done);
-  }, [state]);
+  }
 
   if (!state || !dept) {
     return <AppLayout><div className="p-6 text-sm text-gray-500">Loading…</div></AppLayout>;
   }
 
-  const keys = Object.keys(dept.log).sort();
-
   return (
     <AppLayout>
-      <div className="max-w-3xl mx-auto pb-10">
-        {/* top bar */}
-        <div className="sticky top-0 z-10 bg-amber-500 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 mb-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <div>
-              <div className="font-semibold text-amber-950 text-lg leading-tight">Shift Board</div>
-              <div className="text-[11px] text-amber-900/70">Oregenal Electricals · daily entry &amp; costing</div>
-            </div>
+      <div className="p-6 max-w-5xl mx-auto">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Shift Board</h1>
+            <p className="text-gray-500 text-sm mt-1">Hourly production entry &amp; costing, line by line</p>
           </div>
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex gap-2">
             <input type="date" value={state.date} onChange={(e) => setState((s) => ({ ...s, date: e.target.value }))}
-              className="text-xs font-semibold rounded px-2 py-1 bg-white/60 text-amber-950 border border-black/10" />
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
             <input type="text" value={state.shift} onChange={(e) => setState((s) => ({ ...s, shift: e.target.value }))}
-              className="text-xs font-semibold rounded px-2 py-1 bg-white/60 text-amber-950 border border-black/10 flex-1 min-w-[160px]" />
-          </div>
-          <div className="flex gap-1.5 mt-2 overflow-x-auto">
-            {DEPT_ORDER.map((k) => (
-              <button key={k} onClick={() => setDept(k)}
-                className={`flex-1 text-xs font-semibold rounded-md px-2 py-1.5 whitespace-nowrap border border-black/10 ${
-                  k === state.activeDept ? 'bg-amber-950 text-amber-400' : 'bg-white/35 text-amber-950'
-                }`}>
-                {state.departments[k].label}
-              </button>
-            ))}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-52" />
           </div>
         </div>
 
         {/* overview strip */}
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-5">
-          {[['Target today', num(allCosting.target)], ['Actual today', num(allCosting.actual)], ['Manpower', num(allCosting.manpower)], ['Day P&L', money(allCosting.pnl)]].map(([lbl, val]) => (
-            <div key={lbl} className="flex-1 min-w-[100px] bg-white border border-gray-200 rounded-lg px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-gray-500">{lbl}</div>
-              <div className="text-xl font-bold tabular-nums">{val}</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {[
+            { label: 'Target today', value: num(allCosting.target), color: 'bg-gray-50' },
+            { label: 'Actual today', value: num(allCosting.actual), color: 'bg-blue-50' },
+            { label: 'Manpower', value: num(allCosting.manpower), color: 'bg-purple-50' },
+            { label: 'Day P&L', value: money(allCosting.pnl), color: allCosting.pnl >= 0 ? 'bg-green-50' : 'bg-red-50' },
+          ].map((s) => (
+            <div key={s.label} className={`${s.color} rounded-lg p-4`}>
+              <div className="text-2xl font-bold text-gray-800 tabular-nums">{s.value}</div>
+              <div className="text-xs text-gray-500 mt-1">{s.label}</div>
             </div>
           ))}
         </div>
 
-        {/* current hour card */}
-        <div className="mb-5">
-          <div className="flex items-baseline justify-between mb-2">
-            <h2 className="text-lg font-semibold">{isCurrent ? 'This hour' : 'Editing an hour'}</h2>
-          </div>
-          <div className={`bg-white border rounded-xl p-4 border-l-4 ${isCurrent ? 'border-l-amber-500' : 'border-l-gray-400'} border-gray-200`}>
-            <div className="flex items-start justify-between gap-2 flex-wrap mb-3">
-              <div>
-                <div className="text-2xl font-bold leading-tight">{slotLabel(activeHour)}</div>
-                <div className="text-xs text-gray-500">{isCurrent ? 'Detected from the clock — no need to pick a time' : 'Correcting an earlier hour'}</div>
-              </div>
-              {!isCurrent && (
-                <button onClick={() => setEditingSlot(null)} className="text-xs font-semibold text-amber-700">← back to this hour</button>
-              )}
-            </div>
-
-            {dept.lines.map((ln, i) => (
-              <div key={ln.id} className={`grid grid-cols-[1fr_72px_72px] gap-2 items-center py-2.5 ${i > 0 ? 'border-t border-gray-100' : ''}`}>
-                <div className="min-w-0">
-                  <div className="font-semibold text-sm truncate">{ln.name}</div>
-                  <div className="text-[11px] text-gray-500">Manpower {ln.manpower} · target {ln.target}/hr</div>
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase text-gray-500 mb-0.5">Actual</label>
-                  <input type="number" inputMode="numeric" min="0" value={draft[ln.id]?.a ?? ''}
-                    onChange={(e) => setDraft((d) => ({ ...d, [ln.id]: { ...d[ln.id], a: e.target.value } }))}
-                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm font-semibold tabular-nums" />
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase text-gray-500 mb-0.5">Reject</label>
-                  <input type="number" inputMode="numeric" min="0" value={draft[ln.id]?.r ?? ''}
-                    onChange={(e) => setDraft((d) => ({ ...d, [ln.id]: { ...d[ln.id], r: e.target.value } }))}
-                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm font-semibold tabular-nums" />
-                </div>
-              </div>
-            ))}
-
-            <button onClick={saveHour} className="w-full mt-3 py-3 rounded-lg bg-amber-500 text-amber-950 font-bold text-sm">
-              Save this hour
+        {/* department tabs */}
+        <div className="flex gap-1.5 mb-6 bg-white border border-gray-200 rounded-lg p-1.5 w-fit">
+          {DEPT_ORDER.map((k) => (
+            <button key={k} onClick={() => setDept(k)}
+              className={`text-sm font-medium rounded-md px-4 py-2 ${
+                k === state.activeDept ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'
+              }`}>
+              {state.departments[k].label}
             </button>
-            <div className="text-center text-xs text-gray-500 mt-2">Saves actual + rejection for every line shown, for {slotLabel(activeHour)}.</div>
-          </div>
+          ))}
         </div>
 
-        {/* lines & rates */}
-        <details className="mb-5 bg-white border border-gray-200 rounded-xl">
-          <summary className="list-none cursor-pointer px-4 py-3 font-semibold text-sm flex items-center justify-between">
-            Lines &amp; rates for {dept.label} <span className="text-gray-400">▸</span>
+        {/* line cards */}
+        <div className="space-y-5 mb-6">
+          {dept.lines.map((ln) => {
+            const t = lineSlotTotals(ln, dept.workerRate);
+            return (
+              <div key={ln.id} className="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex-1 min-w-[160px]">
+                    <input value={ln.name} onChange={(e) => updateLineField(ln.id, 'name', e.target.value)}
+                      className="font-semibold text-gray-900 text-base border-0 focus:outline-none focus:ring-1 focus:ring-blue-300 rounded px-1 -mx-1 w-full" />
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-gray-500">Day Target</div>
+                    <div className="font-semibold text-gray-900 tabular-nums">{num(t.target)}</div>
+                  </div>
+                  <button onClick={() => toggleClosed(ln.id)}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-md ${
+                      ln.closed ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}>
+                    {ln.closed ? 'Reopen' : 'Close'}
+                  </button>
+                  <button onClick={() => removeLine(ln.id)} title="Remove line"
+                    className="text-xs text-gray-400 hover:text-red-600 px-1">✕</button>
+                </div>
+
+                <div className="px-4 pt-3">
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
+                    ln.closed ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${ln.closed ? 'bg-red-500' : 'bg-green-500'}`} />
+                    {ln.closed ? 'Line closed' : 'Line open'}
+                  </span>
+                </div>
+
+                <div className="p-4 flex items-center gap-2">
+                  <label className="text-xs text-gray-500 uppercase tracking-wide">Base manpower</label>
+                  <input type="number" min="0" disabled={ln.closed} value={ln.manpower}
+                    onChange={(e) => updateBaseManpower(ln.id, e.target.value)}
+                    className="w-20 border border-gray-300 rounded-md px-2 py-1 text-sm font-semibold disabled:bg-gray-50 disabled:text-gray-400" />
+                </div>
+
+                <div className="overflow-x-auto px-4 pb-2">
+                  <table className="w-full min-w-[480px] border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left text-[11px] uppercase text-gray-500 font-medium py-2 pr-2">Slot</th>
+                        <th className="text-right text-[11px] uppercase text-gray-500 font-medium py-2 px-2">MP</th>
+                        <th className="text-right text-[11px] uppercase text-gray-500 font-medium py-2 px-2">Target</th>
+                        <th className="text-right text-[11px] uppercase text-gray-500 font-medium py-2 px-2">Actual</th>
+                        <th className="text-right text-[11px] uppercase text-gray-500 font-medium py-2 px-2">Reject</th>
+                        <th className="text-right text-[11px] uppercase text-gray-500 font-medium py-2 pl-2">Eff%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {SHIFT_SLOTS.map((s) => {
+                        const row = ln.slots[s.key];
+                        const eff = row.target > 0 ? Math.round((row.a / row.target) * 100) : null;
+                        return (
+                          <tr key={s.key} className="border-b border-gray-50">
+                            <td className="py-1.5 pr-2 text-gray-700 whitespace-nowrap">{s.label}</td>
+                            <td className="py-1.5 px-2">
+                              <input type="number" min="0" disabled={ln.closed} value={row.mp}
+                                onChange={(e) => updateSlotField(ln.id, s.key, 'mp', e.target.value)}
+                                className="w-16 text-right border border-gray-200 rounded px-1.5 py-1 tabular-nums disabled:bg-gray-50 disabled:text-gray-400" />
+                            </td>
+                            <td className="py-1.5 px-2">
+                              <input type="number" min="0" disabled={ln.closed} value={row.target}
+                                onChange={(e) => updateSlotField(ln.id, s.key, 'target', e.target.value)}
+                                className="w-16 text-right border border-gray-200 rounded px-1.5 py-1 tabular-nums disabled:bg-gray-50 disabled:text-gray-400" />
+                            </td>
+                            <td className="py-1.5 px-2">
+                              <input type="number" min="0" disabled={ln.closed} value={row.a}
+                                onChange={(e) => updateSlotField(ln.id, s.key, 'a', e.target.value)}
+                                className="w-16 text-right border border-gray-300 rounded px-1.5 py-1 font-semibold tabular-nums disabled:bg-gray-50 disabled:text-gray-400 disabled:font-normal" />
+                            </td>
+                            <td className="py-1.5 px-2">
+                              <input type="number" min="0" disabled={ln.closed} value={row.r}
+                                onChange={(e) => updateSlotField(ln.id, s.key, 'r', e.target.value)}
+                                className="w-16 text-right border border-gray-300 rounded px-1.5 py-1 font-semibold tabular-nums disabled:bg-gray-50 disabled:text-gray-400 disabled:font-normal" />
+                            </td>
+                            <td className="py-1.5 pl-2 text-right tabular-nums text-gray-600">{eff === null ? '—' : `${eff}%`}</td>
+                          </tr>
+                        );
+                      })}
+                      <tr className="bg-gray-50 font-semibold">
+                        <td className="py-2 pr-2 text-gray-700">TOTAL</td>
+                        <td className="py-2 px-2 text-right text-gray-400">—</td>
+                        <td className="py-2 px-2 text-right tabular-nums">{num(t.target)}</td>
+                        <td className="py-2 px-2 text-right tabular-nums">{num(t.actual)}</td>
+                        <td className="py-2 px-2 text-right tabular-nums text-red-600">{num(t.rej)}</td>
+                        <td className="py-2 pl-2 text-right tabular-nums">{t.target > 0 ? `${Math.round((t.actual / t.target) * 100)}%` : '—'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="px-4 pb-4">
+                  <div className="text-xs font-semibold text-gray-700 mb-2">Overtime (if any)</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                    {[['hours', 'OT hours'], ['manpower', 'OT manpower'], ['target', 'OT target'], ['actual', 'OT actual']].map(([f, lbl]) => (
+                      <div key={f}>
+                        <label className="block text-[10px] uppercase text-gray-500 mb-1">{lbl}</label>
+                        <input type="number" min="0" disabled={ln.closed} value={ln.ot[f]}
+                          onChange={(e) => updateOt(ln.id, f, e.target.value)}
+                          className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm tabular-nums disabled:bg-gray-50 disabled:text-gray-400" />
+                      </div>
+                    ))}
+                  </div>
+                  <label className="block text-[10px] uppercase text-gray-500 mb-1">Remarks</label>
+                  <textarea value={ln.remarks} disabled={ln.closed} placeholder="Optional…"
+                    onChange={(e) => updateLineField(ln.id, 'remarks', e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-400" rows={2} />
+                </div>
+
+                <div className="px-4 pb-4">
+                  <button onClick={() => toggleClosed(ln.id)}
+                    className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm">
+                    {ln.closed ? 'Reopen Entry' : 'Save Entry'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          <button onClick={addLine}
+            className="w-full py-2.5 rounded-lg border border-dashed border-gray-300 text-sm font-medium text-gray-500 hover:bg-gray-50">
+            + Add a line
+          </button>
+        </div>
+
+        {/* rates & costing setup */}
+        <details className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200">
+          <summary className="list-none cursor-pointer px-4 py-3 text-sm font-medium text-gray-700 flex items-center justify-between">
+            Rates &amp; costing setup for {dept.label} <span className="text-gray-400">▸</span>
           </summary>
           <div className="px-4 pb-4 border-t border-gray-100">
             <div className="flex items-center gap-2 py-2.5">
               <label className="flex-1 text-xs text-gray-500">Worker rate (₹ per hour, applies to this department)</label>
-              <input type="number" min="0" value={dept.workerRate}
-                onChange={(e) => setState((s) => { const n = structuredClone(s); n.departments[n.activeDept].workerRate = parseFloat(e.target.value) || 0; return n; })}
+              <input type="number" min="0" value={dept.workerRate} onChange={(e) => updateWorkerRate(e.target.value)}
                 className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm font-semibold" />
             </div>
-            {dept.lines.map((ln, i) => (
-              <div key={ln.id} className="grid grid-cols-[1fr_56px_56px_64px_28px] gap-1.5 items-end py-2 border-t border-gray-100">
+            {dept.lines.map((ln) => (
+              <div key={ln.id} className="grid grid-cols-[1fr_72px_72px] gap-2 items-end py-2 border-t border-gray-100">
+                <div className="text-xs text-gray-600 truncate">{ln.name}</div>
                 <div>
-                  <label className="block text-[9px] uppercase text-gray-500 mb-0.5">Line name</label>
-                  <input type="text" value={ln.name} onChange={(e) => updateLine(i, 'name', e.target.value)}
+                  <label className="block text-[10px] uppercase text-gray-500 mb-0.5">Target/hr</label>
+                  <input type="number" min="0" value={ln.target} onChange={(e) => updateLineTarget(ln.id, e.target.value)}
                     className="w-full border border-gray-300 rounded-md px-1.5 py-1 text-xs" />
                 </div>
                 <div>
-                  <label className="block text-[9px] uppercase text-gray-500 mb-0.5">MP</label>
-                  <input type="number" min="0" value={ln.manpower} onChange={(e) => updateLine(i, 'manpower', e.target.value)}
+                  <label className="block text-[10px] uppercase text-gray-500 mb-0.5">₹/piece</label>
+                  <input type="number" min="0" step="0.5" value={ln.stdCost} onChange={(e) => updateLineField(ln.id, 'stdCost', e.target.value)}
                     className="w-full border border-gray-300 rounded-md px-1.5 py-1 text-xs" />
                 </div>
-                <div>
-                  <label className="block text-[9px] uppercase text-gray-500 mb-0.5">Target/hr</label>
-                  <input type="number" min="0" value={ln.target} onChange={(e) => updateLine(i, 'target', e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-1.5 py-1 text-xs" />
-                </div>
-                <div>
-                  <label className="block text-[9px] uppercase text-gray-500 mb-0.5">₹/piece</label>
-                  <input type="number" min="0" step="0.5" value={ln.stdCost} onChange={(e) => updateLine(i, 'stdCost', e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-1.5 py-1 text-xs" />
-                </div>
-                <button onClick={() => removeLine(i)} title="Remove line" className="h-[30px] rounded-md bg-red-50 text-red-600 text-sm">✕</button>
               </div>
             ))}
-            <button onClick={addLine} className="w-full mt-2.5 py-2 rounded-md border border-dashed border-gray-300 text-xs font-semibold text-gray-500">
-              + Add a line
-            </button>
-            <button onClick={resetToday} className="w-full mt-2 py-1.5 text-xs font-semibold text-red-600">
-              Clear today&apos;s entries for {dept.label}
-            </button>
           </div>
         </details>
 
-        {/* today's log */}
-        <div className="mb-5">
-          <div className="flex items-baseline justify-between mb-2">
-            <h2 className="text-lg font-semibold">Today&apos;s hours</h2>
-            <span className="text-xs text-gray-500">Tap a row to correct it</span>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
-            {keys.length === 0 ? (
-              <div className="py-6 text-center text-sm text-gray-500">No hours entered yet today — fill in &ldquo;This hour&rdquo; above to start.</div>
-            ) : (
-              <table className="w-full min-w-[360px] border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left text-[10px] uppercase text-gray-500 px-3 py-2">Hour</th>
-                    {dept.lines.map((ln) => (
-                      <th key={ln.id} className="text-right text-[10px] uppercase text-gray-500 px-3 py-2">{ln.name.split(' ')[0]}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {keys.map((k) => (
-                    <tr key={k} onClick={() => { setEditingSlot(k); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                      className={`border-t border-gray-100 cursor-pointer hover:bg-gray-50 ${k === slotKey(currentHour) ? 'bg-emerald-50' : ''}`}>
-                      <td className="px-3 py-2 text-sm">{slotLabel(parseInt(k, 10))}</td>
-                      {dept.lines.map((ln) => {
-                        const e = dept.log[k][ln.id];
-                        return (
-                          <td key={ln.id} className="px-3 py-2 text-sm text-right tabular-nums">
-                            {e ? <>{e.a}{e.r ? <span className="text-red-500"> −{e.r}</span> : null}</> : '—'}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-
         {/* costing */}
-        <div className="mb-5">
-          <h2 className="text-lg font-semibold mb-2">Day total &amp; costing</h2>
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <div className="grid grid-cols-2 gap-2.5">
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Day total &amp; costing — {dept.label}</h2>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <Tile label="Target so far" value={num(costing.target)} />
               <Tile label="Actual so far" value={num(costing.actual)} />
               <Tile label="Good pieces" value={num(costing.good)} />
               <Tile label="Achievement" value={costing.achievement === null ? '—' : Math.round(costing.achievement) + '%'} />
               <Tile label="Manpower cost" value={money(costing.cost)} />
               <Tile label="₹ / piece" value={costing.perPiece === null ? '—' : money(costing.perPiece)} />
-              <div className={`col-span-2 rounded-lg px-3 py-2.5 bg-gray-50 ${costing.pnl >= 0 ? '' : ''}`}>
-                <div className="text-[11px] uppercase text-gray-500">{dept.label} profit / loss so far</div>
-                <div className={`text-2xl font-bold tabular-nums ${costing.pnl >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{money(costing.pnl)}</div>
-              </div>
             </div>
-            <div className="text-[11px] text-gray-400 mt-3 leading-relaxed">
-              Cost = manpower × hours entered × ₹/hr rate. Value of output = good pieces × ₹/piece. P&amp;L = value of output − cost.
+            <div className={`rounded-lg px-3 py-3 mt-3 ${costing.pnl >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+              <div className="text-xs uppercase text-gray-500">{dept.label} profit / loss so far</div>
+              <div className={`text-2xl font-bold tabular-nums ${costing.pnl >= 0 ? 'text-green-700' : 'text-red-600'}`}>{money(costing.pnl)}</div>
+            </div>
+            <div className="text-xs text-gray-400 mt-3 leading-relaxed">
+              Cost = manpower × hours × ₹/hr rate (shift + OT). Value of output = good pieces × ₹/piece. P&amp;L = value of output − cost.
             </div>
             <button onClick={copyWhatsApp}
-              className={`w-full mt-3 py-3 rounded-lg border text-sm font-semibold ${copied ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-gray-50 text-gray-700 border-gray-200'}`}>
-              {copied ? '✓ Copied — paste into WhatsApp' : '📋 Copy day summary for WhatsApp'}
+              className={`w-full mt-3 py-2.5 rounded-lg border text-sm font-medium ${copied ? 'bg-green-50 text-green-700 border-green-300' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+              {copied ? '✓ Copied — paste into WhatsApp' : 'Copy day summary for WhatsApp'}
             </button>
           </div>
         </div>
 
-        <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-500 leading-relaxed">
+        <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-500 leading-relaxed">
           <b className="text-gray-700">This is still a working draft, not yet connected to the database.</b> It saves only in this browser for now, so other people on other phones won&apos;t see these entries yet. Keep changing it and telling Claude what to fix — once the flow is right, it gets wired to real shared storage.
         </div>
       </div>
@@ -436,7 +491,7 @@ function Tile({ label, value }) {
   return (
     <div className="bg-gray-50 rounded-lg px-3 py-2.5">
       <div className="text-[11px] uppercase text-gray-500">{label}</div>
-      <div className="text-xl font-bold tabular-nums mt-0.5">{value}</div>
+      <div className="text-xl font-bold tabular-nums mt-0.5 text-gray-900">{value}</div>
     </div>
   );
 }
