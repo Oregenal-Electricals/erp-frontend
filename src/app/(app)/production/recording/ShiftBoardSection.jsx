@@ -3,9 +3,14 @@ import { useState, useEffect, useMemo } from 'react';
 
 // Shift Board — hourly production entry + live costing, one slot table per
 // line for the whole shift (Slot / MP / Target / Actual / Reject / Eff%).
-// Lives inside the Production Recording page (below the work-order entry
-// list) rather than its own tab — Rahul's call: having two separate places
-// to log production numbers was duplication, so this is now the one place.
+// Lives inside the Production Recording page rather than its own tab, and
+// is this page's ONLY input surface now — Rahul's call: a separate "+
+// Record Production" form duplicated this. The old generic entries
+// list/search/stats block on this page is gone too (2026-10-31): it looked
+// like a second, disconnected entry system sitting above this one, so this
+// component now carries its own small "Today's entries" ledger + Confirm
+// action (see the section right below the date/shift header) instead of
+// relying on anything above it on the page.
 //
 // Backend wiring (Rahul's decisions):
 // - A line stays local-only (localStorage, fully editable) until a real,
@@ -13,17 +18,17 @@ import { useState, useEffect, useMemo } from 'react';
 // - Once linked, each hour's slot is saved to the backend the moment that
 //   hour is filled in and the operator clicks "Save" on that row — not
 //   batched at line-close. That POST becomes one real ProductionEntry
-//   against the linked Work Order (same model/API as the "+ Record
-//   Production" flow this page used to have), so it shows up in the entries
-//   table above and goes through the same Confirm step.
+//   against the linked Work Order (same model/API the old "+ Record
+//   Production" modal used), so it shows up in this component's own
+//   "Today's entries" ledger and goes through the same Confirm step.
 // - A saved hour locks (MP/Actual/Reject become read-only) because the
 //   backend's own duplicate-period rule rejects re-saving the same hour for
 //   the same Work Order — this mirrors a real shift, where an hour that has
 //   already passed can't be re-lived, not a UI limitation added for its own
 //   sake.
-// - Entries stay DRAFT after saving — exactly like the rest of Production
-//   Recording, a person reviews and clicks Confirm from the table above
-//   before it affects the Work Order's completed/rejected quantities.
+// - Entries stay DRAFT after saving — a person reviews and clicks Confirm
+//   (below) before it affects the Work Order's completed/rejected
+//   quantities.
 // - Target, once linked, is the backend's own number (computed from the
 //   product's standard productivity × manpower × hour length) rather than
 //   the manually-typed figure — so a line-level entry can't inflate its own
@@ -183,6 +188,9 @@ export default function ShiftBoardSection({ onEntryCreated }) {
   const [copied, setCopied] = useState(false);
   const [workOrders, setWorkOrders] = useState([]);
   const [woLoadError, setWoLoadError] = useState('');
+  const [todaysEntries, setTodaysEntries] = useState([]);
+  const [entriesLoadError, setEntriesLoadError] = useState('');
+  const [confirmingId, setConfirmingId] = useState(null);
 
   useEffect(() => {
     try {
@@ -206,6 +214,41 @@ export default function ShiftBoardSection({ onEntryCreated }) {
       .then((d) => setWorkOrders(Array.isArray(d) ? d : (d.data || [])))
       .catch(() => setWoLoadError('Active Work Orders could not be loaded — lines can stay local-only for now.'));
   }, []);
+
+  // The one ledger this page shows now: entries this board has actually
+  // created, for the day on screen. findAll() has no entryDate filter, so
+  // this pulls the latest entries (already sorted entryDate desc server
+  // side) and narrows to this board's date client side - plenty for a
+  // single day's worth of hourly entries across a handful of lines.
+  async function fetchTodaysEntries(dateStr) {
+    if (!getToken() || !dateStr) return;
+    try {
+      const res = await fetch(`${API}/production-entries?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (!res.ok) throw new Error();
+      const d = await res.json();
+      setTodaysEntries((d.data || []).filter((e) => e.entryDate && e.entryDate.slice(0, 10) === dateStr));
+      setEntriesLoadError('');
+    } catch (e) {
+      setEntriesLoadError('Today\'s entries could not be loaded.');
+    }
+  }
+
+  useEffect(() => { if (state?.date) fetchTodaysEntries(state.date); }, [state?.date]);
+
+  async function handleConfirm(id) {
+    setConfirmingId(id);
+    try {
+      const res = await fetch(`${API}/production-entries/${id}/confirm`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.message || 'Confirm failed');
+      await fetchTodaysEntries(state.date);
+      onEntryCreated?.();
+    } catch (e) {
+      alert(e.message || 'Confirm failed');
+    } finally {
+      setConfirmingId(null);
+    }
+  }
 
   const dept = state ? state.departments[state.activeDept] : null;
 
@@ -355,6 +398,7 @@ export default function ShiftBoardSection({ onEntryCreated }) {
         r.sync = { status: 'saved', entryId: body.id, entryNumber: body.entryNumber, achievementPercent: body.achievementPercent };
         if (body.targetQty != null) r.target = Math.round(body.targetQty);
       });
+      fetchTodaysEntries(dateStr);
       onEntryCreated?.();
     } catch (e) {
       withLine(ln.id, (l) => { l.slots[slotDef.key].sync = { status: 'error', error: e.message || 'Save failed' }; });
@@ -405,6 +449,63 @@ export default function ShiftBoardSection({ onEntryCreated }) {
       {woLoadError && (
         <div className="mb-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{woLoadError}</div>
       )}
+
+      {/* Today's saved entries — the one ledger this page shows now. Only
+          ever has rows once a line is linked to a Work Order and an hour
+          gets saved (see saveSlot); an all-local-only day shows nothing
+          here, same as before this board existed. */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <div className="text-sm font-semibold text-gray-900">Today&apos;s entries</div>
+            <div className="text-xs text-gray-500 mt-0.5">Saved from the slot tables below — confirm here once reviewed</div>
+          </div>
+          <span className="text-xs text-gray-400">{todaysEntries.length} for {fmtDateIN(state.date)}</span>
+        </div>
+        {entriesLoadError && (
+          <div className="px-4 py-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-200">{entriesLoadError}</div>
+        )}
+        {todaysEntries.length === 0 ? (
+          <div className="px-4 py-6 text-center text-xs text-gray-400">
+            No Work Order-linked entries saved yet today — link a line below and save an hour to see it here.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-500 text-[11px] uppercase">
+                <tr>{['Entry No.', 'Work Order', 'Good', 'Scrap', 'Achv.', 'Status', ''].map((h) => (
+                  <th key={h} className="px-3 py-2 text-left">{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody className="divide-y">
+                {todaysEntries.map((e) => (
+                  <tr key={e.id} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 font-mono text-xs text-blue-600 font-bold">{e.entryNumber}</td>
+                    <td className="px-3 py-2 text-xs text-gray-600">
+                      <span className="font-mono">{e.workOrder?.woNumber}</span>
+                      <span className="ml-2 text-gray-400">{e.workOrder?.productName}</span>
+                    </td>
+                    <td className="px-3 py-2 text-xs font-bold text-green-700">{e.goodQty}</td>
+                    <td className="px-3 py-2 text-xs font-bold text-red-500">{e.scrapQty}</td>
+                    <td className="px-3 py-2 text-xs font-medium text-gray-600">{e.achievementPercent != null ? `${e.achievementPercent}%` : '—'}</td>
+                    <td className="px-3 py-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${e.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{e.status}</span>
+                    </td>
+                    <td className="px-3 py-2">
+                      {e.status === 'DRAFT' && (
+                        <button onClick={() => handleConfirm(e.id)} disabled={confirmingId === e.id}
+                          className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
+                          {confirmingId === e.id ? 'Confirming…' : 'Confirm'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* overview strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
