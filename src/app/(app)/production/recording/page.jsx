@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
+import ShiftBoardSection from './ShiftBoardSection';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
@@ -32,12 +33,8 @@ export default function ProductionRecordingPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [showModal, setShowModal] = useState(false);
   const [showProgress, setShowProgress] = useState(null);
   const [progress, setProgress] = useState(null);
-  const [form, setForm] = useState({ workOrderId:'', shift:'MORNING', operatorName:'', machineName:'', goodQty:'', scrapQty:'0', reworkQty:'0', manpowerQty:'', periodStart:'', periodEnd:'', remarks:'', entryDate:new Date().toISOString().split('T')[0] });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
@@ -64,34 +61,6 @@ export default function ProductionRecordingPage() {
 
   useEffect(() => { fetchAll(); }, [page, search, status]);
 
-  async function handleCreate() {
-    setSaving(true); setError('');
-    const body = {
-      ...form, goodQty: parseFloat(form.goodQty)||0, scrapQty: parseFloat(form.scrapQty)||0,
-      reworkQty: parseFloat(form.reworkQty)||0,
-      manpowerQty: form.manpowerQty ? parseInt(form.manpowerQty, 10) : undefined,
-    };
-    if (!body.operatorName) delete body.operatorName;
-    if (!body.machineName) delete body.machineName;
-    if (!body.remarks) delete body.remarks;
-    if (!body.manpowerQty) delete body.manpowerQty;
-    body.entryDate = new Date(form.entryDate).toISOString();
-    // PROD-007: periodStart/periodEnd are now required by the backend
-    // for actual labour-hours/cost calculation - build full timestamps
-    // from the entry date plus the two time-of-day inputs.
-    body.periodStart = new Date(`${form.entryDate}T${form.periodStart}:00`).toISOString();
-    body.periodEnd = new Date(`${form.entryDate}T${form.periodEnd}:00`).toISOString();
-    const res = await fetch(`${API}/production-entries`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (res.ok) { setShowModal(false); fetchAll(); }
-    else setError(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Failed');
-    setSaving(false);
-  }
-
   async function handleConfirm(id) {
     const res = await fetch(`${API}/production-entries/${id}/confirm`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
     if (res.ok) fetchAll();
@@ -104,8 +73,6 @@ export default function ProductionRecordingPage() {
     if (res.ok) setProgress(await res.json());
   }
 
-  const selectedWo = wos.find(w => w.id === form.workOrderId);
-
   return (
     <AppLayout>
       <div className="p-6 max-w-7xl mx-auto">
@@ -114,7 +81,6 @@ export default function ProductionRecordingPage() {
             <h1 className="text-2xl font-bold text-gray-900">Production Recording</h1>
             <p className="text-gray-500 text-sm mt-1">Record daily/shift production output against work orders</p>
           </div>
-          <button onClick={() => { setForm({ workOrderId:'', shift:'MORNING', operatorName:'', machineName:'', goodQty:'', scrapQty:'0', reworkQty:'0', manpowerQty:'', periodStart:'', periodEnd:'', remarks:'', entryDate:new Date().toISOString().split('T')[0] }); setError(''); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">+ Record Production</button>
         </div>
 
         {stats && (
@@ -231,85 +197,7 @@ export default function ProductionRecordingPage() {
           )}
         </div>
 
-        {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
-              <div className="p-6 border-b flex justify-between">
-                <h2 className="text-lg font-bold">Record Production</h2>
-                <button onClick={()=>setShowModal(false)} className="text-gray-400 text-xl">✕</button>
-              </div>
-              <div className="p-6 space-y-4">
-                {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>}
-                {selectedWo && (
-                  <div className="bg-blue-50 rounded-lg p-3 text-sm">
-                    <div className="font-bold text-blue-700">{selectedWo.woNumber} — {selectedWo.productName}</div>
-                    <div className="text-xs text-gray-500 mt-1">Planned: {selectedWo.plannedQty} | Completed: {selectedWo.completedQty} | Remaining: {selectedWo.plannedQty - selectedWo.completedQty}</div>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <label className="block text-sm text-gray-600 mb-1">Work Order *</label>
-                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.workOrderId} onChange={e=>setForm(f=>({...f,workOrderId:e.target.value}))}>
-                      <option value="">— Select WO —</option>
-                      {wos.map(wo=><option key={wo.id} value={wo.id}>{wo.woNumber} — {wo.productName} ({wo.status})</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Entry Date</label>
-                    <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.entryDate} onChange={e=>setForm(f=>({...f,entryDate:e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Shift</label>
-                    <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.shift} onChange={e=>setForm(f=>({...f,shift:e.target.value}))}>
-                      {['MORNING','EVENING','NIGHT'].map(s=><option key={s}>{s}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Good Qty *</label>
-                    <input type="number" step="0.01" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.goodQty} onChange={e=>setForm(f=>({...f,goodQty:e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Scrap (Reject) Qty</label>
-                    <input type="number" step="0.01" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.scrapQty} onChange={e=>setForm(f=>({...f,scrapQty:e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Rework Qty</label>
-                    <input type="number" step="0.01" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.reworkQty} onChange={e=>setForm(f=>({...f,reworkQty:e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Manpower Used This Entry</label>
-                    <input type="number" min="1" className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Leave blank to use the allotted figure" value={form.manpowerQty} onChange={e=>setForm(f=>({...f,manpowerQty:e.target.value}))} />
-                    <div className="text-xs text-gray-400 mt-1">Only fill this in if it is different from the manpower the Plant Head allotted to this work order — e.g. someone was pulled to another line this hour. The allotted figure is kept separately either way.</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Period Start *</label>
-                    <input type="time" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.periodStart} onChange={e=>setForm(f=>({...f,periodStart:e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Period End *</label>
-                    <input type="time" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.periodEnd} onChange={e=>setForm(f=>({...f,periodEnd:e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Operator</label>
-                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.operatorName} onChange={e=>setForm(f=>({...f,operatorName:e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Machine</label>
-                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.machineName} onChange={e=>setForm(f=>({...f,machineName:e.target.value}))} />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm text-gray-600 mb-1">Remarks</label>
-                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.remarks} onChange={e=>setForm(f=>({...f,remarks:e.target.value}))} />
-                  </div>
-                </div>
-              </div>
-              <div className="p-6 border-t flex justify-end gap-3">
-                <button onClick={()=>setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
-                <button onClick={handleCreate} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50">{saving?'Recording...':'Record Production'}</button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ShiftBoardSection />
       </div>
     </AppLayout>
   );
