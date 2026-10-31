@@ -35,7 +35,17 @@ function uid() { return 'l' + Math.random().toString(36).slice(2, 9); }
 function fmtDateIN(iso) { if (!iso) return ''; const p = iso.split('-'); return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : iso; }
 function money(n) { if (n === null || n === undefined || isNaN(n)) return '—'; const neg = n < 0; n = Math.abs(n); return (neg ? '−' : '') + '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 0 }); }
 function num(n) { return (n === null || n === undefined || isNaN(n)) ? '—' : Math.round(n).toLocaleString('en-IN'); }
-function toNum(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+// Used for every numeric input's onChange. Keeps a cleared field genuinely
+// empty ('') instead of snapping it to 0 — a controlled number input whose
+// value gets forced back to 0 on every keystroke makes it impossible to
+// clear and retype a number (the next digit lands after the "0" instead of
+// replacing it). All totals below already fall back to 0 via `|| 0`, so an
+// empty field is safe to leave empty until the person types a real value.
+function parseNumOrBlank(v) {
+  if (v === '' || v === null || v === undefined) return '';
+  const n = parseFloat(v);
+  return isNaN(n) ? '' : n;
+}
 
 function freshSlots(manpower, target) {
   const slots = {};
@@ -172,31 +182,43 @@ export default function ShiftBoardPage() {
   }
 
   function updateSlotField(lineId, slotKey, field, value) {
-    withLine(lineId, (ln) => { ln.slots[slotKey][field] = toNum(value); });
+    withLine(lineId, (ln) => { ln.slots[slotKey][field] = parseNumOrBlank(value); });
   }
 
-  function updateBaseManpower(lineId, value) {
-    const mp = toNum(value);
+  // Base Manpower only updates its own field while typing — pushing it to
+  // all 10 slot rows on every keystroke would blank the whole table each
+  // time the field passes through empty. It fans out to every slot's MP
+  // only once, on blur (applyBaseManpower), when the number is final.
+  function updateBaseManpowerInput(lineId, value) {
+    withLine(lineId, (ln) => { ln.manpower = parseNumOrBlank(value); });
+  }
+  function applyBaseManpower(lineId) {
     withLine(lineId, (ln) => {
+      const mp = ln.manpower === '' ? 0 : ln.manpower;
       ln.manpower = mp;
       SHIFT_SLOTS.forEach((s) => { ln.slots[s.key].mp = mp; });
     });
   }
 
-  function updateLineTarget(lineId, value) {
-    const t = toNum(value);
+  // Same pattern as Base Manpower: type freely, fan out to the slot targets
+  // only on blur.
+  function updateLineTargetInput(lineId, value) {
+    withLine(lineId, (ln) => { ln.target = parseNumOrBlank(value); });
+  }
+  function applyLineTarget(lineId) {
     withLine(lineId, (ln) => {
+      const t = ln.target === '' ? 0 : ln.target;
       ln.target = t;
       SHIFT_SLOTS.forEach((s) => { ln.slots[s.key].target = Math.round(t * s.dur); });
     });
   }
 
   function updateLineField(lineId, field, value) {
-    withLine(lineId, (ln) => { ln[field] = field === 'name' || field === 'remarks' ? value : toNum(value); });
+    withLine(lineId, (ln) => { ln[field] = field === 'name' || field === 'remarks' ? value : parseNumOrBlank(value); });
   }
 
   function updateOt(lineId, field, value) {
-    withLine(lineId, (ln) => { ln.ot[field] = toNum(value); });
+    withLine(lineId, (ln) => { ln.ot[field] = parseNumOrBlank(value); });
   }
 
   function toggleClosed(lineId) {
@@ -221,7 +243,7 @@ export default function ShiftBoardPage() {
   }
 
   function updateWorkerRate(value) {
-    const r = toNum(value);
+    const r = parseNumOrBlank(value);
     setState((s) => { const n = structuredClone(s); n.departments[n.activeDept].workerRate = r; return n; });
   }
 
@@ -331,12 +353,21 @@ export default function ShiftBoardPage() {
                 <div className="p-4 flex items-center gap-2">
                   <label className="text-xs text-gray-500 uppercase tracking-wide">Base manpower</label>
                   <input type="number" min="0" disabled={ln.closed} value={ln.manpower}
-                    onChange={(e) => updateBaseManpower(ln.id, e.target.value)}
+                    onChange={(e) => updateBaseManpowerInput(ln.id, e.target.value)}
+                    onBlur={() => applyBaseManpower(ln.id)}
                     className="w-20 border border-gray-300 rounded-md px-2 py-1 text-sm font-semibold disabled:bg-gray-50 disabled:text-gray-400" />
                 </div>
 
                 <div className="overflow-x-auto px-4 pb-2">
-                  <table className="w-full min-w-[480px] border-collapse text-sm">
+                  <table className="w-full min-w-[480px] table-fixed border-collapse text-sm">
+                    <colgroup>
+                      <col />
+                      <col className="w-[76px]" />
+                      <col className="w-[76px]" />
+                      <col className="w-[76px]" />
+                      <col className="w-[76px]" />
+                      <col className="w-[64px]" />
+                    </colgroup>
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th className="text-left text-[11px] uppercase text-gray-500 font-medium py-2 pr-2">Slot</th>
@@ -357,22 +388,22 @@ export default function ShiftBoardPage() {
                             <td className="py-1.5 px-2">
                               <input type="number" min="0" disabled={ln.closed} value={row.mp}
                                 onChange={(e) => updateSlotField(ln.id, s.key, 'mp', e.target.value)}
-                                className="w-16 text-right border border-gray-200 rounded px-1.5 py-1 tabular-nums disabled:bg-gray-50 disabled:text-gray-400" />
+                                className="w-full text-right border border-gray-200 rounded px-1.5 py-1 tabular-nums disabled:bg-gray-50 disabled:text-gray-400" />
                             </td>
                             <td className="py-1.5 px-2">
                               <input type="number" min="0" disabled={ln.closed} value={row.target}
                                 onChange={(e) => updateSlotField(ln.id, s.key, 'target', e.target.value)}
-                                className="w-16 text-right border border-gray-200 rounded px-1.5 py-1 tabular-nums disabled:bg-gray-50 disabled:text-gray-400" />
+                                className="w-full text-right border border-gray-200 rounded px-1.5 py-1 tabular-nums disabled:bg-gray-50 disabled:text-gray-400" />
                             </td>
                             <td className="py-1.5 px-2">
                               <input type="number" min="0" disabled={ln.closed} value={row.a}
                                 onChange={(e) => updateSlotField(ln.id, s.key, 'a', e.target.value)}
-                                className="w-16 text-right border border-gray-300 rounded px-1.5 py-1 font-semibold tabular-nums disabled:bg-gray-50 disabled:text-gray-400 disabled:font-normal" />
+                                className="w-full text-right border border-gray-300 rounded px-1.5 py-1 font-semibold tabular-nums disabled:bg-gray-50 disabled:text-gray-400 disabled:font-normal" />
                             </td>
                             <td className="py-1.5 px-2">
                               <input type="number" min="0" disabled={ln.closed} value={row.r}
                                 onChange={(e) => updateSlotField(ln.id, s.key, 'r', e.target.value)}
-                                className="w-16 text-right border border-gray-300 rounded px-1.5 py-1 font-semibold tabular-nums disabled:bg-gray-50 disabled:text-gray-400 disabled:font-normal" />
+                                className="w-full text-right border border-gray-300 rounded px-1.5 py-1 font-semibold tabular-nums disabled:bg-gray-50 disabled:text-gray-400 disabled:font-normal" />
                             </td>
                             <td className="py-1.5 pl-2 text-right tabular-nums text-gray-600">{eff === null ? '—' : `${eff}%`}</td>
                           </tr>
@@ -440,7 +471,9 @@ export default function ShiftBoardPage() {
                 <div className="text-xs text-gray-600 truncate">{ln.name}</div>
                 <div>
                   <label className="block text-[10px] uppercase text-gray-500 mb-0.5">Target/hr</label>
-                  <input type="number" min="0" value={ln.target} onChange={(e) => updateLineTarget(ln.id, e.target.value)}
+                  <input type="number" min="0" value={ln.target}
+                    onChange={(e) => updateLineTargetInput(ln.id, e.target.value)}
+                    onBlur={() => applyLineTarget(ln.id)}
                     className="w-full border border-gray-300 rounded-md px-1.5 py-1 text-xs" />
                 </div>
                 <div>
