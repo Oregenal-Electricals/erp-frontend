@@ -26,11 +26,18 @@ import { useState, useEffect, useMemo } from 'react';
 // - A line linked to a Work Order shows that WO's planned/done/remaining
 //   quantity right under the picker, so it's obvious how much is actually
 //   left to produce before over- or under-filling it.
+//
+// Updated 2026-10-31 (still per Rahul): every line MUST be linked to a real
+// Work Order before any hour can be entered — there is no more "local only"
+// mode. Rahul's own workflow is 100% Sales Order -> Work Order based, so an
+// hour that doesn't map to a Work Order isn't a real thing for him; letting
+// it live only in this browser was leftover scaffolding from before the
+// backend was wired up, and it's gone now.
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 
-const STORAGE_KEY = 'shopfloor_shift_board_v3';
+const STORAGE_KEY = 'shopfloor_shift_board_v4';
 const DEPT_ORDER = ['ASSEMBLY', 'MI', 'SMT'];
 
 // ProductionEntry.shift only accepts MORNING/EVENING/NIGHT (no generic "day
@@ -85,10 +92,9 @@ function slotPeriodIso(dateStr, slot) {
   };
 }
 
-// An hour that hasn't happened yet can't have a real number — applies
-// whether or not the line is linked to a Work Order (the backend already
-// enforces this for linked lines; this keeps unlinked lines just as
-// honest, and warns before the backend would reject it).
+// An hour that hasn't happened yet can't have a real number — the backend
+// already enforces this, but checking it here too means the person sees a
+// clear warning instead of a save that silently fails.
 function isSlotInFuture(dateStr, slot) {
   const { periodEnd } = slotPeriodIso(dateStr, slot);
   return new Date(periodEnd).getTime() > Date.now();
@@ -115,28 +121,15 @@ function prefillMpFor(line, slotKey) {
   }
   return line.manpower === '' || line.manpower == null ? 0 : line.manpower;
 }
-function prefillTargetFor(line, slotDef) {
-  const rate = line.targetPerHour === '' || line.targetPerHour == null ? 0 : line.targetPerHour;
-  return Math.round(rate * slotDef.dur);
-}
 
 function newLine(name = 'New line') {
-  return { id: uid(), name, manpower: 1, targetPerHour: 100, stdCost: 10, closed: false, workOrderId: null, slots: emptySlots(), ot: { hours: 0, manpower: 0, target: 0, actual: 0 }, remarks: '' };
+  return { id: uid(), name, manpower: 1, stdCost: 10, closed: false, workOrderId: null, slots: emptySlots(), ot: { hours: 0, manpower: 0, target: 0, actual: 0 }, remarks: '' };
 }
 
-// Example data, trimmed to a clean "first few hours already done" prefix so
-// it demonstrates both the done-hours history and the single active hour —
-// not a literal transcription of Rahul's board photo any more (that had
-// gaps that don't fit the one-hour-at-a-time model).
+// Example data — every demo line starts fresh with no Work Order linked and
+// no done hours, since that's the only reachable starting state now (a
+// line can't have a done hour without a Work Order behind it any more).
 function exampleState() {
-  const doneThrough = (targetPerHour, manpower, rows) => {
-    const slots = emptySlots();
-    rows.forEach(([key, mp, a]) => {
-      const def = SHIFT_SLOTS.find((s) => s.key === key);
-      slots[key] = { mp, target: Math.round(targetPerHour * def.dur), a, done: true, sync: null };
-    });
-    return slots;
-  };
   return {
     date: '2026-10-31',
     shift: 'Day Shift · 8:00 AM–5:30 PM',
@@ -145,27 +138,27 @@ function exampleState() {
       ASSEMBLY: {
         label: 'Assembly & Packing', workerRate: 60,
         lines: [
-          { id: 'assy01', name: 'Assy-01 (2x2 Havells Assy)', manpower: 9, targetPerHour: 140, stdCost: 12, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
-            slots: doneThrough(140, 9, [['08', 9, 140], ['09', 9, 140], ['10', 9, 141]]) },
-          { id: 'pack01', name: 'Packing-01 (Gluing)', manpower: 3, targetPerHour: 180, stdCost: 10, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+          { id: 'assy01', name: 'Assy-01 (2x2 Havells Assy)', manpower: 9, stdCost: 12, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
             slots: emptySlots() },
-          { id: 'assy02', name: 'Assy-02 (Framing)', manpower: 1, targetPerHour: 180, stdCost: 8, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+          { id: 'pack01', name: 'Packing-01 (Gluing)', manpower: 3, stdCost: 10, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
             slots: emptySlots() },
-          { id: 'pack02', name: 'Packing-02 (Panel Packing)', manpower: 9, targetPerHour: 140, stdCost: 12, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+          { id: 'assy02', name: 'Assy-02 (Framing)', manpower: 1, stdCost: 8, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+            slots: emptySlots() },
+          { id: 'pack02', name: 'Packing-02 (Panel Packing)', manpower: 9, stdCost: 12, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
             slots: emptySlots() },
         ],
       },
       MI: {
         label: 'MI', workerRate: 60,
         lines: [
-          { id: 'mi36w', name: '36W 2x2 Driver', manpower: 7, targetPerHour: 322, stdCost: 6, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+          { id: 'mi36w', name: '36W 2x2 Driver', manpower: 7, stdCost: 6, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
             slots: emptySlots() },
         ],
       },
       SMT: {
         label: 'SMT', workerRate: 60,
         lines: [
-          { id: 'smt9w', name: '9W Inv DOB Bulb (Rework)', manpower: 2, targetPerHour: 0, stdCost: 4, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+          { id: 'smt9w', name: '9W Inv DOB Bulb (Rework)', manpower: 2, stdCost: 4, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
             slots: emptySlots() },
         ],
       },
@@ -244,7 +237,7 @@ export default function ShiftBoardSection({ onEntryCreated }) {
       setWorkOrders(Array.isArray(d) ? d : (d.data || []));
       setWoLoadError('');
     } catch (e) {
-      setWoLoadError('Active Work Orders could not be loaded — lines can stay local-only for now.');
+      setWoLoadError('Active Work Orders could not be loaded — Work Order linking will not work until this is fixed.');
     }
   }
   useEffect(() => { fetchWorkOrders(); }, []);
@@ -408,21 +401,17 @@ export default function ShiftBoardSection({ onEntryCreated }) {
     setMpPrompt(null);
   }
 
-  // Finishes the active hour - either a real backend ProductionEntry (line
-  // linked to a Work Order) or just a local "done" mark (unlinked line).
-  // Either way this is the only thing that ever sets done:true, which is
-  // what advances the board to the next hour.
-  async function saveActiveHour(ln, slotDef, mpVal, targetVal, actualVal, dateStr) {
+  // Finishes the active hour by creating a real backend ProductionEntry.
+  // A line must be linked to a Work Order before this is ever reachable
+  // (the active-hour block below doesn't render otherwise), so there's no
+  // local-only branch any more — this is the only thing that ever sets
+  // done:true, which is what advances the board to the next hour.
+  async function saveActiveHour(ln, slotDef, mpVal, actualVal, dateStr) {
+    if (!ln.workOrderId) return;
     withLine(ln.id, (l) => {
       const r = l.slots[slotDef.key];
       r.mp = mpVal; r.a = actualVal;
-      if (!l.workOrderId) r.target = targetVal;
     });
-
-    if (!ln.workOrderId) {
-      withLine(ln.id, (l) => { l.slots[slotDef.key].done = true; });
-      return;
-    }
 
     withLine(ln.id, (l) => { l.slots[slotDef.key].sync = { status: 'saving' }; });
     try {
@@ -592,11 +581,9 @@ export default function ShiftBoardSection({ onEntryCreated }) {
           const activeSlotDef = ln.closed ? null : SHIFT_SLOTS.find((s) => !ln.slots[s.key]?.done);
           const activeRow = activeSlotDef ? (ln.slots[activeSlotDef.key] || { mp: '', target: '', a: '', done: false, sync: null }) : null;
           const effMp = activeRow ? (activeRow.mp === '' || activeRow.mp == null ? prefillMpFor(ln, activeSlotDef.key) : activeRow.mp) : null;
-          const effTarget = activeRow
-            ? (ln.workOrderId ? null : (activeRow.target === '' || activeRow.target == null ? prefillTargetFor(ln, activeSlotDef) : activeRow.target))
-            : null;
-          const effActual = activeRow && activeRow.a !== '' && activeRow.a != null ? Number(activeRow.a) : null;
-          const liveEff = effActual != null && effTarget != null && effTarget > 0 ? Math.round((effActual / effTarget) * 100) : null;
+          // Target always comes from the backend now (it needs a Work
+          // Order's product/productivity to compute), so there's no live
+          // Eff% until after the hour is actually saved.
           const futureLocked = activeSlotDef ? isSlotInFuture(state.date, activeSlotDef) : false;
           const selectedWo = ln.workOrderId ? workOrders.find((w) => w.id === ln.workOrderId) : null;
           const remainingQty = selectedWo ? Math.max(0, (selectedWo.plannedQty || 0) - (selectedWo.completedQty || 0)) : null;
@@ -611,14 +598,18 @@ export default function ShiftBoardSection({ onEntryCreated }) {
                     <select value={ln.workOrderId || ''} disabled={ln.closed || doneSlots.length > 0}
                       onChange={(e) => setLineWorkOrder(ln.id, e.target.value)}
                       className="text-xs border border-gray-200 rounded px-1.5 py-1 text-gray-600 max-w-[280px] disabled:bg-gray-50 disabled:text-gray-400">
-                      <option value="">— Local only (not linked to a Work Order) —</option>
+                      <option value="">— Select Work Order (required) —</option>
                       {deptWorkOrders.map((w) => (
                         <option key={w.id} value={w.id}>{w.woNumber} · {w.productName}</option>
                       ))}
                     </select>
-                    {ln.workOrderId && (
+                    {ln.workOrderId ? (
                       <span className="text-[10px] text-green-600 font-medium whitespace-nowrap">
                         ● linked{doneSlots.length > 0 ? ' · locked' : ''}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-amber-600 font-medium whitespace-nowrap">
+                        Work Order required
                       </span>
                     )}
                   </div>
@@ -684,7 +675,7 @@ export default function ShiftBoardSection({ onEntryCreated }) {
                             <td className="py-1.5 pr-3 whitespace-nowrap">
                               {s.label}
                               <span className={`ml-1.5 ${synced ? 'text-green-500' : 'text-gray-300'}`}
-                                title={synced ? `${row.sync.entryNumber}${row.sync.achievementPercent != null ? ` · ${Math.round(row.sync.achievementPercent)}%` : ''}` : 'Saved locally only — this line isn\'t linked to a Work Order'}>
+                                title={synced ? `${row.sync.entryNumber}${row.sync.achievementPercent != null ? ` · ${Math.round(row.sync.achievementPercent)}%` : ''}` : 'Saved before this line required a Work Order link'}>
                                 ✓
                               </span>
                             </td>
@@ -703,6 +694,12 @@ export default function ShiftBoardSection({ onEntryCreated }) {
               {/* the one active hour */}
               {ln.closed ? (
                 <div className="px-4 pb-4 text-xs text-gray-400">Line is closed — reopen it to continue entering hours.</div>
+              ) : !ln.workOrderId ? (
+                <div className="px-4 pb-4">
+                  <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    Pehle is line ke liye Work Order select karein — tab hi ghante ki entry shuru hogi.
+                  </div>
+                </div>
               ) : !activeSlotDef ? (
                 <div className="px-4 pb-4 text-sm text-green-700 font-medium">✓ All hours recorded for today.</div>
               ) : (
@@ -718,15 +715,9 @@ export default function ShiftBoardSection({ onEntryCreated }) {
                     </div>
                     <div>
                       <label className="block text-[10px] uppercase text-gray-500 mb-1">Target</label>
-                      {ln.workOrderId ? (
-                        <div className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-gray-400 bg-gray-50" title="Computed by the backend from the product's standard productivity once this hour is saved">
-                          computed after save
-                        </div>
-                      ) : (
-                        <input type="number" min="0" value={activeRow.target === '' || activeRow.target == null ? effTarget : activeRow.target}
-                          onChange={(e) => updateSlotField(ln.id, activeSlotDef.key, 'target', e.target.value)}
-                          className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm tabular-nums" />
-                      )}
+                      <div className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-gray-400 bg-gray-50" title="Computed by the backend from the product's standard productivity once this hour is saved">
+                        computed after save
+                      </div>
                     </div>
                     <div>
                       <label className="block text-[10px] uppercase text-gray-500 mb-1">Actual</label>
@@ -736,8 +727,8 @@ export default function ShiftBoardSection({ onEntryCreated }) {
                     </div>
                     <div>
                       <label className="block text-[10px] uppercase text-gray-500 mb-1">Eff% (live)</label>
-                      <div className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-gray-600 bg-gray-50 tabular-nums">
-                        {liveEff === null ? '—' : `${liveEff}%`}
+                      <div className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-gray-400 bg-gray-50 tabular-nums" title="Achievement % is computed by the backend after this hour is saved">
+                        —
                       </div>
                     </div>
                   </div>
@@ -756,7 +747,6 @@ export default function ShiftBoardSection({ onEntryCreated }) {
                     onClick={() => saveActiveHour(
                       ln, activeSlotDef,
                       activeRow.mp === '' || activeRow.mp == null ? effMp : Number(activeRow.mp),
-                      activeRow.target === '' || activeRow.target == null ? effTarget : Number(activeRow.target),
                       activeRow.a === '' || activeRow.a == null ? 0 : Number(activeRow.a),
                       state.date,
                     )}
@@ -805,15 +795,8 @@ export default function ShiftBoardSection({ onEntryCreated }) {
               className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm font-semibold" />
           </div>
           {dept.lines.map((ln) => (
-            <div key={ln.id} className="grid grid-cols-[1fr_72px_72px] gap-2 items-end py-2 border-t border-gray-100">
+            <div key={ln.id} className="grid grid-cols-[1fr_72px] gap-2 items-end py-2 border-t border-gray-100">
               <div className="text-xs text-gray-600 truncate">{ln.name}</div>
-              <div>
-                <label className="block text-[10px] uppercase text-gray-500 mb-0.5">Target/hr</label>
-                <input type="number" min="0" value={ln.targetPerHour} disabled={!!ln.workOrderId}
-                  title={ln.workOrderId ? 'Linked lines get their target from the backend instead' : undefined}
-                  onChange={(e) => updateLineField(ln.id, 'targetPerHour', e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-1.5 py-1 text-xs disabled:bg-gray-50 disabled:text-gray-400" />
-              </div>
               <div>
                 <label className="block text-[10px] uppercase text-gray-500 mb-0.5">₹/piece</label>
                 <input type="number" min="0" step="0.5" value={ln.stdCost} onChange={(e) => updateLineField(ln.id, 'stdCost', e.target.value)}
@@ -850,9 +833,9 @@ export default function ShiftBoardSection({ onEntryCreated }) {
       </div>
 
       <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-500 leading-relaxed">
-        <b className="text-gray-700">Local-only lines stay in this browser until linked.</b> Link a line to a Work Order above
-        and each finished hour becomes a real Production Entry (visible in &quot;Today&apos;s entries&quot; above, confirmable
-        from there) — that hour then locks, same as an unlinked line&apos;s hour once it&apos;s marked done.
+        <b className="text-gray-700">Every line must be linked to a Work Order before any hour can be entered.</b> Once
+        linked, each finished hour becomes a real Production Entry (visible in &quot;Today&apos;s entries&quot; above,
+        confirmable from there) and that hour locks.
       </div>
 
       {mpPrompt && (
