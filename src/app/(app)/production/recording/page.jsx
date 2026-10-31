@@ -197,7 +197,7 @@ export default function ProductionRecordingPage() {
           )}
         </div>
 
-        <ShiftBoardSection />
+        <ShiftBoardSection onEntryCreated={fetchAll} />
       </div>
     </AppLayout>
   );
