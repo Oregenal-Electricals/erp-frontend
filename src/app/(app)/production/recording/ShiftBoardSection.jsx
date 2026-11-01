@@ -123,7 +123,7 @@ function prefillMpFor(line, slotKey) {
 }
 
 function newLine(name = 'New line') {
-  return { id: uid(), name, manpower: 1, stdCost: 10, closed: false, workOrderId: null, slots: emptySlots(), ot: { hours: 0, manpower: 0, target: 0, actual: 0 }, remarks: '' };
+  return { id: uid(), name, manpower: 1, stdCost: 10, closed: false, workOrderId: null, slots: emptySlots(), remarks: '' };
 }
 
 // Example data — every demo line starts fresh with no Work Order linked and
@@ -138,27 +138,27 @@ function exampleState() {
       ASSEMBLY: {
         label: 'Assembly & Packing', workerRate: 60,
         lines: [
-          { id: 'assy01', name: 'Assy-01 (2x2 Havells Assy)', manpower: 9, stdCost: 12, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+          { id: 'assy01', name: 'Assy-01 (2x2 Havells Assy)', manpower: 9, stdCost: 12, closed: false, workOrderId: null, remarks: '',
             slots: emptySlots() },
-          { id: 'pack01', name: 'Packing-01 (Gluing)', manpower: 3, stdCost: 10, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+          { id: 'pack01', name: 'Packing-01 (Gluing)', manpower: 3, stdCost: 10, closed: false, workOrderId: null, remarks: '',
             slots: emptySlots() },
-          { id: 'assy02', name: 'Assy-02 (Framing)', manpower: 1, stdCost: 8, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+          { id: 'assy02', name: 'Assy-02 (Framing)', manpower: 1, stdCost: 8, closed: false, workOrderId: null, remarks: '',
             slots: emptySlots() },
-          { id: 'pack02', name: 'Packing-02 (Panel Packing)', manpower: 9, stdCost: 12, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+          { id: 'pack02', name: 'Packing-02 (Panel Packing)', manpower: 9, stdCost: 12, closed: false, workOrderId: null, remarks: '',
             slots: emptySlots() },
         ],
       },
       MI: {
         label: 'MI', workerRate: 60,
         lines: [
-          { id: 'mi36w', name: '36W 2x2 Driver', manpower: 7, stdCost: 6, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+          { id: 'mi36w', name: '36W 2x2 Driver', manpower: 7, stdCost: 6, closed: false, workOrderId: null, remarks: '',
             slots: emptySlots() },
         ],
       },
       SMT: {
         label: 'SMT', workerRate: 60,
         lines: [
-          { id: 'smt9w', name: '9W Inv DOB Bulb (Rework)', manpower: 2, stdCost: 4, closed: false, workOrderId: null, remarks: '', ot: { hours: 0, manpower: 0, target: 0, actual: 0 },
+          { id: 'smt9w', name: '9W Inv DOB Bulb (Rework)', manpower: 2, stdCost: 4, closed: false, workOrderId: null, remarks: '',
             slots: emptySlots() },
         ],
       },
@@ -168,6 +168,12 @@ function exampleState() {
 
 // Only done hours count — an hour that's still being typed into the active
 // row isn't real until "Save & next hour" (or the backend) confirms it.
+// Overtime manpower is no longer tracked as a separate client-side bucket
+// (see OvertimeRequest workflow) - an OT-covered hour's mp already
+// includes the approved extra men, so it's already inside the normal
+// per-hour sum below; the backend's own otLabourCost (at the OT
+// multiplier, not this flat workerRate) is what actually prices that
+// slice, visible on the Cost Sheet / costing sheets, not here.
 function lineSlotTotals(line, workerRate) {
   let target = 0, actual = 0, cost = 0;
   SHIFT_SLOTS.forEach((s) => {
@@ -177,9 +183,6 @@ function lineSlotTotals(line, workerRate) {
     actual += row.a || 0;
     cost += (row.mp || 0) * s.dur * (workerRate || 0);
   });
-  cost += (line.ot?.manpower || 0) * (line.ot?.hours || 0) * (workerRate || 0);
-  target += line.ot?.target || 0;
-  actual += line.ot?.actual || 0;
   return { target, actual, good: actual, cost };
 }
 
@@ -210,6 +213,11 @@ export default function ShiftBoardSection({ onEntryCreated }) {
   const [entriesLoadError, setEntriesLoadError] = useState('');
   const [confirmingId, setConfirmingId] = useState(null);
   const [mpPrompt, setMpPrompt] = useState(null);
+  const [otRequests, setOtRequests] = useState([]);
+  const [otRequestsError, setOtRequestsError] = useState('');
+  const [otModal, setOtModal] = useState(null); // { lineId, lineName, workOrderId }
+  const [otSubmitting, setOtSubmitting] = useState(false);
+  const [otSubmitError, setOtSubmitError] = useState('');
 
   useEffect(() => {
     try {
@@ -260,6 +268,67 @@ export default function ShiftBoardSection({ onEntryCreated }) {
     }
   }
   useEffect(() => { if (state?.date) fetchTodaysEntries(state.date); }, [state?.date]);
+
+  // Overtime (Shift Board "Request Overtime"): findAll() has no shiftDate
+  // filter server side (same shape as fetchTodaysEntries above), so pull
+  // every active request and narrow to this board's date client side.
+  // Used both to show each line's current OT status and to block
+  // double-requesting while one is already pending/approved for today.
+  async function fetchOtRequests(dateStr) {
+    if (!getToken() || !dateStr) return;
+    try {
+      const res = await fetch(`${API}/overtime-requests?limit=200`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (!res.ok) throw new Error();
+      const d = await res.json();
+      const list = Array.isArray(d) ? d : (d.data || []);
+      setOtRequests(list.filter((r) => r.shiftDate && r.shiftDate.slice(0, 10) === dateStr));
+      setOtRequestsError('');
+    } catch (e) {
+      setOtRequestsError('Overtime requests could not be loaded.');
+    }
+  }
+  useEffect(() => { if (state?.date) fetchOtRequests(state.date); }, [state?.date]);
+
+  // Most recent OT request (if any) covering this line's linked Work
+  // Order on the board's current date - findAll() already orders desc by
+  // createdAt, so the first match is the latest.
+  function lineOtRequest(ln) {
+    if (!ln.workOrderId) return null;
+    return otRequests.find((r) => r.workOrderId === ln.workOrderId) || null;
+  }
+
+  function openOtModal(ln) {
+    setOtSubmitError('');
+    setOtModal({ lineId: ln.id, lineName: ln.name, workOrderId: ln.workOrderId, requestedMenCount: '', requestedHours: '', reason: '' });
+  }
+
+  async function submitOtRequest() {
+    if (!otModal) return;
+    const menCount = Number(otModal.requestedMenCount);
+    const hours = Number(otModal.requestedHours);
+    if (!menCount || menCount <= 0) { setOtSubmitError('Enter how many extra men.'); return; }
+    if (!hours || hours <= 0) { setOtSubmitError('Enter how many extra hours.'); return; }
+    if (!otModal.reason || !otModal.reason.trim()) { setOtSubmitError('Reason is required.'); return; }
+    setOtSubmitting(true); setOtSubmitError('');
+    try {
+      const res = await fetch(`${API}/overtime-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({
+          workOrderId: otModal.workOrderId, shiftDate: state.date,
+          requestedMenCount: menCount, requestedHours: hours, reason: otModal.reason.trim(),
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.message || 'Overtime request failed');
+      setOtModal(null);
+      await fetchOtRequests(state.date);
+    } catch (e) {
+      setOtSubmitError(e.message || 'Overtime request failed');
+    } finally {
+      setOtSubmitting(false);
+    }
+  }
 
   async function handleConfirm(id) {
     setConfirmingId(id);
@@ -323,10 +392,6 @@ export default function ShiftBoardSection({ onEntryCreated }) {
 
   function updateLineField(lineId, field, value) {
     withLine(lineId, (ln) => { ln[field] = field === 'name' || field === 'remarks' ? value : parseNumOrBlank(value); });
-  }
-
-  function updateOt(lineId, field, value) {
-    withLine(lineId, (ln) => { ln.ot[field] = parseNumOrBlank(value); });
   }
 
   function toggleClosed(lineId) {
@@ -757,17 +822,31 @@ export default function ShiftBoardSection({ onEntryCreated }) {
               )}
 
               <div className="px-4 pb-4 pt-1 border-t border-gray-100">
-                <div className="text-xs font-semibold text-gray-700 mb-2 mt-2">Overtime (if any)</div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                  {[['hours', 'OT hours'], ['manpower', 'OT manpower'], ['target', 'OT target'], ['actual', 'OT actual']].map(([f, lbl]) => (
-                    <div key={f}>
-                      <label className="block text-[10px] uppercase text-gray-500 mb-1">{lbl}</label>
-                      <input type="number" min="0" disabled={ln.closed} value={ln.ot[f]}
-                        onChange={(e) => updateOt(ln.id, f, e.target.value)}
-                        className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm tabular-nums disabled:bg-gray-50 disabled:text-gray-400" />
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between mb-2 mt-2">
+                  <div className="text-xs font-semibold text-gray-700">Overtime</div>
+                  <button onClick={() => openOtModal(ln)} disabled={ln.closed || !ln.workOrderId}
+                    title={!ln.workOrderId ? 'Link a Work Order first' : undefined}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-md bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400">
+                    Request Overtime
+                  </button>
                 </div>
+                {lineOtRequest(ln) ? (
+                  <a href={`/production/overtime-requests/${lineOtRequest(ln).id}`}
+                    className={`block text-xs px-3 py-2 rounded-lg border mb-3 hover:opacity-80 ${
+                      lineOtRequest(ln).status === 'APPROVED' ? 'bg-green-50 border-green-200 text-green-700'
+                        : lineOtRequest(ln).status === 'REJECTED' ? 'bg-red-50 border-red-200 text-red-700'
+                        : 'bg-amber-50 border-amber-200 text-amber-700'
+                    }`}>
+                    <span className="font-mono font-semibold">{lineOtRequest(ln).requestNumber}</span> — {lineOtRequest(ln).status.replace(/_/g, ' ')}
+                    {lineOtRequest(ln).status === 'APPROVED'
+                      ? ` · ${lineOtRequest(ln).approvedMenCount} men × ${lineOtRequest(ln).approvedHours} hrs approved — type the extra manpower into the hour above`
+                      : ` · ${lineOtRequest(ln).requestedMenCount} men × ${lineOtRequest(ln).requestedHours} hrs requested`}
+                  </a>
+                ) : !ln.workOrderId ? null : (
+                  <div className="text-xs text-gray-400 mb-3">No overtime requested for this Work Order today.</div>
+                )}
+                {otRequestsError && <div className="text-xs text-amber-700 mb-3">{otRequestsError}</div>}
+
                 <label className="block text-[10px] uppercase text-gray-500 mb-1">Remarks</label>
                 <textarea value={ln.remarks} disabled={ln.closed} placeholder="Optional…"
                   onChange={(e) => updateLineField(ln.id, 'remarks', e.target.value)}
@@ -868,6 +947,50 @@ export default function ShiftBoardSection({ onEntryCreated }) {
             <div className="p-5 border-t">
               <button onClick={() => resolveManpowerTransfer(null)} className="w-full py-2 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50">
                 Kisi line se transfer nahi — bas yahi number sahi hai
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {otModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-5 border-b flex justify-between items-center">
+              <h3 className="text-base font-bold text-gray-900">Request Overtime — {otModal.lineName}</h3>
+              <button onClick={() => setOtModal(null)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <p className="text-xs text-gray-500">
+                Goes to Plant Manager, then Management, for approval before it can be used in any hour&apos;s entry — see{' '}
+                <a href="/my-approvals" className="text-blue-600 hover:underline">My Approvals</a> to track it.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] uppercase text-gray-500 mb-1">Extra men</label>
+                  <input type="number" min="1" value={otModal.requestedMenCount}
+                    onChange={(e) => setOtModal((m) => ({ ...m, requestedMenCount: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" autoFocus />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase text-gray-500 mb-1">Extra hours</label>
+                  <input type="number" min="0.5" step="0.5" value={otModal.requestedHours}
+                    onChange={(e) => setOtModal((m) => ({ ...m, requestedHours: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase text-gray-500 mb-1">Reason</label>
+                <textarea value={otModal.reason} rows={2} placeholder="e.g. Rush order from Havells, need extra hands this evening"
+                  onChange={(e) => setOtModal((m) => ({ ...m, reason: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
+              </div>
+              {otSubmitError && <p className="text-xs text-red-600">{otSubmitError}</p>}
+            </div>
+            <div className="p-5 border-t">
+              <button onClick={submitOtRequest} disabled={otSubmitting}
+                className="w-full py-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-medium text-sm disabled:opacity-50">
+                {otSubmitting ? 'Submitting…' : 'Submit for approval'}
               </button>
             </div>
           </div>
