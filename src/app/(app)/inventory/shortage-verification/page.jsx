@@ -16,6 +16,14 @@ export default function ShortageVerificationPage() {
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
 
+  // Multi-select "verify as accurate" (no qty change, no reason) for rows
+  // Store has no doubt about - a row still needing a look is simply left
+  // unselected and handled via the existing single-row Verify button/modal,
+  // which still supports correcting the quantity with a reason.
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkResult, setBulkResult] = useState(null);
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setLoadError('');
@@ -42,6 +50,48 @@ export default function ShortageVerificationPage() {
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => { setSelectedIds(new Set()); }, [rows]);
+
+  function toggleOne(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelectedIds(prev => (prev.size === rows.length ? new Set() : new Set(rows.map(r => r.id))));
+  }
+
+  async function handleBulkVerify() {
+    if (selectedIds.size === 0) return;
+    const ok = window.confirm(
+      `Verify ${selectedIds.size} selected shortage(s) as accurate at the system-calculated quantity?\n\nUse this only for rows you have no doubt about - anything that needs a different quantity should be verified individually instead.`,
+    );
+    if (!ok) return;
+
+    setBulkSaving(true);
+    setBulkResult(null);
+    try {
+      const res = await fetch(`${API}/customer-po/shortages/bulk-verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ ids: [...selectedIds] }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBulkResult({ ok: true, verifiedCount: data.verifiedCount, skipped: data.skipped || [] });
+        fetchAll();
+      } else {
+        setBulkResult({ ok: false, message: data.message || 'Failed to verify the selected shortages' });
+      }
+    } catch {
+      setBulkResult({ ok: false, message: 'Could not reach the server - check your connection and retry.' });
+    } finally {
+      setBulkSaving(false);
+    }
+  }
 
   function openVerify(row) {
     setVerifyModal(row);
@@ -90,6 +140,38 @@ export default function ShortageVerificationPage() {
           </div>
         </div>
 
+        {bulkResult && (
+          <div className={`mb-4 rounded-lg px-4 py-3 text-sm ${bulkResult.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+            {bulkResult.ok ? (
+              <>
+                ✅ Verified {bulkResult.verifiedCount} as accurate.
+                {bulkResult.skipped.length > 0 && (
+                  <span className="block mt-1 text-xs text-green-600">
+                    Skipped {bulkResult.skipped.length} (already acted on by someone else — refresh to see current state).
+                  </span>
+                )}
+              </>
+            ) : bulkResult.message}
+            <button onClick={() => setBulkResult(null)} className="ml-3 text-xs underline">Dismiss</button>
+          </div>
+        )}
+
+        {selectedIds.size > 0 && (
+          <div className="mb-4 flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5">
+            <span className="text-sm text-blue-700 font-medium">{selectedIds.size} selected</span>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setSelectedIds(new Set())} className="text-xs text-blue-600 underline">Clear selection</button>
+              <button
+                onClick={handleBulkVerify}
+                disabled={bulkSaving}
+                className="px-4 py-1.5 text-xs font-medium bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                {bulkSaving ? 'Verifying...' : `Verify ${selectedIds.size} Selected as Accurate`}
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           {loading ? (
             <div className="text-center py-10 text-gray-400">Loading...</div>
@@ -108,14 +190,31 @@ export default function ShortageVerificationPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-500 uppercase text-xs">
                 <tr>
-                  {['CPO', 'Customer', 'Item Code', 'Item Name', 'Required', 'Available', 'System Shortage', 'Raised', ''].map(h => (
+                  <th className="px-4 py-3 text-left w-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === rows.length}
+                      onChange={toggleAll}
+                      aria-label="Select all"
+                    />
+                  </th>
+                  {['S.No.', 'CPO', 'Customer', 'Item Code', 'Item Name', 'Required', 'Available', 'System Shortage', 'Raised', ''].map(h => (
                     <th key={h} className="px-4 py-3 text-left">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {rows.map(row => (
-                  <tr key={row.id} className="hover:bg-gray-50">
+                {rows.map((row, idx) => (
+                  <tr key={row.id} className={`hover:bg-gray-50 ${selectedIds.has(row.id) ? 'bg-blue-50/60' : ''}`}>
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(row.id)}
+                        onChange={() => toggleOne(row.id)}
+                        aria-label={`Select row ${idx + 1}`}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-gray-400">{idx + 1}</td>
                     <td className="px-4 py-3 font-mono text-blue-600 text-xs">{row.customerPo?.cpoNumber}</td>
                     <td className="px-4 py-3 text-gray-700">{row.customerPo?.customerName}</td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-600">{row.itemCode}</td>
