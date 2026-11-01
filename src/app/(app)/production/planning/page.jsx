@@ -7,6 +7,7 @@ function getToken() { if (typeof window !== 'undefined') return localStorage.get
 
 export default function ProductionPlanningPage() {
   const [warehouses, setWarehouses] = useState([]);
+  const [warehousesLoaded, setWarehousesLoaded] = useState(false);
   const [planWarehouseId, setPlanWarehouseId] = useState('');
   const [familyBoard, setFamilyBoard] = useState(null);
   const [groupRankings, setGroupRankings] = useState({});
@@ -15,11 +16,24 @@ export default function ProductionPlanningPage() {
   const [allocRunning, setAllocRunning] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // No warehouse picker: GET /warehouses is already scoped server-side to
+  // the logged-in session (test account -> test warehouse(s) only, real
+  // account -> real warehouse(s) only - see WarehouseService). So there is
+  // nothing for the user to choose here; just use whichever warehouse(s)
+  // that session is allowed to see, same as this page auto-picking before.
   useEffect(() => {
     if (!getToken()) return;
     fetch(`${API}/warehouses?limit=100`, { headers: { Authorization: `Bearer ${getToken()}` } })
       .then(r => r.ok ? r.json() : { data: [] })
-      .then(d => setWarehouses(d.data || d || []));
+      .then(d => {
+        const list = d.data || d || [];
+        setWarehouses(list);
+        setWarehousesLoaded(true);
+        if (list.length > 0) {
+          setPlanWarehouseId(list[0].id);
+          loadPlanningBoard(list[0].id);
+        }
+      });
   }, []);
 
   async function loadPlanningBoard(warehouseId) {
@@ -198,10 +212,20 @@ export default function ProductionPlanningPage() {
         <div className="bg-white rounded-xl border p-4 flex gap-3 items-end">
           <div className="flex-1">
             <label className="block text-sm text-gray-600 mb-1">Warehouse (raw material availability checked here)</label>
-            <select className="w-full border rounded-lg px-3 py-2 text-sm" value={planWarehouseId} onChange={e => { setPlanWarehouseId(e.target.value); loadPlanningBoard(e.target.value); }}>
-              <option value="">— Select Warehouse —</option>
-              {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
+            {!warehousesLoaded ? (
+              <div className="text-sm text-gray-400 px-3 py-2">Loading…</div>
+            ) : warehouses.length === 0 ? (
+              <div className="text-sm text-red-600 px-3 py-2">
+                No warehouse found for this login. {/* test sessions see only test warehouses, real sessions only real ones */}
+              </div>
+            ) : (
+              <div className="text-sm font-medium text-gray-800 px-3 py-2 bg-gray-50 border rounded-lg">
+                {warehouses[0].name} ({warehouses[0].code})
+                {warehouses.length > 1 && (
+                  <span className="text-xs text-gray-400 ml-2">+{warehouses.length - 1} more for this login</span>
+                )}
+              </div>
+            )}
           </div>
           {familyBoard && (
             <button onClick={handleRunAllocation} disabled={allocRunning} className="px-6 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50">
