@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -216,7 +217,15 @@ export default function ProductionPlanningPage() {
               <div className="text-sm text-gray-400 px-3 py-2">Loading…</div>
             ) : warehouses.length === 0 ? (
               <div className="text-sm text-red-600 px-3 py-2">
-                No warehouse found for this login. {/* test sessions see only test warehouses, real sessions only real ones */}
+                {/* Warehouses are now scoped by login (test account -> test warehouses only,
+                    real account -> real warehouses only), so a fresh test account genuinely
+                    has none yet until one is created while logged in as test - this is not
+                    an error, just a one-time setup step. */}
+                No Warehouse exists yet for this login.{' '}
+                <Link href="/warehouse" className="underline font-medium">
+                  Create one on the Warehouse master page
+                </Link>{' '}
+                (any plant is fine — it will automatically belong to this test login).
               </div>
             ) : (
               <div className="text-sm font-medium text-gray-800 px-3 py-2 bg-gray-50 border rounded-lg">
