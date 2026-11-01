@@ -19,7 +19,7 @@ function getToken() { if (typeof window !== 'undefined') return localStorage.get
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 
-const STATUS_COLORS = { DRAFT:'bg-gray-100 text-gray-600', CONFIRMED:'bg-blue-100 text-blue-700', IN_PRODUCTION:'bg-yellow-100 text-yellow-700', DISPATCHED:'bg-purple-100 text-purple-700', COMPLETED:'bg-green-100 text-green-700', CANCELLED:'bg-red-100 text-red-600' };
+const STATUS_COLORS = { DRAFT:'bg-gray-100 text-gray-600', CONFIRMED:'bg-blue-100 text-blue-700', IN_PRODUCTION:'bg-yellow-100 text-yellow-700', PARTIALLY_DISPATCHED:'bg-orange-100 text-orange-700', DISPATCHED:'bg-purple-100 text-purple-700', COMPLETED:'bg-green-100 text-green-700', CANCELLED:'bg-red-100 text-red-600' };
 // DSP-001 sections 4-5: saleType defaults to FG - the vast majority of
 // lines are still normal Finished Goods sales, and this keeps the
 // existing CPO-derived flow (which never sets saleType) working exactly
@@ -51,8 +51,6 @@ export default function SalesOrdersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [viewDetail, setViewDetail] = useState(null);
-  const [cancelModal, setCancelModal] = useState(null);
-  const [cancelReason, setCancelReason] = useState('');
   const [form, setForm] = useState({ cpoId:'', deliveryDate:'', remarks:'', items:[{...BLANK_ITEM}] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -60,6 +58,15 @@ export default function SalesOrdersPage() {
   // switching an already-fetched item back to SFG doesn't re-fetch.
   const [stagesCache, setStagesCache] = useState({});
   const [releasingId, setReleasingId] = useState('');
+  // Dispatched-but-not-yet-delivered Dispatch records for the SO currently
+  // open in the detail modal - lets this screen offer "Mark Delivered"
+  // directly (which is what actually completes the SO/CPO, via the
+  // existing Delivery Confirmation flow) instead of sending Sales to a
+  // separate page to find the same thing.
+  const [pendingDeliveries, setPendingDeliveries] = useState([]);
+  const [deliverModal, setDeliverModal] = useState(null);
+  const [deliverForm, setDeliverForm] = useState({ receiverName:'', receiverPhone:'', podNumber:'', condition:'GOOD', remarks:'' });
+  const [delivering, setDelivering] = useState(false);
 
   async function fetchAll() {
     if (!getToken()) { setLoading(false); return; }
@@ -164,19 +171,35 @@ export default function SalesOrdersPage() {
     else { const d = await res.json(); alert(d.message); }
   }
 
-  async function handleCancel() {
-    if (!cancelReason) { alert('Please enter cancellation reason'); return; }
-    const res = await fetch(`${API}/sales-orders/${cancelModal}/cancel`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify({ cancelReason }),
-    });
-    if (res.ok) { setCancelModal(null); setCancelReason(''); fetchAll(); }
-    else { const d = await res.json(); alert(d.message); }
-  }
-
   async function openDetail(id) {
     const res = await fetch(`${API}/sales-orders/${id}`, { headers: {Authorization: `Bearer ${getToken()}` } });
     if (res.ok) setViewDetail(await res.json());
+    const dRes = await fetch(`${API}/sales-orders/${id}/pending-deliveries`, { headers: {Authorization: `Bearer ${getToken()}` } });
+    setPendingDeliveries(dRes.ok ? await dRes.json() : []);
+  }
+
+  // Marks a specific Dispatch (one shipment out of this SO, there can be
+  // more than one for a partially-dispatched order) as delivered/POD
+  // received. This is the existing Delivery Confirmation action
+  // (delivery-confirmation.service.ts) - it's what actually flips the SO
+  // to COMPLETED once every item is accounted for, and cascades the
+  // parent CPO to COMPLETED too once all its SOs are done. Surfaced here
+  // so Sales doesn't have to find the separate Delivery Confirmations page.
+  async function handleMarkDelivered() {
+    if (!deliverForm.receiverName) { alert('Receiver name is required'); return; }
+    setDelivering(true);
+    const res = await fetch(`${API}/delivery-confirmations`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ dispatchId: deliverModal, ...deliverForm }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setDeliverModal(null);
+      setDeliverForm({ receiverName:'', receiverPhone:'', podNumber:'', condition:'GOOD', remarks:'' });
+      fetchAll();
+      if (viewDetail) openDetail(viewDetail.id);
+    } else alert(data.message || 'Failed to record delivery');
+    setDelivering(false);
   }
 
   // DSP-001 sections 13-15, 21: explicit per-line release action - Sales
@@ -261,7 +284,6 @@ export default function SalesOrdersPage() {
                       <div className="text-xs text-gray-400">Delivery: {fmtDate(o.deliveryDate)}</div>
                     </div>
                     {o.status==='DRAFT' && <button onClick={()=>handleConfirm(o.id)} className="px-2 py-1 text-xs bg-blue-600 text-white rounded">Confirm</button>}
-                    {!['COMPLETED','CANCELLED','DISPATCHED'].includes(o.status) && <button onClick={()=>{setCancelModal(o.id);setCancelReason('');}} className="px-2 py-1 text-xs bg-red-500 text-white rounded">Cancel</button>}
                     <button onClick={()=>openDetail(o.id)} className="px-2 py-1 text-xs border rounded hover:bg-gray-50">View</button>
                   </div>
                 </div>
@@ -432,31 +454,69 @@ export default function SalesOrdersPage() {
                 </div>
                 {viewDetail.remarks && <div className="mt-4 p-3 bg-gray-50 rounded text-xs"><div className="font-semibold mb-1">Remarks:</div>{viewDetail.remarks}</div>}
 
+                {pendingDeliveries.length > 0 && (
+                  <div className="mt-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="font-semibold text-sm text-purple-800 mb-2">Dispatched - Ready for Delivery Confirmation</div>
+                    <p className="text-xs text-purple-600 mb-2">Confirming delivery here is what marks this SO (and its Customer PO, once every SO under it is delivered) as Completed.</p>
+                    <div className="space-y-1">
+                      {pendingDeliveries.map(d => (
+                        <div key={d.id} className="flex items-center justify-between bg-white rounded px-3 py-2 text-xs">
+                          <span><span className="font-mono text-purple-700">{d.dispatchNumber}</span> · {fmtDate(d.dispatchDate)} {d.vehicleNumber && `· ${d.vehicleNumber}`}</span>
+                          <button onClick={()=>{setDeliverModal(d.id);setDeliverForm({ receiverName:'', receiverPhone:'', podNumber:'', condition:'GOOD', remarks:'' });}} className="px-2 py-1 bg-purple-600 text-white rounded">Mark Delivered</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               <DocumentAttachments referenceType="SALES_ORDER" referenceId={viewDetail?.id} referenceNumber={viewDetail?.soNumber} title="SO Attachments" />
               </div>
               <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
                 {viewDetail.status==='DRAFT' && <button onClick={()=>handleConfirm(viewDetail.id)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Confirm SO</button>}
-                {!['COMPLETED','CANCELLED','DISPATCHED'].includes(viewDetail.status) && <button onClick={()=>{setCancelModal(viewDetail.id);setCancelReason('');setViewDetail(null);}} className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm">Cancel SO</button>}
                 <button onClick={()=>setViewDetail(null)} className="px-4 py-2 border rounded-lg text-sm">Close</button>
               </div>
             </div>
           </div>
         )}
 
-        {cancelModal && (
+        {deliverModal && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
               <div className="p-6 border-b flex justify-between">
-                <h2 className="text-lg font-bold text-red-700">CancelSales Order</h2>
-                <button onClick={()=>setCancelModal(null)} className="text-gray-400 text-xl">✕</button>
+                <h2 className="text-lg font-bold text-purple-700">Mark Delivered</h2>
+                <button onClick={()=>setDeliverModal(null)} className="text-gray-400 text-xl">✕</button>
               </div>
-              <div className="p-6">
-                <label className="block text-sm text-gray-600 mb-2">Cancellation Reason *</label>
-                <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} value={cancelReason} onChange={e=>setCancelReason(e.target.value)} placeholder="Why is this SO being cancelled?" />
+              <div className="p-6 space-y-3">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Receiver Name *</label>
+                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={deliverForm.receiverName} onChange={e=>setDeliverForm(f=>({...f, receiverName:e.target.value}))} placeholder="Who received the goods" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Receiver Phone</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={deliverForm.receiverPhone} onChange={e=>setDeliverForm(f=>({...f, receiverPhone:e.target.value}))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">POD Number</label>
+                    <input className="w-full border rounded-lg px-3 py-2 text-sm" value={deliverForm.podNumber} onChange={e=>setDeliverForm(f=>({...f, podNumber:e.target.value}))} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Condition</label>
+                  <select className="w-full border rounded-lg px-3 py-2 text-sm" value={deliverForm.condition} onChange={e=>setDeliverForm(f=>({...f, condition:e.target.value}))}>
+                    <option value="GOOD">Good</option>
+                    <option value="DAMAGED">Damaged</option>
+                    <option value="PARTIAL">Partial</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Remarks</label>
+                  <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} value={deliverForm.remarks} onChange={e=>setDeliverForm(f=>({...f, remarks:e.target.value}))} />
+                </div>
               </div>
               <div className="p-6 border-t flex justify-end gap-3">
-                <button onClick={()=>setCancelModal(null)} className="px-4 py-2 border rounded-lg text-sm">Back</button>
-                <button onClick={handleCancel} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm">Confirm Cancel</button>
+                <button onClick={()=>setDeliverModal(null)} className="px-4 py-2 border rounded-lg text-sm">Back</button>
+                <button onClick={handleMarkDelivered} disabled={delivering || !deliverForm.receiverName} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm disabled:opacity-50">{delivering?'Saving...':'Confirm Delivery'}</button>
               </div>
             </div>
           </div>
