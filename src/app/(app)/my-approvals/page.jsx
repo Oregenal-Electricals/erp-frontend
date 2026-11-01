@@ -6,7 +6,7 @@ import AppLayout from '@/components/layout/AppLayout';
 const API = process.env.NEXT_PUBLIC_API_URL;
 function getToken() { if (typeof window !== 'undefined') return localStorage.getItem('erp_token'); }
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-const DOC_ICONS = { BOM: '🧬', PRODUCT: '📦', PURCHASE_ORDER: '🛒', SALES_ORDER: '📋', AP_BILL: '🧾', CREDIT_OVERRIDE: '💳', VOUCHER: '📒' };
+const DOC_ICONS = { BOM: '🧬', PRODUCT: '📦', PURCHASE_ORDER: '🛒', SALES_ORDER: '📋', AP_BILL: '🧾', CREDIT_OVERRIDE: '💳', VOUCHER: '📒', OVERTIME_REQUEST: '⏱️' };
 
 // Routes a pending approval straight to the actual document's own page,
 // where the Approve/Reject buttons now live (ApprovalTimeline). No
@@ -15,6 +15,7 @@ const DOC_ICONS = { BOM: '🧬', PRODUCT: '📦', PURCHASE_ORDER: '🛒', SALES_
 function targetUrl(item) {
   if (item.documentType === 'BOM') return `/inventory/bom/${item.documentId}`;
   if (item.documentType === 'PRODUCT') return `/masters/products?viewApproval=${item.documentId}`;
+  if (item.documentType === 'OVERTIME_REQUEST') return `/production/overtime-requests/${item.documentId}`;
   return null;
 }
 
