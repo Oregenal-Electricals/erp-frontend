@@ -198,8 +198,11 @@ export default function Sidebar({ onClose }) {
   );
 }
 
-// Your previous permission-based version (PATH_PERMISSION / ROLE_SECTIONS / NAV)
-// is now fully superseded — the sidebar structure AND visibility both live in
-// the database and are edited from /settings/ui-control. Keep a copy of the
-// old file (e.g. rename to Sidebar.legacy.jsx) until this is verified on
-// staging, per the project's own file-removal caution rule.
+// The old permission-based version (PATH_PERMISSION / ROLE_SECTIONS / NAV,
+// previously kept as Sidebar.legacy.jsx) is fully superseded — the sidebar
+// structure AND visibility both live in the database and are edited from
+// /settings/ui-control. The legacy file was deleted once this was confirmed
+// to be the only one AppLayout.jsx actually renders; it was also the only
+// place a "Delivery Confirmations" nav entry existed, which is why that
+// screen was unreachable from the live sidebar (see
+// 179_sidebar_delivery_confirmation_nav.sql).
