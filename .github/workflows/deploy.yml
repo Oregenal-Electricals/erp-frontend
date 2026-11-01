@@ -2,13 +2,10 @@ name: Frontend CI/CD
 on:
   push:
     branches:
-      - staging
       - main
-      - dev
   pull_request:
     branches:
-      - develop
-      - staging
+      - main
 jobs:
   test:
     name: Lint & Build
