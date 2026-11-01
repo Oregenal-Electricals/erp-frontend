@@ -20,6 +20,12 @@ const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
 const fmt = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 
 const STATUS_COLORS = { DRAFT:'bg-gray-100 text-gray-600', CONFIRMED:'bg-blue-100 text-blue-700', IN_PRODUCTION:'bg-yellow-100 text-yellow-700', PARTIALLY_DISPATCHED:'bg-orange-100 text-orange-700', DISPATCHED:'bg-purple-100 text-purple-700', COMPLETED:'bg-green-100 text-green-700', CANCELLED:'bg-red-100 text-red-600' };
+// Matches customer-po/page.jsx's own STATUS_COLORS - kept as a separate
+// copy (not imported) since the two pages don't currently share a
+// components file; shows the linked CPO's own status right next to its
+// number so a mismatch between the two is visible without switching
+// screens (Rahul's "ek hi jagah la ke rakho, jisse check kar sakoon").
+const CPO_STATUS_COLORS = { RECEIVED:'bg-gray-100 text-gray-600', ACKNOWLEDGED:'bg-blue-100 text-blue-700', IN_PROGRESS:'bg-yellow-100 text-yellow-700', COMPLETED:'bg-green-100 text-green-700', CANCELLED:'bg-red-100 text-red-600' };
 // DSP-001 sections 4-5: saleType defaults to FG - the vast majority of
 // lines are still normal Finished Goods sales, and this keeps the
 // existing CPO-derived flow (which never sets saleType) working exactly
@@ -202,10 +208,13 @@ export default function SalesOrdersPage() {
     setDelivering(false);
   }
 
-  // DSP-001 sections 13-15, 21: explicit per-line release action - Sales
-  // does this once the SO is approved, separate from Dispatch's own
-  // read-only view of what's already been released.
-  async function handleRelease(itemId) {
+  // Release for Dispatch is no longer a manual Sales action - it now
+  // happens automatically (SO confirm for RM lines, Work Order creation
+  // for FG/SFG lines - see SalesOrdersService.confirm()/tryAutoRelease()
+  // and MrpService.runAllocation()). This is kept only as a manual retry
+  // for a line whose automatic attempt failed (shown via its
+  // sourceInvalidReason below) - not a routine button anymore.
+  async function handleRetryRelease(itemId) {
     setReleasingId(itemId);
     const res = await fetch(`${API}/sales-orders/items/${itemId}/release-for-dispatch`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
     const data = await res.json();
@@ -275,7 +284,12 @@ export default function SalesOrdersPage() {
                     <span className="font-mono font-bold text-indigo-600">{o.soNumber}</span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[o.status]}`}>{o.status.replace(/_/g,' ')}</span>
                     <span className="text-sm font-medium text-gray-800">{o.customerName}</span>
-                    {o.cpo && <span className="font-mono text-xs text-teal-600">{o.cpo.cpoNumber}</span>}
+                    {o.cpo && (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="font-mono text-xs text-teal-600">{o.cpo.cpoNumber}</span>
+                        {o.cpo.status && <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${CPO_STATUS_COLORS[o.cpo.status]||CPO_STATUS_COLORS.RECEIVED}`}>{o.cpo.status.replace(/_/g,' ')}</span>}
+                      </span>
+                    )}
                     {isOverdue(o) && <span className="text-xs text-orange-600 font-bold">⚠ OVERDUE</span>}
                   </div>
                   <div className="flex items-center gap-3">
@@ -397,7 +411,12 @@ export default function SalesOrdersPage() {
                 <div className="flex items-center gap-3">
                   <h2 className="text-lg font-bold">{viewDetail.soNumber}</h2>
                   <span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_COLORS[viewDetail.status]}`}>{viewDetail.status.replace(/_/g,' ')}</span>
-                  {viewDetail.cpo && <span className="font-mono text-xs text-teal-600">{viewDetail.cpo.cpoNumber} / {viewDetail.cpo.customerPoNumber}</span>}
+                  {viewDetail.cpo && (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="font-mono text-xs text-teal-600">{viewDetail.cpo.cpoNumber} / {viewDetail.cpo.customerPoNumber}</span>
+                      {viewDetail.cpo.status && <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${CPO_STATUS_COLORS[viewDetail.cpo.status]||CPO_STATUS_COLORS.RECEIVED}`}>{viewDetail.cpo.status.replace(/_/g,' ')}</span>}
+                    </span>
+                  )}
                 </div>
                 <button onClick={()=>setViewDetail(null)} className="text-gray-400 text-xl">✕</button>
               </div>
@@ -434,10 +453,13 @@ export default function SalesOrdersPage() {
                         <td className="px-3 py-2">
                           {item.releasedForDispatch ? (
                             <span className="text-xs text-green-600 font-medium">✓ Released</span>
-                          ) : ['CONFIRMED','IN_PRODUCTION'].includes(viewDetail.status) ? (
-                            <button onClick={()=>handleRelease(item.id)} disabled={releasingId===item.id} className="px-2 py-1 text-xs bg-indigo-600 text-white rounded disabled:opacity-50">{releasingId===item.id?'...':'Release'}</button>
+                          ) : item.sourceInvalidReason ? (
+                            <div>
+                              <div className="text-xs text-red-600 mb-1">{item.sourceInvalidReason}</div>
+                              <button onClick={()=>handleRetryRelease(item.id)} disabled={releasingId===item.id} className="px-2 py-1 text-xs bg-indigo-600 text-white rounded disabled:opacity-50">{releasingId===item.id?'...':'Retry'}</button>
+                            </div>
                           ) : (
-                            <span className="text-xs text-gray-400">Not yet</span>
+                            <span className="text-xs text-gray-400">Pending</span>
                           )}
                         </td>
                       </tr>

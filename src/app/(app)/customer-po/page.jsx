@@ -25,6 +25,21 @@ const PO_TYPE_COLORS = {
   WRITTEN: 'bg-indigo-100 text-indigo-700',
   VERBAL: 'bg-purple-100 text-purple-700',
 };
+// Matches sales-orders/page.jsx's own STATUS_COLORS - kept as a separate
+// copy (not imported) since the two pages don't currently share a
+// components file; lets the CPO detail screen show each linked SO's
+// status right alongside the CPO's own, so the two are visible together
+// without switching screens (Rahul's "ek hi jagah la ke rakho, jisse
+// check kar sakoon").
+const SO_STATUS_COLORS = {
+  DRAFT: 'bg-gray-100 text-gray-600',
+  CONFIRMED: 'bg-blue-100 text-blue-700',
+  IN_PRODUCTION: 'bg-yellow-100 text-yellow-700',
+  PARTIALLY_DISPATCHED: 'bg-orange-100 text-orange-700',
+  DISPATCHED: 'bg-purple-100 text-purple-700',
+  COMPLETED: 'bg-green-100 text-green-700',
+  CANCELLED: 'bg-red-100 text-red-600',
+};
 
 const BLANK_ITEM = {
   itemCode: '',
@@ -80,6 +95,7 @@ export default function CustomerPoPage() {
   const [editingId, setEditingId] = useState(null);
   const [viewDetail, setViewDetail] = useState(null);
   const [shortages, setShortages] = useState(null);
+  const [linkedSos, setLinkedSos] = useState([]);
   const [cancelModal, setCancelModal] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [recheckSaving, setRecheckSaving] = useState(false);
@@ -754,6 +770,10 @@ export default function CustomerPoPage() {
     });
     if (sRes.ok) setShortages(await sRes.json());
     else setShortages(null);
+    const soRes = await fetch(`${API}/sales-orders/by-cpo/${id}`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    setLinkedSos(soRes.ok ? await soRes.json() : []);
   }
 
   async function runRecheck(id) {
@@ -1087,6 +1107,20 @@ export default function CustomerPoPage() {
                     )}
                   </div>
                 </div>
+
+                {linkedSos.length > 0 && (
+                  <div className="mb-6 p-3 bg-teal-50 rounded-lg">
+                    <div className="text-xs font-semibold text-teal-700 uppercase mb-2">Linked Sales Order{linkedSos.length > 1 ? 's' : ''}</div>
+                    <div className="flex flex-wrap gap-2">
+                      {linkedSos.map((so) => (
+                        <div key={so.id} className="inline-flex items-center gap-2 px-2 py-1 bg-white rounded border text-xs">
+                          <span className="font-mono text-indigo-600">{so.soNumber}</span>
+                          <span className={`px-2 py-0.5 rounded-full font-medium ${SO_STATUS_COLORS[so.status]||SO_STATUS_COLORS.DRAFT}`}>{so.status.replace(/_/g,' ')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <table className="w-full text-sm mb-6">
                   <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
